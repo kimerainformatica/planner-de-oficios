@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
-import { IconeBaixar, IconeLixo, IconeRestaurar, IconeVer } from "./Icones";
+import { Download, Eye, FileText, RotateCcw, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { apagarDaLixeira, baixarDaLixeira, listarLixeira, restaurarDaLixeira } from "../api/endpoints";
 import type { AnexoLixeira, TipoAnexo } from "../types";
@@ -92,19 +91,19 @@ export function ListaLixeira({ oficioId }: { oficioId?: number }) {
           </div>
           <div className="grupo">
             <button className="btn btn-secundario btn-pequeno" onClick={() => abrir(i, false)}>
-              <IconeVer tamanho={16} /> Visualizar
+              <Eye size={15} /> Visualizar
             </button>
             <button className="btn btn-secundario btn-pequeno" onClick={() => abrir(i, true)}>
-              <IconeBaixar tamanho={16} /> Baixar
+              <Download size={15} /> Baixar
             </button>
             <Botao className="btn btn-secundario btn-pequeno" carregando={restaurar.isPending && restaurar.variables?.id === i.id}
               onClick={() => restaurar.mutate(i)}>
-              <IconeRestaurar tamanho={16} /> Restaurar
+              <RotateCcw size={15} /> Restaurar
             </Botao>
             <Botao className="btn btn-fantasma btn-pequeno texto-perigo"
               carregando={apagar.isPending && apagar.variables?.id === i.id}
               onClick={() => confirm(`Apagar "${i.nome_original}" de vez? Não dá para desfazer.`) && apagar.mutate(i)}>
-              <IconeLixo tamanho={16} /> Apagar de vez
+              <Trash2 size={15} /> Apagar de vez
             </Botao>
           </div>
         </li>

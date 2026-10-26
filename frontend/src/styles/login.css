@@ -1,489 +1,54 @@
-/* Tela de login: lado da marca (símbolo animado, ondas, bolhas) e cartão de entrada */
+/* Tela de login */
 
-.login {
+/* ================= Login ================= */
+.login-fundo {
   min-height: 100vh;
-  display: flex;
-  flex-wrap: wrap;
-  background: var(--fundo);
-}
-
-/* ================= Lado da marca ================= */
-.login-hero {
-  --hero-tinta: #eaf8f6;
-  --hero-suave: #a9d9d3;
-  flex: 1 1 560px;
-  position: relative;
-  overflow: hidden;
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 36px;
-  padding: 56px 64px 210px;
-  background: #0b3d44;
-  color: var(--hero-tinta);
-}
-:root[data-theme="dark"] .login-hero {
-  background: #04161a;
-}
-.login-kicker {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--hero-suave);
-  animation: surgir 0.8s var(--suave) backwards;
-}
-.login-kicker::before {
-  content: "";
-  width: 28px;
-  height: 2px;
-  border-radius: 2px;
-  background: #7fe0d4;
-}
-.login-hero-centro {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  max-width: 560px;
-}
-.login-hero-texto {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  animation: surgir 0.8s var(--suave) 0.5s backwards;
-}
-.login-hero-texto h2 {
-  font-family: var(--fonte-titulo);
-  font-size: clamp(34px, 4vw, 52px);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.login-hero-texto p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--hero-suave);
-}
-
-/* o símbolo: a onda se desenha, a gota cai, os anéis se abrem e tudo flutua */
-.simbolo {
-  width: 220px;
-  height: 220px;
-  overflow: visible;
-  animation: flutuar 7s ease-in-out 2.4s infinite;
-}
-@keyframes flutuar {
-  50% {
-    transform: translateY(-10px);
-  }
-}
-.simbolo-onda {
-  fill: var(--marca);
-  stroke: #7fe0d4;
-  stroke-width: 2.5;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  fill-opacity: 0;
-  animation: desenhar 2.2s cubic-bezier(0.6, 0.1, 0.3, 1) 0.2s forwards;
-}
-@keyframes desenhar {
-  60% {
-    stroke-dashoffset: 0;
-    fill-opacity: 0;
-  }
-  100% {
-    stroke-dashoffset: 0;
-    fill-opacity: 1;
-    stroke-width: 0;
-  }
-}
-/* origem das transformações no centro da gota, em coordenadas do desenho (estável em qualquer tamanho) */
-.simbolo-gota {
-  fill: #5fb7d6;
-  transform-box: view-box;
-  transform-origin: 162.4px 44.8px;
-  opacity: 0;
-  animation: cair 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) 1.5s forwards;
-}
-@keyframes cair {
-  0% {
-    opacity: 0;
-    transform: translateY(-160px) scale(0.6);
-  }
-  60% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: none;
-  }
-}
-.simbolo-anel {
-  fill: none;
-  stroke: var(--hero-suave);
-  stroke-width: 2;
-  transform-box: view-box;
-  transform-origin: 162.4px 44.8px;
-  opacity: 0;
-  animation: anel 3.6s ease-out 2.2s infinite;
-}
-.simbolo-anel.a2 {
-  animation-delay: 3.4s;
-}
-@keyframes anel {
-  0% {
-    opacity: 0.7;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(4.2);
-  }
-}
-
-/* caminho do ofício: um ponto percorre as três etapas */
-.login-caminho {
-  position: relative;
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: surgir 0.8s var(--suave) 0.9s backwards;
-}
-.trilha {
-  position: relative;
-  height: 2px;
-  border-radius: 2px;
-  background: rgb(169 217 211 / 0.3);
-}
-.trilha span {
-  position: absolute;
-  top: -4px;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #7fe0d4;
-  box-shadow: 0 0 0 4px rgb(127 224 212 / 0.22);
-  animation: viajar 4.8s ease-in-out infinite;
-}
-@keyframes viajar {
-  0% {
-    left: 0;
-  }
-  45%,
-  55% {
-    left: calc(50% - 5px);
-  }
-  100% {
-    left: calc(100% - 10px);
-  }
-}
-.login-etapas {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--hero-suave);
-}
-
-/* ondas e bolhas */
-.ondas {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 190px;
-  pointer-events: none;
-}
-.onda {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 200%;
-  height: 100%;
-  animation: correr 18s linear infinite;
-}
-.onda.o1 {
-  fill: #11525a;
-}
-.onda.o2 {
-  fill: #17686f;
-  height: 80%;
-  animation-duration: 12s;
-  animation-direction: reverse;
-}
-.onda.o3 {
-  fill: #1f8c88;
-  height: 55%;
-  animation-duration: 8s;
-}
-:root[data-theme="dark"] .onda.o1 {
-  fill: #0a2c31;
-}
-:root[data-theme="dark"] .onda.o2 {
-  fill: #0e3d42;
-}
-:root[data-theme="dark"] .onda.o3 {
-  fill: #145a5a;
-}
-.bolha {
-  position: absolute;
-  bottom: -20px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1.5px solid rgb(169 217 211 / 0.45);
-  opacity: 0;
-  animation: bolha 9s ease-in infinite;
-}
-.bolha:nth-of-type(2) {
-  width: 8px;
-  height: 8px;
-}
-.bolha:nth-of-type(3) {
-  width: 18px;
-  height: 18px;
-}
-@keyframes bolha {
-  0% {
-    transform: translateY(0) scale(0.6);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(-640px) scale(1.1);
-    opacity: 0;
-  }
-}
-
-/* ================= Cartão de entrada ================= */
-.login-lado {
-  flex: 1 1 460px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 22px;
-  padding: 88px 24px 40px;
-}
-.login-tema {
-  position: absolute;
-  top: 22px;
-  right: 22px;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--marca) 22%, transparent), transparent 55%),
+    radial-gradient(circle at 90% 100%, color-mix(in srgb, var(--marca-azul) 18%, transparent), transparent 50%),
+    var(--fundo);
 }
 .login-cartao {
-  width: min(420px, 100%);
+  width: min(400px, 100%);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 38px 34px;
+  padding: 28px;
   background: var(--superficie);
   border: 1px solid var(--borda);
-  border-radius: 24px;
-  box-shadow: var(--sombra-media);
-  animation: surgir 0.7s var(--suave) 0.2s backwards;
-}
-.login-cartao.tremer {
-  animation: tremer 0.45s ease;
-}
-@keyframes tremer {
-  20%,
-  60% {
-    transform: translateX(-8px);
-  }
-  40%,
-  80% {
-    transform: translateX(8px);
-  }
+  border-radius: 14px;
+  box-shadow: var(--sombra-alta);
 }
 .login-marca {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  margin-bottom: 6px;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+  text-align: center;
 }
 .login-marca img {
-  align-self: flex-start;
-  height: 64px;
-  width: auto;
+  width: 230px;
   max-width: 100%;
-}
-.login-marca > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  height: auto;
 }
 .login-marca h1 {
-  font-size: 28px;
+  font-size: 19px;
 }
 .login-rodape {
-  font-size: 12.5px;
+  text-align: center;
+  font-size: 12px;
 }
 
-/* campos com o rótulo dentro, que sobe quando o campo tem foco ou valor */
-.campo-flutuante {
+/* seletor de tema no canto da tela de login */
+.login-fundo {
   position: relative;
 }
-.campo-flutuante .input {
-  height: 60px;
-  padding: 22px 16px 6px 50px;
-  font-size: 15.5px;
-  background: var(--superficie-2);
-}
-.campo-flutuante .input:focus {
-  background: var(--superficie);
-}
-.campo-flutuante label {
+.login-tema {
   position: absolute;
-  left: 50px;
-  top: 19px;
-  font-size: 15px;
-  color: var(--texto-fraco);
-  pointer-events: none;
-  transition: all 0.2s var(--suave);
-}
-.campo-flutuante .input:focus + label,
-.campo-flutuante .input:not(:placeholder-shown) + label {
-  top: 9px;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--primaria);
-}
-.campo-ic {
-  position: absolute;
-  left: 16px;
-  top: 20px;
-  color: var(--texto-fraco);
-  transition: color 0.2s, transform 0.35s var(--mola);
-}
-.campo-flutuante:focus-within .campo-ic {
-  color: var(--primaria);
-  transform: scale(1.12);
-}
-.cadeado-arco {
-  transition: transform 0.3s;
-}
-.campo-flutuante:focus-within .cadeado-arco {
-  transform: translateY(-1.5px);
-}
-
-/* botão Entrar: brilho que passa, seta que avança, três pontos pulando enquanto entra */
-.btn-entrar {
-  position: relative;
-  overflow: hidden;
-  height: 56px;
-  margin-top: 4px;
-  font-size: 16px;
-}
-.btn-entrar::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -80px;
-  width: 60px;
-  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.35), transparent);
-  transform: skewX(-20deg);
-}
-.btn-entrar:hover:not(:disabled)::after {
-  animation: brilho 0.9s ease;
-}
-@keyframes brilho {
-  to {
-    left: 110%;
-  }
-}
-.btn-entrar .seta-entrar {
-  transition: transform 0.3s var(--mola);
-}
-.btn-entrar:hover .seta-entrar {
-  transform: translateX(5px);
-}
-.btn-entrar:disabled {
-  opacity: 1;
-}
-.pontos {
-  display: flex;
-  gap: 6px;
-}
-.pontos i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulo 1s ease-in-out infinite;
-}
-.pontos i:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.pontos i:nth-child(3) {
-  animation-delay: 0.3s;
-}
-@keyframes pulo {
-  0%,
-  80%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.5;
-  }
-  40% {
-    transform: translateY(-7px);
-    opacity: 1;
-  }
-}
-
-/* celular: a marca vira uma faixa no alto, com o símbolo menor */
-@media (max-width: 860px) {
-  .login-hero {
-    flex-basis: 100%;
-    min-height: 0;
-    padding: 28px 20px 96px;
-    gap: 18px;
-  }
-  .login-hero-centro {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-  }
-  .simbolo {
-    width: 84px;
-    height: 84px;
-  }
-  .login-hero-texto {
-    gap: 4px;
-  }
-  .login-hero-texto h2 {
-    font-size: 26px;
-  }
-  .login-hero-texto p {
-    font-size: 14px;
-  }
-  .login-caminho {
-    display: none;
-  }
-  .ondas {
-    height: 80px;
-  }
-  .login-lado {
-    padding: 72px 16px 32px;
-  }
-  .login-tema {
-    top: 16px;
-    right: 16px;
-  }
-  .login-cartao {
-    padding: 28px 22px;
-  }
+  top: 16px;
+  right: 16px;
 }

@@ -1,6 +1,5 @@
 /* Estilos do sistema, divididos por assunto. A ordem importa: os arquivos de tela vêm depois dos comuns. */
 @import "./base.css";
-@import "./icones.css";
 @import "./layout.css";
 @import "./componentes.css";
 @import "./oficio.css";

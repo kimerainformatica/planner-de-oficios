@@ -1,7 +1,6 @@
 // Tela de um ofício: cabeçalho com ações, prazo, dados, documentos, histórico e auditoria.
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
-import { IconeEditar, IconeLixo, IconeRecebimento, IconeResposta, IconeRestaurar } from "../../components/Icones";
+import { ArrowLeft, CheckCircle2, PackageCheck, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as ep from "../../api/endpoints";
@@ -69,32 +68,32 @@ export function OficioDetalhe() {
         <div className="grupo acoes-topo">
           {o.status === "PENDENTE_RESPOSTA" && (
             <button className="btn btn-primario" onClick={() => setModal("resposta")}>
-              <IconeResposta /> Registrar resposta
+              <CheckCircle2 size={18} /> Registrar resposta
             </button>
           )}
           {o.status === "PENDENTE_RECEBIMENTO" && (
             <button className="btn btn-primario" onClick={() => setModal("recebimento")}>
-              <IconeRecebimento /> Confirmar recebimento
+              <PackageCheck size={18} /> Confirmar recebimento
             </button>
           )}
           {o.status === "NAO_CONFIRMADO" && (
             <button className="btn btn-primario" onClick={() => setModal("reabrir")}>
-              <IconeRestaurar /> Reabrir
+              <RotateCcw size={18} /> Reabrir
             </button>
           )}
           {podeEditar && (
             <button className="btn btn-secundario" onClick={() => setModal("editar")}>
-              <IconeEditar tamanho={18} /> Editar
+              <Pencil size={16} /> Editar
             </button>
           )}
           {ehAdmin ? (
             <button className="btn btn-perigo-suave" onClick={() => setModal("excluir")}>
-              <IconeLixo tamanho={18} /> Excluir
+              <Trash2 size={16} /> Excluir
             </button>
           ) : (
             !pedido && (
               <button className="btn btn-perigo-suave" onClick={() => setModal("pedir-exclusao")}>
-                <IconeLixo tamanho={18} /> Solicitar exclusão
+                <Trash2 size={16} /> Solicitar exclusão
               </button>
             )
           )}
@@ -114,15 +113,14 @@ export function OficioDetalhe() {
       {/* Dados em três blocos, na ordem do caminho do ofício; campos sem valor não aparecem */}
       <section className="cartao">
         <div className="blocos-dados">
-          <BlocoDados titulo="Identificação" etapa="feita">
+          <BlocoDados titulo="Identificação">
             <Dado rotulo="Data do ofício" valor={data(o.data_oficio)} />
             <Dado rotulo="Tipo" valor={tipos.rotulo(o.tipo)} />
             {destinatarioTexto(o) && <Dado rotulo="Destinatário" valor={destinatarioTexto(o)} />}
             {o.protocolo && <Dado rotulo="Protocolo" valor={o.protocolo} />}
             {ehAdmin && <Dado rotulo="Cliente" valor={o.dono.nome} />}
           </BlocoDados>
-          <BlocoDados titulo="Resposta" etapa={o.status === "PENDENTE_RESPOSTA" ? "atual" : "feita"}
-            ultimo={!(itens || o.data_recebimento)}>
+          <BlocoDados titulo="Resposta">
             <Dado
               rotulo={reaberto ? "Prazo reiniciado em" : "Início do prazo"}
               valor={data(o.inicio_prazo)}
@@ -137,8 +135,7 @@ export function OficioDetalhe() {
             )}
           </BlocoDados>
           {(itens || o.data_recebimento) && (
-            <BlocoDados titulo="Entrega" ultimo
-              etapa={o.data_recebimento ? "feita" : o.status === "PENDENTE_RECEBIMENTO" ? "atual" : "futura"}>
+            <BlocoDados titulo="Entrega">
               {o.data_recebimento ? (
                 <Dado rotulo="Entregue em" valor={<DataComDias iso={o.data_recebimento} dias={o.dias_entrega} />} />
               ) : o.status === "PENDENTE_RECEBIMENTO" ? (
@@ -201,7 +198,7 @@ export function OficioDetalhe() {
                 </p>
                 <div className="grupo">
                   <button className="btn btn-secundario btn-pequeno" onClick={() => setModal("recebimento")}>
-                    <IconeRecebimento tamanho={16} /> Confirmar recebimento
+                    <PackageCheck size={15} /> Confirmar recebimento
                   </button>
                 </div>
               </div>

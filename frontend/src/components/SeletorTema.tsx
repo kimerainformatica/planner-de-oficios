@@ -1,5 +1,4 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import type { CSSProperties } from "react";
 import { useTema, type Tema } from "../utils/tema";
 
 const OPCOES: { valor: Tema; rotulo: string; dica: string; Icone: typeof Sun }[] = [
@@ -8,20 +7,17 @@ const OPCOES: { valor: Tema; rotulo: string; dica: string; Icone: typeof Sun }[]
   { valor: "auto", rotulo: "Auto", dica: "Automático: segue o tema do computador", Icone: Monitor },
 ];
 
-/** Claro / Escuro / Automático, com uma pílula que desliza até a escolha. "claro" é a versão sobre fundo
- *  claro (tela de login); a do menu lateral fica sobre o verde-petróleo. */
-export function SeletorTema({ claro = false }: { claro?: boolean }) {
+/** Claro / Escuro / Automático. Compacto (só ícones) na tela de login. */
+export function SeletorTema({ compacto = false }: { compacto?: boolean }) {
   const [tema, setTema] = useTema();
-  const indice = OPCOES.findIndex((o) => o.valor === tema);
   return (
-    <div className={`seletor-tema ${claro ? "seletor-tema-claro" : ""}`} role="radiogroup" aria-label="Tema da interface"
-      style={{ "--i": indice } as CSSProperties}>
+    <div className={`seletor-tema ${compacto ? "compacto" : ""}`} role="radiogroup" aria-label="Tema da interface">
       {OPCOES.map(({ valor, rotulo, dica, Icone }) => (
         <button key={valor} type="button" role="radio" aria-checked={tema === valor} title={dica}
-          aria-label={claro ? dica : undefined} className={tema === valor ? "ativo" : ""}
+          aria-label={compacto ? dica : undefined} className={tema === valor ? "ativo" : ""}
           onClick={() => setTema(valor)}>
           <Icone size={15} aria-hidden />
-          {rotulo}
+          {!compacto && rotulo}
         </button>
       ))}
     </div>

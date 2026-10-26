@@ -1,21 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Ban,
-  BarChart3,
-  CheckCircle2,
-  FileSpreadsheet,
-  FileText,
-  Layers,
-  LayoutGrid,
-  Percent,
-  Search,
-  Timer,
-  Truck,
-  X,
-} from "lucide-react";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { ArrowRight, BarChart3, FileSpreadsheet, FileText, LayoutGrid, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { analise, exportarPainel, listarOficios, prazos as buscarPrazos } from "../api/endpoints";
 import { useAuth } from "../auth/AuthContext";
@@ -27,8 +12,6 @@ import {
   type LinhaBarra,
   type Serie,
 } from "../components/graficos";
-import { IconeAguardando, IconeOficios, IconeRecebimento } from "../components/Icones";
-import { NumeroAnimado } from "../components/NumeroAnimado";
 import { SeletorCliente } from "../components/SeletorCliente";
 import { useToast } from "../components/Toast";
 import { AlertaBadge, Botao, Carregando, ErroBox, StatusBadge } from "../components/ui";
@@ -273,8 +256,7 @@ export function Painel() {
         )}
       </section>
 
-      <div className="abas" role="tablist" aria-label="Seções do painel"
-        style={{ "--i": (Object.keys(ABAS) as Aba[]).indexOf(aba) } as CSSProperties}>
+      <div className="abas" role="tablist" aria-label="Seções do painel">
         {(Object.keys(ABAS) as Aba[]).map((chave) => (
           <button key={chave} type="button" role="tab" id={`aba-${chave}`} aria-selected={aba === chave}
             aria-controls="painel-aba" className={`aba ${aba === chave ? "ativa" : ""}`}
@@ -315,22 +297,20 @@ function VisaoGeral({ a, recarregando, filtros }: { a: DadosAnalise; recarregand
           status="PENDENTE_RECEBIMENTO" total={i.pendentes_recebimento} prazos={a.prazos} filtros={filtros}
           niveis={{ CRITICO: i.recebimento_critico, ATENCAO: i.recebimento_atencao, NORMAL: i.recebimento_normal }} />
         <div className="mosaico mosaico-2">
-          <Indicador rotulo="Ofícios no filtro" valor={String(i.total)} link={`/oficios?${qs}`}
-            icone={<Layers size={19} />} />
-          <Indicador rotulo="Concluídos" valor={String(i.concluidos)} icone={<CheckCircle2 size={19} />}
+          <Indicador rotulo="Ofícios no filtro" valor={String(i.total)} link={`/oficios?${qs}`} />
+          <Indicador rotulo="Concluídos" valor={String(i.concluidos)}
             dica={`${i.recebidos} ${i.recebidos === 1 ? "recebido" : "recebidos"} · ${i.confirmados} ${
               i.confirmados === 1 ? "confirmado" : "confirmados"} sem entrega`}
             link={`/oficios?${paraQuery(filtros, { status: "RECEBIDO" })}`} />
           <Indicador rotulo="Não confirmados" valor={String(i.nao_confirmados)} dica="Podem ser reabertos"
-            link={`/oficios?${paraQuery(filtros, { status: "NAO_CONFIRMADO" })}`} icone={<Ban size={19} />}
-            neutro />
+            link={`/oficios?${paraQuery(filtros, { status: "NAO_CONFIRMADO" })}`} />
           <Indicador rotulo="Taxa de confirmação" valor={porcentagem(i.taxa_confirmacao)}
-            dica="Respostas confirmadas ÷ respondidos" icone={<Percent size={19} />} />
-          <Indicador rotulo="Tempo médio de resposta" icone={<Timer size={19} />}
+            dica="Respostas confirmadas ÷ respondidos" />
+          <Indicador rotulo="Tempo médio de resposta"
             valor={i.tempo_medio_resposta === null ? "—" : decimal(i.tempo_medio_resposta)}
             unidade={i.tempo_medio_resposta === null ? undefined : "dias úteis"}
             dica={`${porcentagem(i.respondidos_no_prazo)} respondidos antes da atenção`} />
-          <Indicador rotulo="Tempo médio de entrega" icone={<Truck size={19} />}
+          <Indicador rotulo="Tempo médio de entrega"
             valor={i.tempo_medio_entrega === null ? "—" : decimal(i.tempo_medio_entrega)}
             unidade={i.tempo_medio_entrega === null ? undefined : "dias úteis"}
             dica={`${porcentagem(i.entregues_no_prazo)} entregues antes da atenção`} />
@@ -467,18 +447,11 @@ function CartaoEtapa({
   const ordem: NivelAlerta[] = ["CRITICO", "ATENCAO", "NORMAL"];
   return (
     <div className="cartao destaque">
-      <div className="destaque-topo">
-        <span className={`destaque-ic destaque-ic-${status}`} aria-hidden>
-          {status === "PENDENTE_RECEBIMENTO" ? <IconeRecebimento tamanho={24} /> : <IconeAguardando tamanho={24} />}
-        </span>
-        <div>
-          <span className="cartao-rotulo">{titulo}</span>
-          <small className="texto-suave bloco">{subtitulo}</small>
-        </div>
-        <Link to={link()} className="numero-heroi numero-link" aria-label={`${total}: ver os ofícios`}>
-          <NumeroAnimado valor={String(total)} />
-        </Link>
+      <div>
+        <span className="cartao-rotulo">{titulo}</span>
+        <small className="texto-suave bloco">{subtitulo}</small>
       </div>
+      <Link to={link()} className="numero-heroi numero-link">{total}</Link>
       {total > 0 ? (
         <>
           <div className="barra-distribuicao" role="img"
@@ -509,23 +482,18 @@ function Indicador({
   unidade,
   dica,
   link,
-  icone,
-  neutro,
 }: {
   rotulo: string;
   valor: string;
   unidade?: string;
   dica?: string;
   link?: string;
-  icone?: ReactNode;
-  neutro?: boolean;
 }) {
   const corpo = (
     <>
-      {icone && <span className={`indicador-ic ${neutro ? "neutro" : ""}`} aria-hidden>{icone}</span>}
       <span className="cartao-rotulo">{rotulo}</span>
       <span className="cartao-valor">
-        <NumeroAnimado valor={valor} /> {unidade && <small className="unidade">{unidade}</small>}
+        {valor} {unidade && <small className="unidade">{unidade}</small>}
       </span>
       {dica && <small className="texto-suave">{dica}</small>}
     </>
@@ -548,12 +516,9 @@ function Fila({ nivel, titulo, filtros, prazos }: { nivel: NivelAlerta; titulo: 
   });
 
   return (
-    <section className={`painel-bloco fila-bloco fila-${nivel}`}>
+    <section className="painel-bloco">
       <div className="bloco-topo">
-        <div className="fila-titulo">
-          <span className="fila-ic" aria-hidden>
-            <AlertTriangle size={18} />
-          </span>
+        <div>
           <h2>{titulo}</h2>
           <small className="texto-suave">Pendentes de resposta ou de entrega · {faixa(nivel, prazos)}</small>
         </div>
@@ -572,9 +537,6 @@ function Fila({ nivel, titulo, filtros, prazos }: { nivel: NivelAlerta; titulo: 
           {consulta.data.itens.map((o) => (
             <li key={o.id}>
               <Link to={`/oficios/${o.id}`} className="fila-item">
-                <span className="fila-doc" aria-hidden>
-                  <IconeOficios />
-                </span>
                 <div>
                   <strong>Ofício nº {o.numero}</strong>
                   <small className="texto-suave">

@@ -191,29 +191,27 @@ Decisões importantes:
 |---|---|
 | `api/` | `client.ts` (fetch com token, erros em português, download de arquivos) e `endpoints.ts` (uma função tipada por rota) |
 | `auth/` | `AuthContext`: login, usuário atual, perfil, saída automática quando o token expira |
-| `components/` | Layout (menu), ícones próprios animados (`Icones.tsx`), gráficos SVG (`graficos.tsx`), campos do ofício, upload, lixeira, seletor de tema, toasts, modal e badges (`ui.tsx`) |
+| `components/` | Layout (menu), gráficos SVG (`graficos.tsx`), campos do ofício, upload, lixeira, seletor de tema, toasts, modal e badges (`ui.tsx`) |
 | `pages/` | Uma tela por rota: Login, Painel, Ofícios, Novo ofício, Pedidos de exclusão, Atividades, Usuários, Feriados, Tipos de ofício, Arquivos |
 | `pages/oficio/` | A tela do ofício, dividida em dados, anexos, histórico e janelas (resposta, correção, edição e exclusão) |
-| `styles/` | CSS por assunto: `base` (cores e tipografia), `icones`, `layout`, `componentes`, `oficio`, `painel`, `admin`, `login` |
+| `styles/` | CSS por assunto: `base` (cores, tipografia e o desligamento das animações), `layout`, `componentes`, `oficio`, `painel`, `admin`, `login` |
 | `utils/` | Formatação (datas, dias úteis, rótulos), tema, tipos de ofício e download |
 
 - **Dados:** TanStack Query, com cache, revalidação ao voltar para a aba e invalidação após cada alteração.
 - **Rotas:** React Router. Os filtros do painel e da lista ficam no endereço, então podem ser compartilhados.
 - **Gráficos:** SVG próprio, com cores validadas para daltonismo, tooltip, tabela alternativa e um eixo só.
 
-### Visual "Correnteza"
+### Visual clássico (ramo `visual-classico`)
+
+Este ramo tem o visual original do sistema, sem animações, para pesar menos no computador. O visual animado
+"Correnteza" está no ramo `main`. Os dois têm as mesmas telas, opções e regras.
 
 - **Cores:** variáveis CSS em `styles/base.css`.
   - Identidade ACQUA: verde-água `#35bdaf` e azul-petróleo `#257e9c`.
   - Primária `#0f7c72`, para o texto branco ter contraste.
-  - Menu em verde-petróleo `#0b3d44`.
+  - Menu lateral claro, com o logo no topo.
 - **Tema:** `data-theme="light|dark"` no `<html>`. Um script em `index.html` aplica o tema antes de desenhar a
   página, e o hook `utils/tema.ts` guarda a escolha em `localStorage` (`planner-tema`).
-- **Fontes:** Sora (títulos e números) e Plus Jakarta Sans (texto), instaladas via `@fontsource`. Ficam dentro do
-  build e funcionam sem internet.
-- **Ícones:**
-  - os do menu e das ações são próprios (`components/Icones.tsx`): traço de 1,75 e um detalhe na cor da marca, com
-    um movimento por ícone no hover, definido em `styles/icones.css`;
-  - os demais vêm do lucide-react.
-- **Movimento:** entrada das telas, contadores que contam do zero (`NumeroAnimado`), barras que crescem, pílulas
-  deslizantes, janelas com mola e o login com o símbolo animado. Com `prefers-reduced-motion`, tudo fica parado.
+- **Fontes e ícones:** as fontes do sistema (Segoe UI no Windows), sem download, e os ícones do lucide-react.
+- **Sem movimento:** uma regra em `styles/base.css` desliga toda animação e transição
+  (`animation: none` e `transition: none` em todos os elementos). O "Carregando…" aparece com um ícone parado.

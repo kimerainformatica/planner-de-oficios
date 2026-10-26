@@ -69,8 +69,8 @@ Cuidados no MySQL:
   - use as variáveis de `styles/base.css` (`--primaria`, `--superficie`, `--texto-suave`…) e não cores soltas, para
     o tema escuro funcionar;
   - CSS fica no arquivo do assunto;
-  - ícone novo do menu ou de ação entra em `components/Icones.tsx`, com o movimento em `styles/icones.css`;
-  - animação nova precisa respeitar `prefers-reduced-motion`, que já é tratado globalmente em `base.css`.
+  - ícones vêm do lucide-react;
+  - neste ramo (`visual-classico`) não há animações: a regra no `base.css` desliga qualquer animação ou transição.
 - **Acessibilidade:**
   - botões de verdade (`<button>`) e `aria-label` em botões só com ícone;
   - status sempre com texto, além da cor;

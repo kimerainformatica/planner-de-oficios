@@ -1,132 +1,103 @@
-/* Tokens de cor (claro e escuro), identidade ACQUA e estilos base — visual "Correnteza" */
+/* Tokens de cor (claro e escuro), identidade ACQUA e estilos base */
 
 /* ================= Tokens ================= */
 :root {
   color-scheme: light;
-  --fundo: #eef5f5;
+  --fundo: #f4f6f9;
   --superficie: #ffffff;
-  --superficie-2: #f5fafa;
-  --borda: #d5e4e5;
-  --borda-forte: #b8cfd1;
-  --texto: #0b2b30;
-  --texto-suave: #3d5e63;
-  --texto-fraco: #4f6c72;
+  --superficie-2: #f8fafc;
+  --borda: #e2e8f0;
+  --borda-forte: #cbd5e1;
+  --texto: #0f172a;
+  --texto-suave: #556274;
   /* Identidade do Instituto ACQUA: verde-água e azul-petróleo do logotipo. Em botões e links usa-se um
      degrau mais escuro do verde-água, para o texto branco e os links terem contraste suficiente. */
   --marca: #35bdaf;
   --marca-azul: #257e9c;
   --primaria: #0f7c72;
-  --primaria-hover: #0a625a;
-  --primaria-suave: #ddf3f0;
+  --primaria-hover: #0b655d;
+  --primaria-suave: #e6f6f4;
   --primaria-texto: #ffffff;
   --foco: #149488;
-  /* menu lateral em verde-petróleo (nos dois temas) */
-  --lateral-fundo: #0b3d44;
-  --lateral-texto: #d8eeec;
-  --lateral-suave: #9ccbc5;
-  --lateral-hover: rgb(255 255 255 / 0.07);
-  --lateral-ativo: #14565e;
-  --perigo-icone: #f06a60;
 
-  --normal: #0b5f57;
-  --normal-fundo: #ddf3f0;
-  --normal-borda: #a8dfd7;
-  --normal-forte: #2ba493;
-  --atencao: #7e4a00;
-  --atencao-fundo: #fff0d1;
-  --atencao-borda: #f3d18f;
-  --atencao-forte: #e39b1b;
-  --critico: #9e241d;
-  --critico-fundo: #fde3e0;
-  --critico-borda: #f4bcb5;
-  --critico-forte: #d6453d;
+  --normal: #15803d;
+  --normal-fundo: #f0fdf4;
+  --normal-borda: #bbf7d0;
+  --atencao: #b45309;
+  --atencao-fundo: #fffbeb;
+  --atencao-borda: #fde68a;
+  --atencao-forte: #f59e0b;
+  --critico: #b91c1c;
+  --critico-fundo: #fef2f2;
+  --critico-borda: #fecaca;
+  --critico-forte: #dc2626;
+  --normal-forte: #22c55e;
 
-  --pendente: #7e4a00;
-  --pendente-fundo: #fff0d1;
-  --confirmado: #14613f;
-  --confirmado-fundo: #daf3e7;
-  --nao-confirmado: #46575a;
-  --nao-confirmado-fundo: #e9eeef;
-  --recebimento: #4e33a6;
-  --recebimento-fundo: #ece6ff;
-  --recebimento-borda: #d2c7fb;
+  --confirmado: #15803d;
+  --nao-confirmado: #b91c1c;
+  --pendente: #1d4ed8;
+  --pendente-fundo: #eff6ff;
+  --recebimento: #6d28d9;
+  --recebimento-fundo: #f5f3ff;
+  --recebimento-borda: #ddd6fe;
   /* concluído, como o confirmado (nos gráficos os dois somam "Concluídos") */
-  --recebido: #14613f;
-  --recebido-fundo: #daf3e7;
+  --recebido: #15803d;
+  --recebido-fundo: #f0fdf4;
 
   /* Séries dos gráficos: ordem categórica validada para daltonismo (claro: fundo #fff) */
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
   --serie-3: #1baf7a;
   --serie-4: #eda100;
-  --grade-grafico: #dde9ea;
+  --grade-grafico: #e2e8f0;
 
-  --raio: 18px;
-  --raio-m: 14px;
-  --raio-p: 12px;
-  --sombra: 0 1px 2px rgb(11 43 48 / 0.05), 0 6px 18px rgb(11 43 48 / 0.06);
-  --sombra-media: 0 2px 4px rgb(11 43 48 / 0.06), 0 14px 32px rgb(11 43 48 / 0.11);
-  --sombra-alta: 0 24px 60px rgb(11 43 48 / 0.22);
-  --mola: cubic-bezier(0.5, 1.6, 0.4, 1);
-  --suave: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --lateral: 272px;
-  --fonte-titulo: "Sora Variable", "Segoe UI", system-ui, sans-serif;
-  font-family: "Plus Jakarta Sans Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --raio: 10px;
+  --raio-p: 6px;
+  --sombra: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.08);
+  --sombra-alta: 0 20px 40px rgb(15 23 42 / 0.18);
+  --lateral: 240px;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --fundo: #06191c;
-  --superficie: #0c262a;
-  --superficie-2: #103036;
-  --borda: #1f454b;
-  --borda-forte: #2e5a60;
-  --texto: #e4f3f2;
-  --texto-suave: #a9c5c6;
-  --texto-fraco: #8daeb0;
+  --fundo: #0b1120;
+  --superficie: #111827;
+  --superficie-2: #0f172a;
+  --borda: #1f2937;
+  --borda-forte: #334155;
+  --texto: #e5e7eb;
+  --texto-suave: #94a3b8;
   --primaria: #35bdaf;
-  --primaria-hover: #5fd0c3;
-  --primaria-suave: #123f3f;
-  --primaria-texto: #03201d;
-  --foco: #5fd0c3;
-  --marca-azul: #3a9bbb;
-  --lateral-fundo: #04161a;
-  --lateral-texto: #cfe7e5;
-  --lateral-suave: #86b5b0;
-  --lateral-hover: rgb(255 255 255 / 0.05);
-  --lateral-ativo: #0f3a3f;
-  --normal: #8fe3d8;
-  --normal-fundo: #103d3a;
-  --normal-borda: #1d5e57;
-  --normal-forte: #35bdaf;
-  --atencao: #ffd38a;
-  --atencao-fundo: #3a2a0c;
-  --atencao-borda: #6b4a12;
-  --atencao-forte: #f2b544;
-  --critico: #ffb4ac;
-  --critico-fundo: #45161a;
-  --critico-borda: #7a2a2a;
-  --critico-forte: #f06a60;
-  --pendente: #ffd38a;
-  --pendente-fundo: #3a2a0c;
-  --confirmado: #8ee2bc;
-  --confirmado-fundo: #0f3a2a;
-  --nao-confirmado: #b8c7cc;
-  --nao-confirmado-fundo: #22313a;
-  --recebimento: #cdbfff;
-  --recebimento-fundo: #2b2250;
-  --recebimento-borda: #4a3c86;
-  --recebido: #8ee2bc;
-  --recebido-fundo: #0f3a2a;
-  --sombra: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
-  --sombra-media: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px rgb(0 0 0 / 0.45);
-  --sombra-alta: 0 24px 60px rgb(0 0 0 / 0.6);
-  /* mesmas séries, degraus próprios para o fundo escuro, validados à parte */
+  --primaria-hover: #5fd0c4;
+  --primaria-suave: #0c2f2c;
+  --primaria-texto: #04211e;
+  --foco: #35bdaf;
+  --normal: #4ade80;
+  --normal-fundo: #052e16;
+  --normal-borda: #14532d;
+  --atencao: #fbbf24;
+  --atencao-fundo: #2a1a03;
+  --atencao-borda: #78350f;
+  --critico: #f87171;
+  --critico-fundo: #2a0a0a;
+  --critico-borda: #7f1d1d;
+  --confirmado: #4ade80;
+  --nao-confirmado: #f87171;
+  --pendente: #60a5fa;
+  --pendente-fundo: #172554;
+  --recebimento: #a78bfa;
+  --recebimento-fundo: #1e1b4b;
+  --recebimento-borda: #4c1d95;
+  --recebido: #4ade80;
+  --recebido-fundo: #052e16;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.4);
+  /* mesmas séries, degraus próprios para o fundo escuro (#111827), validados à parte */
   --serie-1: #3987e5;
   --serie-2: #d95926;
   --serie-3: #199e70;
   --serie-4: #c98500;
-  --grade-grafico: #1f454b;
+  --grade-grafico: #1f2937;
 }
 
 /* ================= Base ================= */
@@ -139,9 +110,8 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
-  transition: background 0.3s;
 }
 h1,
 h2,
@@ -149,15 +119,13 @@ p {
   margin: 0;
 }
 h1 {
-  font-family: var(--fonte-titulo);
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 h2 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
 }
 a {
   color: inherit;
@@ -198,43 +166,12 @@ button {
   white-space: nowrap;
 }
 
-/* ================= Movimento ================= */
-@keyframes surgir {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
-@keyframes crescer {
-  from {
-    transform: scaleX(0);
-  }
-}
-/* cada tela entra com seus blocos subindo um depois do outro ("backwards": depois da entrada não fica
-   transform nenhum, senão os modais fixos dentro do bloco passariam a se posicionar por ele) */
-.conteudo > * {
-  animation: surgir 0.55s var(--suave) backwards;
-}
-.conteudo > :nth-child(2) {
-  animation-delay: 0.05s;
-}
-.conteudo > :nth-child(3) {
-  animation-delay: 0.1s;
-}
-.conteudo > :nth-child(4) {
-  animation-delay: 0.15s;
-}
-.conteudo > :nth-child(n + 5) {
-  animation-delay: 0.2s;
-}
-/* quem pediu menos movimento no sistema vê tudo parado */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    animation-delay: 0s !important;
-    transition-duration: 0.01ms !important;
-  }
+/* Visual clássico, sem animações nem transições (mais leve para o computador): garante que nenhuma volte,
+   nem de componentes de terceiros */
+*,
+*::before,
+*::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }

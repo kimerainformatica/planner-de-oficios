@@ -6,8 +6,6 @@ import { ApiError } from "./api/client";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { ToastProvider } from "./components/Toast";
-import "@fontsource-variable/plus-jakarta-sans";
-import "@fontsource-variable/sora";
 import "./styles/index.css";
 
 const queryClient = new QueryClient({

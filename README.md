@@ -26,7 +26,8 @@ Sistema web interno para cadastrar ofícios, guardar os documentos e acompanhar 
 - **Atividades:** toda alteração fica registrada com quem fez, quando e o valor antigo → novo.
 - **Visual:**
   - identidade do Instituto ACQUA, com tema claro, escuro ou automático;
-  - ícones animados e login animado;
+  - visual clássico, sem animações, leve para computadores mais simples (o visual animado "Correnteza" está no
+    ramo `main`);
   - funciona no celular.
 
 | Login | Tela do ofício (tema escuro) | Celular |
@@ -82,6 +83,23 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 | [Arquitetura](docs/ARQUITETURA.md) | Desenvolvedores | Estrutura, modelo de dados, fluxo de status, segurança, visual |
 | [API](docs/API.md) | Desenvolvedores | Todos os endpoints, com perfil exigido |
 | [Desenvolvimento](docs/DESENVOLVIMENTO.md) | Desenvolvedores | Ambiente, testes, migrações, convenções |
+
+## Versões do visual
+
+| Ramo | Visual | Quando usar |
+|---|---|---|
+| `main` | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Computadores com folga de processamento |
+| `visual-classico` | Visual original, **sem nenhuma animação** nem transição, fontes do sistema | Computadores mais simples; é o que está no ar hoje |
+
+As telas, opções e regras são as mesmas nos dois. Para trocar o visual do sistema no ar, mude de ramo e gere o build
+das telas (não precisa reiniciar a API):
+
+```powershell
+git checkout visual-classico   # ou: git checkout main
+cd frontend
+npm install
+npm run build                  # depois, Ctrl+F5 no navegador
+```
 
 ## Estrutura
 

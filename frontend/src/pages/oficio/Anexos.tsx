@@ -1,7 +1,6 @@
 // Documentos do ofício e evidências de resposta/entrega: visualizar, baixar, anexar, substituir.
 import { useMutation } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Paperclip } from "lucide-react";
-import { IconeBaixar, IconeLixo, IconeSubstituir, IconeVer } from "../../components/Icones";
+import { ChevronDown, ChevronRight, Download, Eye, FileText, Paperclip, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import * as ep from "../../api/endpoints";
 import { ListaLixeira, useLixeira } from "../../components/Lixeira";
@@ -38,16 +37,10 @@ function useArquivo() {
   };
 }
 
-/** "Oficio 046.pdf" → "PDF" (vai na plaquinha ao lado do nome) */
-function extensao(nome: string): string {
-  const ext = nome.includes(".") ? nome.split(".").pop()! : "";
-  return ext.slice(0, 4).toUpperCase() || "ARQ";
-}
-
 function InfoArquivo({ anexo, compacto }: { anexo: Anexo; compacto?: boolean }) {
   return (
     <div className="anexo-info">
-      <span className={`arquivo-tipo ${compacto ? "compacto" : ""}`} aria-hidden>{extensao(anexo.nome_original)}</span>
+      <FileText size={compacto ? 18 : 28} className="texto-suave" />
       <div>
         <strong className="arquivo-nome" title={anexo.nome_original}>
           {anexo.nome_original}
@@ -109,20 +102,20 @@ export function SlotAnexo({
           <InfoArquivo anexo={anexo} />
           <div className="grupo">
             <button className="btn btn-secundario btn-pequeno" onClick={() => arquivo.visualizar(anexo)}>
-              <IconeVer tamanho={16} /> Visualizar
+              <Eye size={15} /> Visualizar
             </button>
             <button className="btn btn-secundario btn-pequeno" onClick={() => arquivo.baixar(anexo)}>
-              <IconeBaixar tamanho={16} /> Baixar
+              <Download size={15} /> Baixar
             </button>
             {podeEditar && (
               <>
                 <Botao className="btn btn-secundario btn-pequeno" carregando={enviar.isPending}
                   onClick={() => input.current?.click()}>
-                  <IconeSubstituir tamanho={16} /> Substituir
+                  <Upload size={15} /> Substituir
                 </Botao>
                 <Botao className="btn btn-fantasma btn-pequeno texto-perigo" carregando={remover.isPending}
                   onClick={() => confirm(`Remover "${anexo.nome_original}"?`) && remover.mutate(anexo)}>
-                  <IconeLixo tamanho={16} /> Remover
+                  <Trash2 size={15} /> Remover
                 </Botao>
               </>
             )}
@@ -221,21 +214,21 @@ export function ConteudoEvidencia({
       <InfoArquivo anexo={evidencia} compacto={compacto} />
       <div className="grupo">
         <button className="btn btn-secundario btn-pequeno" onClick={() => arquivo.visualizar(evidencia)}>
-          <IconeVer tamanho={16} /> Visualizar
+          <Eye size={15} /> Visualizar
         </button>
         <button className="btn btn-secundario btn-pequeno" onClick={() => arquivo.baixar(evidencia)}>
-          <IconeBaixar tamanho={16} /> Baixar
+          <Download size={15} /> Baixar
         </button>
         {podeEditar && !compacto && (
           <Botao className="btn btn-secundario btn-pequeno" carregando={enviar.isPending}
             onClick={() => input.current?.click()}>
-            <IconeSubstituir tamanho={16} /> Substituir
+            <Upload size={15} /> Substituir
           </Botao>
         )}
         {podeRemover && (
           <Botao className="btn btn-fantasma btn-pequeno texto-perigo" carregando={remover.isPending}
             onClick={() => confirm(`Remover "${evidencia.nome_original}"?`) && remover.mutate(evidencia)}>
-            <IconeLixo tamanho={16} /> Remover
+            <Trash2 size={15} /> Remover
           </Botao>
         )}
       </div>

@@ -12,7 +12,6 @@ export function StatusBadge({ status, curto }: { status: StatusOficio; curto?: b
   const rotulo = (curto && ROTULO_CURTO[status]) || ROTULO_STATUS[status];
   return (
     <span className={`badge badge-status-${status}`} title={ROTULO_STATUS[status]}>
-      {status.startsWith("PENDENTE") && <span className="ponto-vivo" aria-hidden />}
       {rotulo}
     </span>
   );
