@@ -1,0 +1,30 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Configuração local (senha do banco e chave das sessões) — modelo em backend/.env.example
+.env
+.env.*
+!.env.example
+
+# Dados: documentos anexados, logs, bancos locais e backups nunca vão para o repositório
+backend/storage/
+backend/logs/
+*.log
+*.db
+*.sqlite
+*.sql
+backups/
+senha-root.txt
+
+# Front-end
+node_modules/
+dist/
+
+# Editores e sistema
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,517 @@
+/* Painel: indicadores, abas e gráficos */
+
+/* ================= Painel ================= */
+.painel-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: opacity 0.15s;
+}
+.recarregando {
+  opacity: 0.55;
+}
+.indicadores {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  gap: 16px;
+}
+@media (max-width: 960px) {
+  .indicadores {
+    grid-template-columns: 1fr;
+  }
+}
+.destaque {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* ícone e número na primeira linha, título e explicação embaixo (o cartão é estreito ao lado do mosaico) */
+.destaque-topo {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "ic num" "txt txt";
+  align-items: center;
+  gap: 14px;
+}
+.destaque-topo > .destaque-ic {
+  grid-area: ic;
+}
+.destaque-topo > div {
+  grid-area: txt;
+  min-width: 0;
+}
+.destaque-topo > .numero-link {
+  grid-area: num;
+  justify-self: end;
+  align-self: center;
+}
+.destaque-ic {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--pendente-fundo);
+  color: var(--pendente);
+}
+.destaque-ic-PENDENTE_RECEBIMENTO {
+  background: var(--recebimento-fundo);
+  color: var(--recebimento);
+}
+.destaque-ic .ic .ac {
+  stroke: currentColor;
+}
+.destaque:hover .i-ampulheta {
+  transform: rotate(180deg);
+}
+.destaque:hover .i-pacote .fita {
+  animation: ic-saltar 0.45s ease;
+}
+/* Painel: duas etapas pendentes lado a lado + mosaico de indicadores */
+.indicadores-etapas {
+  grid-template-columns: repeat(2, minmax(240px, 1fr)) minmax(0, 1.6fr);
+}
+@media (max-width: 1280px) {
+  .indicadores-etapas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .indicadores-etapas .mosaico {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .indicadores-etapas {
+    grid-template-columns: 1fr;
+  }
+  .indicadores-etapas .mosaico {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.mosaico-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.numero-link {
+  align-self: flex-start;
+  color: var(--texto);
+  transition: color 0.2s, transform 0.3s var(--mola);
+}
+.numero-link:hover {
+  color: var(--primaria);
+  transform: scale(1.05);
+}
+.texto-suave.bloco {
+  display: block;
+  font-size: 13px;
+}
+.legenda-vertical {
+  flex-direction: column;
+  gap: 4px;
+}
+.numero-heroi {
+  font-family: var(--fonte-titulo);
+  font-size: 50px;
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+/* atalhos por prazo como pílulas */
+.legenda-alerta.legenda-vertical {
+  flex-direction: row;
+  gap: 8px;
+}
+.legenda-alerta a {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  background: var(--superficie-2);
+  transition: transform 0.25s var(--mola), border-color 0.2s;
+}
+.legenda-alerta a:hover {
+  transform: translateY(-2px);
+  border-color: var(--borda-forte);
+}
+.legenda-alerta .chave-barra {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.legenda-alerta li:first-child .chave-barra {
+  animation: respirar 2s ease-in-out infinite;
+}
+@keyframes respirar {
+  50% {
+    box-shadow: 0 0 0 5px rgb(214 69 61 / 0.16);
+  }
+}
+.mosaico {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .mosaico {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.indicador {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 18px;
+}
+.indicador-ic {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--primaria-suave);
+  color: var(--primaria);
+  transition: transform 0.4s var(--mola);
+}
+.indicador-ic.neutro {
+  background: var(--nao-confirmado-fundo);
+  color: var(--nao-confirmado);
+}
+.indicador:hover .indicador-ic {
+  transform: rotate(-8deg) scale(1.1);
+}
+.indicador .cartao-valor {
+  font-size: 26px;
+}
+/* textos de apoio dos cartões: legíveis num monitor comum (antes 11-12px e claros demais) */
+.indicador small,
+.destaque small,
+.legenda small {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.unidade {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texto-suave);
+}
+.legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+.legenda li,
+.legenda a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legenda a:hover {
+  color: var(--texto);
+}
+.legenda strong {
+  color: var(--texto);
+}
+.chave-barra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.chave-linha {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.grafico {
+  position: relative;
+}
+.grafico-vazio {
+  padding: 24px 0;
+}
+.tabela-mini-box {
+  overflow-x: auto;
+}
+.tabela-mini th,
+.tabela-mini td {
+  padding: 7px 10px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.tabela-mini th {
+  font-size: 12px;
+}
+
+/* Barras horizontais */
+.barras {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.barra-linha {
+  display: grid;
+  grid-template-columns: minmax(90px, 170px) 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  border-radius: var(--raio-p);
+  outline-offset: 0;
+}
+.barra-linha.clicavel {
+  cursor: pointer;
+}
+.barra-linha.ativa {
+  background: var(--superficie-2);
+}
+.barra-rotulo {
+  font-size: 13px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 6px;
+}
+.barra-trilho {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  margin-right: 80px;
+  /* grade vertical em hairline, alinhada aos ticks (tamanho definido inline) */
+  background-image: linear-gradient(to right, var(--grade-grafico) 1px, transparent 1px);
+  background-repeat: repeat-x;
+}
+.barra-trilho.sem-grade {
+  background: none;
+  height: 22px;
+}
+.barra {
+  display: flex;
+  gap: 2px; /* espaço da cor do fundo entre os segmentos */
+  height: 16px;
+  min-width: 0;
+}
+.barra {
+  transform-origin: left;
+  animation: crescer 0.9s var(--suave) backwards;
+}
+.barra-seg {
+  flex-basis: 0;
+  min-width: 3px;
+}
+.barra-seg:last-child {
+  border-radius: 0 4px 4px 0; /* ponta arredondada, base reta */
+}
+.barra-linha.ativa .barra-seg {
+  filter: brightness(1.08);
+}
+.barra-valor {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.barra-eixo {
+  min-height: 22px;
+}
+.tick {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Linhas */
+.linhas {
+  position: relative;
+  width: 100%;
+  outline-offset: 2px;
+}
+.linhas svg {
+  display: block;
+}
+.linhas .grade {
+  stroke: var(--grade-grafico);
+  stroke-width: 1;
+}
+.linhas .eixo-texto {
+  fill: var(--texto-suave);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.linhas .mira {
+  stroke: var(--borda-forte);
+  stroke-width: 1;
+}
+.linhas .ponto {
+  stroke: var(--superficie);
+  stroke-width: 2;
+}
+
+/* Dica */
+.dica {
+  position: absolute;
+  z-index: 5;
+  min-width: 170px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  box-shadow: var(--sombra-alta);
+  pointer-events: none;
+  font-size: 13px;
+}
+.dica-titulo {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.dica-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dica-linha strong {
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================= Abas do painel ================= */
+/* duas abas e uma pílula (::before) que desliza até a escolhida (--i) */
+.abas {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: flex-start;
+  padding: 5px;
+  border-radius: 16px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  box-shadow: var(--sombra);
+}
+.abas::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 2);
+  border-radius: 12px;
+  background: var(--primaria);
+  box-shadow: 0 6px 14px rgb(15 124 114 / 0.28);
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform 0.45s var(--mola);
+}
+.aba {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--texto-suave);
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.25s;
+}
+.aba:hover {
+  color: var(--texto);
+}
+.aba.ativa {
+  color: var(--primaria-texto);
+}
+.aba svg {
+  transition: transform 0.4s var(--mola);
+}
+.aba:hover svg {
+  transform: scale(1.15) rotate(-6deg);
+}
+
+/* ================= Filas de críticos e em atenção ================= */
+.fila-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fila-titulo + * {
+  flex: none;
+}
+.fila-titulo h2 {
+  flex: 1;
+}
+.fila-ic {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--atencao-fundo);
+  color: var(--atencao-forte);
+}
+.fila-CRITICO .fila-ic {
+  background: var(--critico-fundo);
+  color: var(--critico-forte);
+}
+.fila-NORMAL .fila-ic {
+  background: var(--normal-fundo);
+  color: var(--normal-forte);
+}
+.bloco-topo > .fila-titulo {
+  flex-wrap: wrap;
+}
+.fila-bloco .bloco-topo small {
+  display: block;
+  width: 100%;
+  padding-left: 44px;
+}
+.fila-item .fila-doc {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  color: var(--texto-suave);
+  transition: background 0.2s, color 0.2s;
+}
+.fila-item:hover .fila-doc {
+  background: var(--primaria-suave);
+  color: var(--primaria);
+}
+.fila-item > .fila-doc + div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+/* celular: dias e selos descem para a linha de baixo, alinhados ao texto */
+@media (max-width: 720px) {
+  .fila-bloco .fila-item {
+    flex-wrap: wrap;
+  }
+  .fila-bloco .fila-dir {
+    flex-wrap: wrap;
+    width: 100%;
+    padding-left: 54px;
+  }
+  .fila-bloco .bloco-topo small {
+    padding-left: 0;
+  }
+}

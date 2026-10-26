@@ -1,0 +1,16 @@
+fastapi==0.156.0
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.5
+PyMySQL==1.2.3
+cryptography==50.0.2
+alembic==1.20.0
+pydantic-settings==2.16.1
+PyJWT==2.15.1
+python-multipart==0.0.32
+openpyxl==3.1.5
+reportlab==5.0.1
+
+# testes (API: pytest; telas: pytest tests_e2e, usa o Edge instalado)
+pytest==9.1.1
+httpx==0.28.1
+playwright==1.64.0

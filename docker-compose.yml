@@ -1,0 +1,29 @@
+# MySQL isolado para o Planner de Ofícios.
+# Sobe com:  docker compose up -d
+# Os dados ficam no volume "mysql_dados" (não somem ao reiniciar o container).
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: oficios-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: oficios
+      MYSQL_USER: oficios
+      MYSQL_PASSWORD: oficios_senha
+      MYSQL_ROOT_PASSWORD: root_senha_troque
+      TZ: America/Sao_Paulo
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "127.0.0.1:3307:3306"   # só acessível pela própria máquina
+    volumes:
+      - mysql_dados:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uoficios", "-poficios_senha"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_dados:
