@@ -80,6 +80,7 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 | [Manual do usuário](docs/MANUAL.md) | Quem usa o sistema | Telas, perfis e o passo a passo de cada tarefa |
 | [Regras de negócio](docs/REGRAS.md) | Todos | Prazos, status, entrega, anexos, perfis, correções e exclusões |
 | [Instalação e operação](docs/INSTALACAO.md) | Quem mantém o servidor | Instalar, configurar (`.env`), ligar, rede, backup, atualizações, feriados |
+| [Recursos de servidor](docs/RECURSOS-SERVIDOR.md) | Quem mantém o servidor | Processador, RAM, threads, disco e rede medidos, o servidor necessário e o custo de cada visual no navegador |
 | [Arquitetura](docs/ARQUITETURA.md) | Desenvolvedores | Estrutura, modelo de dados, fluxo de status, segurança, visual |
 | [API](docs/API.md) | Desenvolvedores | Todos os endpoints, com perfil exigido |
 | [Desenvolvimento](docs/DESENVOLVIMENTO.md) | Desenvolvedores | Ambiente, testes, migrações, convenções |
@@ -90,6 +91,11 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 |---|---|---|
 | `main` | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Computadores com folga de processamento |
 | `visual-classico` | Visual original, **sem nenhuma animação** nem transição, fontes do sistema | Computadores mais simples; é o que está no ar hoje |
+
+O servidor consome o mesmo nas duas. No navegador, com a tela aberta e parada, a Correnteza usa de 17% a 50% de um
+núcleo do processador por causa das animações em loop, e a Clássica usa de 2% a 15%. As telas compiladas da Clássica
+são 24% menores (461 KB contra 606 KB). Medições completas em
+[docs/RECURSOS-SERVIDOR.md](docs/RECURSOS-SERVIDOR.md#versões-do-visual-custo-no-computador-de-quem-usa).
 
 As telas, opções e regras são as mesmas nos dois. Para trocar o visual do sistema no ar, mude de ramo e gere o build
 das telas (não precisa reiniciar a API):
