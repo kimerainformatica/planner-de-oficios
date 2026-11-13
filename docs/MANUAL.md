@@ -163,10 +163,14 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 ### Usuários
 
-- **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e perfil (cliente, administrador ou master; só o
-  master cria administradores e masters).
-- **Editar:** altera nome, perfil, situação (ativo ou inativo) e senha. Deixe a senha em branco para manter a atual.
-  Trocar a senha encerra as sessões abertas daquela pessoa.
+- **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**: para cada módulo
+  (Planner de Ofícios, Manutenção Clínica) escolha *Sem acesso*, *Cliente* ou *Administrador*. Só o master cria
+  administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
+- **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
+  para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
+  altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
+- **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
+  **Módulos**. Quem tem só um módulo entra direto nele.
 
 ### Feriados
 

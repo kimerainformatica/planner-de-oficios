@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.deps import AdminDep, DbDep, SettingsDep
+from app.deps import ACESSO_OFICIOS, AdminDep, DbDep, SettingsDep
 from app.models import Anexo, AnexoLixeira
 from app.schemas import AnexoLixeiraOut, VerificacaoArquivos
 from app.services import armazenamento, integridade
@@ -15,7 +15,7 @@ from app.services.oficios import buscar_oficio
 NOME_TIPO = {"OFICIO": "documento do ofício", "REFERENCIA": "documento de referência",
              "RESPOSTA": "evidência da resposta", "RECEBIMENTO": "evidência da entrega"}
 
-router = APIRouter(tags=["Lixeira e verificação dos arquivos (admin/master)"])
+router = APIRouter(tags=["Lixeira e verificação dos arquivos (admin/master)"], dependencies=ACESSO_OFICIOS)
 
 
 def _montar(item: AnexoLixeira) -> AnexoLixeiraOut:

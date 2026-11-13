@@ -1,6 +1,7 @@
 // Espelho dos schemas da API (backend/app/schemas.py).
 
-export type Perfil = "MASTER" | "ADMIN" | "CLIENTE";
+/** TECNICO só existe na Manutenção Clínica; lá o CLIENTE é o "operacional". */
+export type Perfil = "MASTER" | "ADMIN" | "CLIENTE" | "TECNICO";
 export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "RECUSADA" | "CANCELADA";
 export type StatusOficio =
   | "PENDENTE_RESPOSTA"
@@ -24,12 +25,252 @@ export interface TipoInfo {
 }
 export type Destinatario = "SES" | "ACQUA" | "OUTROS";
 
+export type Modulo = "OFICIOS" | "MANUTENCAO";
+
+/** Papel do usuário em um módulo (o MASTER aparece como MASTER em todos). */
+export interface AcessoModulo {
+  modulo: Modulo;
+  perfil: Perfil;
+  /** Empresa do técnico (só TECNICO). */
+  empresa_id?: number | null;
+  empresa_nome?: string | null;
+}
+
 export interface Usuario {
   id: number;
   nome: string;
   login: string;
+  /** Global: MASTER (acesso total) ou CLIENTE. O papel em cada módulo está em `modulos`. */
   perfil: Perfil;
   ativo: boolean;
+  modulos: AcessoModulo[];
+}
+
+export interface ModuloDisponivel {
+  modulo: Modulo;
+  nome: string;
+  descricao: string;
+  rota: string;
+  perfil: Perfil;
+}
+
+// ---------- Manutenção Clínica (helpdesk) ----------
+
+export interface Referencia {
+  id: number;
+  nome: string;
+}
+
+export interface ResumoManutencao {
+  modulo: Modulo;
+  nome: string;
+  perfil: Perfil;
+  eh_admin: boolean;
+  eh_tecnico: boolean;
+  empresa: Referencia | null;
+}
+
+export interface EmpresaManutencao {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  prazo_horas: number;
+  ativo: boolean;
+  tecnicos: number;
+  chamados: number;
+}
+
+export type StatusChamado = "ABERTO" | "EM_ATENDIMENTO" | "CONCLUIDO" | "CANCELADO";
+export type SituacaoPrazo = "NO_PRAZO" | "VENCENDO" | "ATRASADO" | "CUMPRIDO" | "CUMPRIDO_COM_ATRASO" | "SUSPENSO";
+export type TipoInteracao =
+  | "ABERTURA"
+  | "COMENTARIO"
+  | "DIAGNOSTICO"
+  | "RELATORIO"
+  | "ASSUMIDO"
+  | "CONCLUSAO"
+  | "REABERTURA"
+  | "CANCELAMENTO"
+  | "OFICIO";
+export type SituacaoEquipamento =
+  | "OPERANDO"
+  | "OPERANDO_COM_RESTRICAO"
+  | "PARADO"
+  | "AGUARDANDO_PECA"
+  | "NAO_SE_APLICA";
+
+export interface PrazoChamado {
+  situacao: SituacaoPrazo;
+  /** Horas úteis até o prazo (negativo = atrasado); null depois do diagnóstico. */
+  horas_restantes: number | null;
+  horas_ate_diagnostico: number | null;
+}
+
+export interface Chamado {
+  id: number;
+  codigo: string;
+  titulo: string;
+  descricao: string;
+  local: string | null;
+  equipamento: string | null;
+  empresa: Referencia;
+  solicitante: Referencia;
+  tecnico: Referencia | null;
+  status: StatusChamado;
+  ocorrido_em: string;
+  aberto_em: string;
+  prazo_horas: number;
+  prazo_em: string;
+  diagnosticado_em: string | null;
+  concluido_em: string | null;
+  cancelado_em: string | null;
+  atualizado_em: string;
+  prazo: PrazoChamado;
+  /** Do diagnóstico até a conclusão, gravado ao concluir. */
+  solucao_horas_uteis: number | null;
+  solucao_horas_corridas: number | null;
+  /** Em aberto e já diagnosticado: horas úteis desde o diagnóstico. */
+  execucao_horas_uteis: number | null;
+  /** Solicitações de peças/equipamentos ainda não entregues. */
+  oficios_pendentes: number;
+  /** Nº e status de cada ofício de peças/equipamentos (o andamento vem do Planner). */
+  oficios_resumo: { id: number; numero: string; status: StatusOficio }[];
+}
+
+/** Documento anexado ao ofício no Planner. */
+export interface AnexoOficio {
+  id: number;
+  tipo: TipoAnexo;
+  nome_original: string;
+  mime_type: string;
+  tamanho_bytes: number;
+  enviado_em: string;
+}
+
+/** Ofício do Planner com a solicitação de peças/equipamentos do chamado. */
+export interface OficioVinculado {
+  id: number;
+  numero: string;
+  data_oficio: string;
+  tipo: string | null;
+  tipo_nome: string | null;
+  protocolo: string | null;
+  status: StatusOficio;
+  data_resposta: string | null;
+  data_recebimento: string | null;
+  observacao: string | null;
+  dono_id: number;
+  dono_nome: string | null;
+  anexos: AnexoOficio[];
+}
+
+export interface TipoSolicitacao {
+  codigo: string;
+  nome: string;
+}
+
+export interface ColunaQuadro {
+  chave: "AGUARDANDO_DIAGNOSTICO" | "EM_EXECUCAO" | "AGUARDANDO_PECAS" | "CONCLUIDOS";
+  titulo: string;
+  descricao: string;
+  chamados: Chamado[];
+}
+
+export interface QuadroChamados {
+  empresa: Referencia | null;
+  meus: boolean;
+  dias: number;
+  resumo: {
+    em_aberto: number;
+    aguardando_diagnostico: number;
+    atrasados: number;
+    aguardando_pecas: number;
+    concluidos_periodo: number;
+    diagnostico_no_prazo_pct: number | null;
+    media_horas_diagnostico: number | null;
+    media_horas_solucao: number | null;
+  };
+  colunas: ColunaQuadro[];
+}
+
+export interface RelatorioTecnico {
+  id: number;
+  codigo: string;
+  chamado_id: number;
+  tecnico: Referencia | null;
+  empresa: Referencia;
+  criado_em: string;
+  atendido_em: string;
+  equipamento: string | null;
+  identificacao: string | null;
+  diagnostico: string;
+  causa: string | null;
+  servico_executado: string | null;
+  pecas: string | null;
+  situacao_equipamento: SituacaoEquipamento;
+  recomendacoes: string | null;
+}
+
+export interface Interacao {
+  id: number;
+  tipo: TipoInteracao;
+  texto: string | null;
+  criado_em: string;
+  autor: Referencia | null;
+  autor_papel: Perfil | null;
+  relatorio: RelatorioTecnico | null;
+  arquivo_nome: string | null;
+  arquivo_mime: string | null;
+  arquivo_tamanho: number | null;
+}
+
+export interface ChamadoDetalhe extends Chamado {
+  interacoes: Interacao[];
+  oficios: OficioVinculado[];
+  pode_solicitar_pecas: boolean;
+  pode_assumir: boolean;
+  pode_responder: boolean;
+  pode_comentar: boolean;
+  pode_concluir: boolean;
+  pode_reabrir: boolean;
+  pode_cancelar: boolean;
+}
+
+export interface FiltrosChamado {
+  status?: StatusChamado;
+  empresa_id?: number;
+  situacao?: SituacaoPrazo;
+  busca?: string;
+  meus?: boolean;
+  pagina?: number;
+}
+
+export interface PainelEmpresa {
+  empresa: Referencia;
+  abertos: number;
+  aguardando_diagnostico: number;
+  atrasados: number;
+  concluidos: number;
+  diagnosticados: number;
+  no_prazo_pct: number | null;
+  media_horas_diagnostico: number | null;
+  media_horas_solucao: number | null;
+}
+
+export interface PainelManutencao {
+  papel: Perfil;
+  eh_admin: boolean;
+  empresa_do_tecnico: Referencia | null;
+  expediente: string;
+  abertos: number;
+  em_atendimento: number;
+  aguardando_diagnostico: number;
+  vencendo: number;
+  atrasados: number;
+  concluidos: number;
+  cancelados: number;
+  por_empresa: PainelEmpresa[];
+  urgentes: Chamado[];
 }
 
 export interface Token {
@@ -67,6 +308,8 @@ export interface Historico {
 export interface Oficio {
   id: number;
   dono: { id: number; nome: string };
+  /** Chamado da Manutenção Clínica que originou o ofício (solicitação de peças/equipamentos). */
+  chamado: { id: number; codigo: string; titulo: string } | null;
   numero: string;
   data_oficio: string;
   tipo: TipoOficio | null;

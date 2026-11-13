@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings
 from app.models import (
-    PERFIS_ADMIN,
     HistoricoStatus,
+    Modulo,
     NivelAlerta,
     Oficio,
     SolicitacaoExclusao,
@@ -39,7 +39,7 @@ TRANSICOES: dict[StatusOficio, set[StatusOficio]] = {
 
 def escopo(usuario: Usuario) -> ColumnElement[bool]:
     """Admin e master veem todos os ofícios; cliente vê só os seus."""
-    return true() if usuario.perfil in PERFIS_ADMIN else Oficio.dono_id == usuario.id
+    return true() if usuario.eh_admin_no(Modulo.OFICIOS) else Oficio.dono_id == usuario.id
 
 
 def buscar_oficio(db: Session, oficio_id: int, usuario: Usuario, detalhe: bool = False) -> Oficio:
@@ -197,6 +197,32 @@ def registrar_historico(
     )
     db.add(evento)
     return evento
+
+
+def cadastrar_oficio(db: Session, dados, dono_id: int, autor: Usuario, chamado_id: int | None = None) -> Oficio:
+    """Cadastra um ofício (sem commit). Usado pelo Planner e pela Manutenção Clínica (solicitação de peças e
+    equipamentos a partir de um chamado). Todo ofício novo entra como PENDENTE_RESPOSTA, sem exceção."""
+    from app.services.auditoria import Acao, diferencas, registrar  # evita importação circular
+    from app.services.tipos import validar_para_oficio
+
+    ano = dados.data_oficio.year
+    validar_para_oficio(db, dados.tipo)
+    verificar_duplicidade(db, dono_id, dados.numero, ano, dados.protocolo)
+    oficio = Oficio(
+        **dados.model_dump(exclude={"dono_id"}),
+        ano=ano,
+        dono_id=dono_id,
+        status=StatusOficio.PENDENTE_RESPOSTA,
+        inicio_prazo=dados.data_oficio,
+        criado_por_id=autor.id,
+        chamado_id=chamado_id,
+    )
+    db.add(oficio)
+    registrar_historico(db, oficio, None, StatusOficio.PENDENTE_RESPOSTA, autor, "Cadastro do ofício")
+    db.flush()
+    registrar(db, autor, Acao.OFICIO_CRIADO, f"Cadastrou o ofício nº {oficio.numero}", oficio,
+              detalhes=diferencas({}, dados.model_dump(exclude={"dono_id"}, exclude_none=True)))
+    return oficio
 
 
 def alterar_status(

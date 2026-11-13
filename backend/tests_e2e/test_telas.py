@@ -160,6 +160,7 @@ def test_trocar_a_senha_encerra_a_sessao_aberta(servidor, nova_pagina):
     master.get_by_label("Nome *").fill("Bia Teste")
     master.get_by_label("Login *").fill("bia")
     master.get_by_label("Senha *").fill("bia-senha-1")
+    master.locator(".modal").get_by_label("Planner de Ofícios").select_option("CLIENTE")  # habilita no módulo
     master.locator(".modal").get_by_role("button", name=re.compile("Criar|Salvar")).click()
     expect(master.get_by_role("cell", name="Bia Teste")).to_be_visible()
 

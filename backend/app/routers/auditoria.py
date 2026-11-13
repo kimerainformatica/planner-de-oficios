@@ -5,11 +5,11 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.deps import DbDep, UsuarioDep, eh_admin
+from app.deps import ACESSO_OFICIOS, DbDep, UsuarioDep, eh_admin
 from app.models import Auditoria, Oficio
 from app.schemas import AuditoriaOut, PaginaAuditoria
 
-router = APIRouter(prefix="/api/auditoria", tags=["Registro de atividades"])
+router = APIRouter(prefix="/api/auditoria", tags=["Registro de atividades"], dependencies=ACESSO_OFICIOS)
 
 
 @router.get(

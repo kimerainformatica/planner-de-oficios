@@ -3,15 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response
 from sqlalchemy import and_, case, func, select
 
-from app.deps import CalendarioDep, DbDep, HojeDep, SettingsDep, UsuarioDep
-from app.models import PERFIS_ADMIN, NivelAlerta, Oficio, StatusOficio, TipoOficio, Usuario
+from app.deps import ACESSO_OFICIOS, CalendarioDep, DbDep, HojeDep, SettingsDep, UsuarioDep
+from app.models import Modulo, NivelAlerta, Oficio, StatusOficio, TipoOficio, Usuario
 from app.schemas import Analise, ConsultaExportacao, FiltrosConsulta, Prazos, ResumoDashboard
 from app.services import exportacao
 from app.services import tipos
 from app.services.analise import ROTULO_ALERTA, ROTULO_DESTINATARIO, ROTULO_STATUS, analisar, carregar_linhas
 from app.services.oficios import Limites, escopo
 
-router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"], dependencies=ACESSO_OFICIOS)
 
 FiltrosDep = Annotated[FiltrosConsulta, Query()]
 
@@ -116,7 +116,7 @@ def exportar(
     linhas = carregar_linhas(db, usuario, f, calendario, hoje, settings)
     dados = analisar(linhas, usuario, f, hoje, settings, tipos.listar(db))
     filtros = _descrever_filtros(f, db)
-    admin = usuario.perfil in PERFIS_ADMIN
+    admin = usuario.eh_admin_no(Modulo.OFICIOS)
     gerar = exportacao.gerar_excel if formato == "xlsx" else exportacao.gerar_pdf
     conteudo = gerar(dados, linhas, filtros, admin)
     # octet-stream + nosniff: o Edge intercepta PDFs pedidos via fetch (ver routers/anexos.py)

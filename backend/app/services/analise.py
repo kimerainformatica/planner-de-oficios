@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import Settings
-from app.models import PERFIS_ADMIN, Destinatario, NivelAlerta, Oficio, StatusOficio, TipoOficio, Usuario
+from app.models import Destinatario, Modulo, NivelAlerta, Oficio, StatusOficio, TipoOficio, Usuario
 from app.schemas import Analise, FiltrosConsulta, Grupo, Indicadores, Mes, Prazos
 from app.services.oficios import Limites, filtros_sql
 from app.services.prazos import CalendarioUtil, classificar
@@ -241,7 +241,7 @@ def analisar(
             (acc.grupo(str(i), nomes_cliente[i]) for i, acc in por_cliente.items()),
             key=lambda g: (-g.total, g.rotulo),
         )
-        if usuario.perfil in PERFIS_ADMIN
+        if usuario.eh_admin_no(Modulo.OFICIOS)
         else [],
         por_mes=por_mes,
     )

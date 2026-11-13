@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Menu, ShieldCheck, X } from "lucide-react";
+import { LayoutGrid, Menu, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { exclusoesPendentes } from "../api/endpoints";
@@ -38,7 +38,7 @@ function iniciais(nome = ""): string {
 }
 
 export function Layout() {
-  const { usuario, ehAdmin, ehMaster, sair } = useAuth();
+  const { usuario, ehAdmin, ehMaster, modulos, papelNo, sair } = useAuth();
   const [menuAberto, setMenuAberto] = useState(false);
   const { pathname } = useLocation();
 
@@ -117,6 +117,17 @@ export function Layout() {
           {principais.map(item)}
           {administracao.length > 0 && <span className="nav-grupo">Administração</span>}
           {administracao.map(item)}
+          {modulos.length > 1 && (
+            <>
+              <span className="nav-grupo">Plataforma</span>
+              <NavLink to="/modulos" className="nav-link">
+                <span className="nav-ic">
+                  <LayoutGrid size={19} aria-hidden />
+                </span>
+                <span className="nav-rotulo">Módulos</span>
+              </NavLink>
+            </>
+          )}
         </nav>
 
         <div className="lateral-rodape">
@@ -127,7 +138,7 @@ export function Layout() {
               <strong>{usuario?.nome}</strong>
               <small className="perfil-linha">
                 {ehMaster && <ShieldCheck size={13} />}
-                {usuario ? ROTULO_PERFIL[usuario.perfil] : ""}
+                {papelNo("OFICIOS") ? ROTULO_PERFIL[papelNo("OFICIOS")!] : ""}
               </small>
             </div>
             <button className="btn-sair" onClick={sair} title="Sair" aria-label="Sair">

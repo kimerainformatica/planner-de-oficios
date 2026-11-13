@@ -1,20 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { atualizarUsuario, criarUsuario, listarUsuarios } from "../api/endpoints";
+import { atualizarUsuario, criarUsuario, listarEmpresas, listarUsuarios } from "../api/endpoints";
+import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal } from "../components/ui";
-import type { Perfil, Usuario } from "../types";
+import type { AcessoModulo, Modulo, Perfil, Usuario } from "../types";
 import { ROTULO_PERFIL } from "../utils/formato";
+import { modulosQueAdministra, MODULOS, podeEditar, podeEditarAcesso, podeGerirConta } from "../utils/modulos";
 
-const CLASSE_PERFIL: Record<Perfil, string> = { MASTER: "badge-master", ADMIN: "badge-admin", CLIENTE: "badge-neutro" };
+const CLASSE_PERFIL: Record<Perfil, string> = {
+  MASTER: "badge-master", ADMIN: "badge-admin", CLIENTE: "badge-neutro", TECNICO: "badge-tecnico",
+};
+
+type Escolha = "NENHUM" | "CLIENTE" | "ADMIN" | "TECNICO";
+
+/** Nome do papel no módulo: na Manutenção Clínica o cliente é o "operacional". */
+function rotuloPapel(modulo: Modulo, perfil: Perfil): string {
+  return modulo === "MANUTENCAO" ? ROTULO_PAPEL_MANUTENCAO[perfil] : ROTULO_PERFIL[perfil];
+}
 
 export function Usuarios() {
   const { usuario: eu, ehMaster } = useAuth();
-  // Admin gerencia só clientes; contas de admin/master só o MASTER altera (o próprio usuário sempre pode).
-  const podeEditar = (u: Usuario) => ehMaster || u.perfil === "CLIENTE" || u.id === eu?.id;
-  const consulta = useQuery({ queryKey: ["usuarios"], queryFn: listarUsuarios });
+  const consulta = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
   const [editando, setEditando] = useState<Usuario | "novo" | null>(null);
 
   return (
@@ -24,8 +33,8 @@ export function Usuarios() {
           <h1>Usuários</h1>
           <p className="texto-suave">
             {ehMaster
-              ? "Como MASTER, você gerencia todas as contas, inclusive administradores."
-              : "Administradores gerenciam clientes. Contas de administradores são geridas pelo MASTER."}
+              ? "Como MASTER, você gerencia todas as contas e o acesso aos dois módulos, inclusive o dos administradores."
+              : "Você habilita pessoas nos módulos que administra. Administradores e masters são geridos pelo MASTER."}
           </p>
         </div>
         <button className="btn btn-primario" onClick={() => setEditando("novo")}>
@@ -44,7 +53,7 @@ export function Usuarios() {
               <tr>
                 <th>Nome</th>
                 <th>Login</th>
-                <th>Perfil</th>
+                <th>Acesso aos módulos</th>
                 <th>Situação</th>
                 <th aria-label="Ações" />
               </tr>
@@ -58,12 +67,29 @@ export function Usuarios() {
                   </td>
                   <td>{u.login}</td>
                   <td>
-                    <span className={`badge ${CLASSE_PERFIL[u.perfil]}`}>{ROTULO_PERFIL[u.perfil]}</span>
+                    <div className="acessos">
+                      {u.perfil === "MASTER" ? (
+                        <span className="badge badge-master">Master · todos os módulos</span>
+                      ) : u.modulos.length === 0 ? (
+                        <span className="texto-suave">Sem acesso</span>
+                      ) : (
+                        MODULOS.filter((m) => u.modulos.some((a) => a.modulo === m.modulo)).map((m) => {
+                          const a = u.modulos.find((x) => x.modulo === m.modulo)!;
+                          return (
+                            <span key={m.modulo} className={`badge ${CLASSE_PERFIL[a.perfil]}`}>
+                              {m.nome} · {rotuloPapel(m.modulo, a.perfil)}
+                              {a.empresa_nome && ` · ${a.empresa_nome}`}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
                   </td>
                   <td>{u.ativo ? "Ativo" : "Inativo"}</td>
                   <td className="num">
                     <button className="btn btn-fantasma btn-pequeno" onClick={() => setEditando(u)}
-                      disabled={!podeEditar(u)} title={podeEditar(u) ? undefined : "Só o MASTER altera esta conta"}>
+                      disabled={!podeEditar(eu, u)}
+                      title={podeEditar(eu, u) ? undefined : "Só o MASTER altera esta conta"}>
                       <Pencil size={15} /> Editar
                     </button>
                   </td>
@@ -75,42 +101,83 @@ export function Usuarios() {
       )}
 
       {editando && (
-        <ModalUsuario usuario={editando === "novo" ? null : editando} ehEu={editando !== "novo" && editando.id === eu?.id}
-          ehMaster={ehMaster} aoFechar={() => setEditando(null)} />
+        <ModalUsuario usuario={editando === "novo" ? null : editando} aoFechar={() => setEditando(null)} />
       )}
     </>
   );
 }
 
-function ModalUsuario({
-  usuario,
-  ehEu,
-  ehMaster,
-  aoFechar,
-}: {
-  usuario: Usuario | null;
-  ehEu: boolean;
-  ehMaster: boolean;
-  aoFechar: () => void;
-}) {
+function escolhaAtual(u: Usuario | null, modulo: Modulo): Escolha {
+  return (u?.modulos.find((a) => a.modulo === modulo)?.perfil as Escolha | undefined) ?? "NENHUM";
+}
+
+function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar: () => void }) {
+  const { usuario: eu, ehMaster } = useAuth();
   const avisar = useToast();
   const queryClient = useQueryClient();
+  const ehEu = usuario !== null && usuario.id === eu?.id;
+  const meus = modulosQueAdministra(eu);
+  // Sem permissão para mexer na conta (nome, login, senha, situação): só o acesso aos módulos
+  const contaLiberada = usuario === null || podeGerirConta(eu, usuario);
+  const acessoLiberado = usuario === null ? true : podeEditarAcesso(eu, usuario);
+
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [login, setLogin] = useState(usuario?.login ?? "");
   const [senha, setSenha] = useState("");
-  const [perfil, setPerfil] = useState<Perfil>(usuario?.perfil ?? "CLIENTE");
   const [ativo, setAtivo] = useState(usuario?.ativo ?? true);
+  const [master, setMaster] = useState(usuario?.perfil === "MASTER");
+  const [acesso, setAcesso] = useState<Record<Modulo, Escolha>>(() => {
+    const base = Object.fromEntries(MODULOS.map((m) => [m.modulo, escolhaAtual(usuario, m.modulo)])) as Record<Modulo, Escolha>;
+    // Novo usuário criado por um administrador já começa habilitado no primeiro módulo dele
+    if (!usuario && !ehMaster && meus.length) base[meus[0]] = "CLIENTE";
+    return base;
+  });
+  // Regra: todo operacional (cliente ou admin) da Manutenção também usa o Planner de Ofícios
+  const operacional = acesso.MANUTENCAO === "CLIENTE" || acesso.MANUTENCAO === "ADMIN";
+  function mudarAcesso(modulo: Modulo, valor: Escolha) {
+    setAcesso((a) => {
+      const novo = { ...a, [modulo]: valor };
+      const virouOperacional = modulo === "MANUTENCAO" && (valor === "CLIENTE" || valor === "ADMIN");
+      if (virouOperacional && novo.OFICIOS === "NENHUM" && meus.includes("OFICIOS")) novo.OFICIOS = "CLIENTE";
+      return novo;
+    });
+  }
+  // Empresa do técnico (só na Manutenção Clínica)
+  const [empresaTecnico, setEmpresaTecnico] = useState<number | "">(
+    usuario?.modulos.find((a) => a.modulo === "MANUTENCAO")?.empresa_id ?? "",
+  );
+  const empresas = useQuery({
+    queryKey: ["empresas-manutencao"],
+    queryFn: () => listarEmpresas(),
+    enabled: meus.includes("MANUTENCAO"),
+  });
+
+  // Só os módulos que o editor administra podem ser alterados; o administrador de um módulo só o MASTER troca
+  const editavel = (m: Modulo) => acessoLiberado && !ehEu && !master && meus.includes(m) && (ehMaster || escolhaAtual(usuario, m) !== "ADMIN");
 
   const salvar = useMutation({
-    mutationFn: () =>
-      usuario
-        ? atualizarUsuario(usuario.id, {
-            nome: nome.trim(),
-            ...(login.trim() !== usuario.login ? { login: login.trim() } : {}),
-            ...(ehEu ? {} : { perfil, ativo }),
-            ...(senha ? { senha } : {}),
-          })
-        : criarUsuario({ nome: nome.trim(), login: login.trim(), senha, perfil }),
+    mutationFn: () => {
+      const modulos: AcessoModulo[] = MODULOS.filter((m) => meus.includes(m.modulo) && acesso[m.modulo] !== "NENHUM").map(
+        (m) => ({
+          modulo: m.modulo,
+          perfil: acesso[m.modulo] as Perfil,
+          ...(acesso[m.modulo] === "TECNICO" ? { empresa_id: empresaTecnico === "" ? null : empresaTecnico } : {}),
+        }),
+      );
+      if (!usuario) return criarUsuario({ nome: nome.trim(), login: login.trim(), senha, master, modulos });
+      return atualizarUsuario(usuario.id, {
+        ...(contaLiberada
+          ? {
+              nome: nome.trim(),
+              ...(login.trim() !== usuario.login ? { login: login.trim() } : {}),
+              ...(senha ? { senha } : {}),
+              ...(ehEu ? {} : { ativo }),
+            }
+          : {}),
+        ...(ehMaster && !ehEu && master !== (usuario.perfil === "MASTER") ? { master } : {}),
+        ...(acessoLiberado && !ehEu && !master ? { modulos } : {}),
+      });
+    },
     onSuccess: (u) => {
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       avisar(usuario ? `Usuário ${u.nome} atualizado.` : `Usuário ${u.nome} criado.`);
@@ -120,39 +187,102 @@ function ModalUsuario({
 
   function enviar(e: FormEvent) {
     e.preventDefault();
+    if (!usuario && !ehMaster && !MODULOS.some((m) => meus.includes(m.modulo) && acesso[m.modulo] !== "NENHUM")) {
+      salvar.reset();
+      avisar("Habilite o usuário em pelo menos um módulo.");
+      return;
+    }
     salvar.mutate();
   }
 
   return (
     <Modal titulo={usuario ? `Editar ${usuario.nome}` : "Novo usuário"} aoFechar={aoFechar}>
       <form className="formulario" onSubmit={enviar}>
+        {!contaLiberada && (
+          <div className="alerta-info" role="note">
+            <span>
+              Esta conta também usa módulos que você não administra (ou é de um administrador): você altera só o acesso aos
+              seus módulos.
+            </span>
+          </div>
+        )}
         <Campo rotulo="Nome *">
-          {(id) => <input id={id} className="input" required maxLength={120} value={nome} autoFocus
+          {(id) => <input id={id} className="input" required maxLength={120} value={nome} autoFocus disabled={!contaLiberada}
             onChange={(e) => setNome(e.target.value)} />}
         </Campo>
         <Campo rotulo="Login *"
           dica={usuario ? "Usado para entrar no sistema. Se mudar, avise o usuário (a senha continua a mesma)." : "Letras, números, ponto, hífen ou _"}>
           {(id) => <input id={id} className="input" required minLength={3} maxLength={60} pattern="[A-Za-z0-9._\-]+"
-            value={login} onChange={(e) => setLogin(e.target.value)} />}
+            value={login} disabled={!contaLiberada} onChange={(e) => setLogin(e.target.value)} />}
         </Campo>
         <Campo rotulo={usuario ? "Nova senha" : "Senha *"} dica={usuario ? "Deixe em branco para manter a atual." : "Mínimo de 8 caracteres."}>
           {(id) => <input id={id} className="input" type="password" autoComplete="new-password" minLength={8}
-            required={!usuario} value={senha} onChange={(e) => setSenha(e.target.value)} />}
+            required={!usuario} value={senha} disabled={!contaLiberada} onChange={(e) => setSenha(e.target.value)} />}
         </Campo>
-        <Campo rotulo="Perfil"
-          dica={ehEu ? "Você não pode mudar o perfil do próprio usuário." : !ehMaster ? "Só o MASTER cria ou promove administradores." : undefined}>
-          {(id) => (
-            <select id={id} className="input" value={perfil} disabled={ehEu || !ehMaster}
-              onChange={(e) => setPerfil(e.target.value as Perfil)}>
-              <option value="CLIENTE">Cliente — faz tudo nos próprios ofícios; exclusão precisa de aprovação</option>
-              <option value="ADMIN">Administrador — vê todos os ofícios, exclui e gerencia clientes</option>
-              {(ehMaster || perfil === "MASTER") && (
-                <option value="MASTER">Master — administrador geral, gerencia também os administradores</option>
-              )}
-            </select>
+
+        <fieldset className="acesso-modulos">
+          <legend>Acesso aos módulos</legend>
+          {ehMaster && (
+            <label className="checkbox">
+              <input type="checkbox" checked={master} disabled={ehEu} onChange={(e) => setMaster(e.target.checked)} />
+              Master: acesso total a todos os módulos e gestão de administradores
+            </label>
           )}
-        </Campo>
-        {usuario && !ehEu && (
+          {master ? (
+            <p className="texto-suave">O master entra em todos os módulos como administrador geral.</p>
+          ) : (
+            MODULOS.map((m) => (
+              <Campo key={m.modulo} rotulo={m.nome}
+                dica={
+                  ehEu ? "Você não pode mudar o próprio acesso."
+                    : m.modulo === "OFICIOS" && operacional && acesso.OFICIOS === "NENHUM"
+                      ? "O operacional da Manutenção recebe acesso de cliente ao Planner automaticamente."
+                    : m.modulo === "OFICIOS" && operacional
+                      ? "Todo operacional da Manutenção usa o Planner (cliente ou administrador)."
+                    : !meus.includes(m.modulo) ? "Você não administra este módulo."
+                    : !editavel(m.modulo) ? "Só o MASTER altera o acesso de administradores."
+                    : undefined
+                }>
+                {(id) => (
+                  <>
+                    <select id={id} className="input" value={acesso[m.modulo]} disabled={!editavel(m.modulo)}
+                      onChange={(e) => mudarAcesso(m.modulo, e.target.value as Escolha)}>
+                      {/* operacional da Manutenção não fica sem o Planner */}
+                      {!(m.modulo === "OFICIOS" && operacional && acesso.OFICIOS !== "NENHUM") && (
+                        <option value="NENHUM">Sem acesso</option>
+                      )}
+                      {m.modulo === "MANUTENCAO" ? (
+                        <>
+                          <option value="CLIENTE">Operacional (abre e acompanha os chamados)</option>
+                          <option value="TECNICO">Técnico (atende os chamados de uma empresa)</option>
+                        </>
+                      ) : (
+                        <option value="CLIENTE">Cliente</option>
+                      )}
+                      {(ehMaster || acesso[m.modulo] === "ADMIN") && <option value="ADMIN">Administrador</option>}
+                    </select>
+                    {m.modulo === "MANUTENCAO" && acesso.MANUTENCAO === "TECNICO" && (
+                      <select className="input" aria-label="Empresa do técnico" required disabled={!editavel(m.modulo)}
+                        value={empresaTecnico} onChange={(e) => setEmpresaTecnico(e.target.value ? Number(e.target.value) : "")}>
+                        <option value="">Empresa do técnico…</option>
+                        {(empresas.data ?? [])
+                          .filter((x) => x.ativo || x.id === empresaTecnico)
+                          .map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                        {!empresas.data && empresaTecnico !== "" && (
+                          <option value={empresaTecnico}>
+                            {usuario?.modulos.find((a) => a.modulo === "MANUTENCAO")?.empresa_nome ?? "Empresa atual"}
+                          </option>
+                        )}
+                      </select>
+                    )}
+                  </>
+                )}
+              </Campo>
+            ))
+          )}
+        </fieldset>
+
+        {usuario && !ehEu && contaLiberada && (
           <label className="checkbox">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
             Usuário ativo (desmarque para bloquear o acesso)

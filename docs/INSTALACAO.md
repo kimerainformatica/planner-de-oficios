@@ -70,13 +70,15 @@ copy .env.example .env
 Edite o `.env`, no mínimo `DATABASE_URL` e `JWT_SECRET`, e crie as tabelas:
 
 ```powershell
-alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0010)
+alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0014)
 python -m scripts.inicializar   # cria o 1º administrador (pede a senha) e os feriados nacionais
 ```
 
 `scripts.inicializar` aceita `--login`, `--nome`, `--anos 2026 2027` e `--gerar-senha`, que gera e mostra uma senha
 aleatória. Para tornar uma conta MASTER ou recuperar o acesso, use
-`python -m scripts.definir_perfil --login admin --perfil MASTER`.
+`python -m scripts.definir_perfil --login admin --perfil MASTER`. Para dar o papel de alguém em um módulo, use
+`--modulo OFICIOS|MANUTENCAO --papel ADMIN|CLIENTE|NENHUM` (técnicos são cadastrados pela tela de Usuários, porque
+precisam da empresa).
 
 ### Configuração (`backend/.env`)
 
@@ -93,7 +95,10 @@ aleatória. Para tornar uma conta MASTER ou recuperar o acesso, use
 | `LOGIN_MAX_TENTATIVAS` | `5` | Senhas erradas seguidas antes do bloqueio |
 | `LOGIN_BLOQUEIO_MINUTOS` | `5` | Duração do bloqueio |
 | `VERIFICACAO_HORAS` | `24` | Intervalo da verificação dos arquivos (0 desliga a automática) |
-| `STORAGE_DIR` | `backend/storage` | Pasta dos documentos |
+| `MANUTENCAO_EXPEDIENTE_INICIO` | `08:00` | Início do expediente usado no prazo dos chamados (horas úteis) |
+| `MANUTENCAO_EXPEDIENTE_FIM` | `18:00` | Fim do expediente dos chamados (`00:00` = meia-noite) |
+| `MANUTENCAO_ALERTA_HORAS` | `4` | Horas úteis restantes para um chamado aparecer como "vencendo" |
+| `STORAGE_DIR` | `backend/storage` | Pasta dos documentos (inclui os arquivos dos chamados) |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | Origens extras liberadas (o servidor de desenvolvimento do Vite). A rede interna já é liberada |
 
 Depois de mudar o `.env`, reinicie o sistema.
@@ -163,8 +168,9 @@ Administradores. Se outra conta precisar fazer backup dela, ajuste as permissõe
 5. Reinicie: `parar.bat` e depois `iniciar.bat`.
 6. Peça aos usuários para recarregar a página com **Ctrl+F5**.
 
-Para conferir a versão do banco: `alembic current`. Para voltar uma migração: `alembic downgrade -1`. As migrações
-foram testadas nos dois sentidos, mas a volta segura é restaurar o backup.
+Para conferir a versão do banco: `alembic current`. Para voltar uma migração: `alembic downgrade -1`. A volta segura
+é sempre restaurar o backup: a 0014 só completa acessos e não desfaz nada ao voltar. O que mudou em cada versão
+está em [ATUALIZACOES.md](ATUALIZACOES.md).
 
 ## 8. Rotina anual
 

@@ -1,18 +1,31 @@
 import type {
+  AcessoModulo,
   Analise,
+  AnexoOficio,
   Anexo,
   AnexoLixeira,
   Atividade,
+  Chamado,
+  ChamadoDetalhe,
+  EmpresaManutencao,
+  FiltrosChamado,
+  Interacao,
+  PainelManutencao,
+  QuadroChamados,
+  RelatorioTecnico,
+  TipoSolicitacao,
   Destinatario,
   Feriado,
   Filtros,
   FiltrosAtividade,
   FiltrosOficio,
+  Modulo,
+  ModuloDisponivel,
   Oficio,
   OficioDetalhe,
   Pagina,
-  Perfil,
   Prazos,
+  ResumoManutencao,
   Resumo,
   SolicitacaoExclusao,
   StatusOficio,
@@ -164,14 +177,129 @@ export const sugestoesSetor = (destinatario: Destinatario) =>
 
 // ---------- usuários ----------
 
-export const listarUsuarios = () => api<Usuario[]>("/usuarios");
+/** `modulo` filtra quem tem acesso a ele (o MASTER sempre tem). */
+export const listarUsuarios = (modulo?: Modulo) =>
+  api<Usuario[]>(`/usuarios${modulo ? `?modulo=${modulo}` : ""}`);
 
-export const criarUsuario = (dados: { nome: string; login: string; senha: string; perfil: Perfil }) =>
-  api<Usuario>("/usuarios", { method: "POST", body: json(dados) });
+export const criarUsuario = (dados: {
+  nome: string;
+  login: string;
+  senha: string;
+  master?: boolean;
+  modulos: AcessoModulo[];
+}) => api<Usuario>("/usuarios", { method: "POST", body: json(dados) });
+
+// ---------- módulos ----------
+
+export const listarModulos = () => api<ModuloDisponivel[]>("/modulos");
+
+// ---------- Manutenção Clínica (helpdesk) ----------
+
+export const resumoManutencao = () => api<ResumoManutencao>("/manutencao/resumo");
+
+export const painelManutencao = () => api<PainelManutencao>("/manutencao/painel");
+
+export const listarEmpresas = (ativas = false) =>
+  api<EmpresaManutencao[]>("/manutencao/empresas", { params: { ativas: ativas || undefined } });
+
+export const criarEmpresa = (dados: { nome: string; descricao?: string | null; prazo_horas: number }) =>
+  api<EmpresaManutencao>("/manutencao/empresas", { method: "POST", body: json(dados) });
+
+export const atualizarEmpresa = (
+  id: number,
+  dados: Partial<{ nome: string; descricao: string | null; prazo_horas: number; ativo: boolean }>,
+) => api<EmpresaManutencao>(`/manutencao/empresas/${id}`, { method: "PATCH", body: json(dados) });
+
+export const excluirEmpresa = (id: number) => api<void>(`/manutencao/empresas/${id}`, { method: "DELETE" });
+
+export const listarChamados = (f: FiltrosChamado) =>
+  api<Pagina<Chamado>>("/manutencao/chamados", { params: { ...f, por_pagina: 20 } });
+
+export const verChamado = (id: number) => api<ChamadoDetalhe>(`/manutencao/chamados/${id}`);
+
+export const abrirChamado = (dados: {
+  empresa_id: number;
+  titulo: string;
+  descricao: string;
+  local?: string | null;
+  equipamento?: string | null;
+  ocorrido_em?: string | null;
+}) => api<ChamadoDetalhe>("/manutencao/chamados", { method: "POST", body: json(dados) });
+
+export const quadroChamados = (f: { meus?: boolean; empresa_id?: number; dias?: number }) =>
+  api<QuadroChamados>("/manutencao/quadro", { params: { meus: f.meus || undefined, empresa_id: f.empresa_id, dias: f.dias } });
+
+export const tiposSolicitacao = () => api<TipoSolicitacao[]>("/manutencao/tipos-solicitacao");
+
+/** Solicitação de peças ou equipamentos: cadastra um ofício no Planner ligado ao chamado. */
+export const solicitarPecas = (
+  id: number,
+  dados: {
+    tipo: string;
+    numero: string;
+    data_oficio: string;
+    protocolo?: string | null;
+    destinatario_tipo?: Destinatario | null;
+    destinatario_setor?: string | null;
+    itens: string;
+  },
+) => api<ChamadoDetalhe>(`/manutencao/chamados/${id}/oficios`, { method: "POST", body: json(dados) });
+
+export const assumirChamado = (id: number) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/assumir`, { method: "POST" });
+
+/** Comentário ou resposta técnica (diagnóstico), com arquivo opcional. */
+export function responderChamado(id: number, dados: { texto?: string; diagnostico?: boolean; arquivo?: File | null }) {
+  const corpo = new FormData();
+  if (dados.texto) corpo.append("texto", dados.texto);
+  if (dados.diagnostico) corpo.append("diagnostico", "true");
+  if (dados.arquivo) corpo.append("arquivo", dados.arquivo);
+  return api<ChamadoDetalhe>(`/manutencao/chamados/${id}/interacoes`, { method: "POST", body: corpo });
+}
+
+export type RelatorioForm = Omit<
+  RelatorioTecnico,
+  "id" | "codigo" | "chamado_id" | "tecnico" | "empresa" | "criado_em" | "atendido_em"
+> & { atendido_em?: string | null };
+
+export const criarRelatorio = (id: number, dados: RelatorioForm) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/relatorios`, { method: "POST", body: json(dados) });
+
+export const concluirChamado = (id: number, texto?: string) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/concluir`, { method: "POST", body: json({ texto: texto || null }) });
+
+export const reabrirChamado = (id: number, motivo: string) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/reabrir`, { method: "POST", body: json({ motivo }) });
+
+export const cancelarChamado = (id: number, motivo: string) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/cancelar`, { method: "POST", body: json({ motivo }) });
+
+export async function baixarArquivoInteracao(i: Interacao): Promise<Blob> {
+  const resposta = await requisicao(`/manutencao/interacoes/${i.id}/arquivo`, { params: { bruto: true } });
+  return new Blob([await resposta.arrayBuffer()], { type: i.arquivo_mime ?? "application/octet-stream" });
+}
+
+/** Documento do ofício de peças/equipamentos (anexado no Planner), baixado pelo chamado. */
+export async function baixarAnexoOficio(chamadoId: number, anexo: AnexoOficio): Promise<Blob> {
+  const resposta = await requisicao(`/manutencao/chamados/${chamadoId}/oficios/anexos/${anexo.id}`, { params: { bruto: true } });
+  return new Blob([await resposta.arrayBuffer()], { type: anexo.mime_type });
+}
+
+export async function baixarRelatorioPdf(relatorioId: number): Promise<Blob> {
+  const resposta = await requisicao(`/manutencao/relatorios/${relatorioId}/pdf`, { params: { bruto: true } });
+  return new Blob([await resposta.arrayBuffer()], { type: "application/pdf" });
+}
 
 export const atualizarUsuario = (
   id: number,
-  dados: Partial<{ nome: string; login: string; senha: string; perfil: Perfil; ativo: boolean }>,
+  dados: Partial<{
+    nome: string;
+    login: string;
+    senha: string;
+    master: boolean;
+    modulos: AcessoModulo[];
+    ativo: boolean;
+  }>,
 ) => api<Usuario>(`/usuarios/${id}`, { method: "PATCH", body: json(dados) });
 
 // ---------- feriados ----------

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.deps import DbDep, SettingsDep, UsuarioDep, eh_admin
+from app.deps import ACESSO_OFICIOS, DbDep, SettingsDep, UsuarioDep, eh_admin
 from app.models import Anexo, HistoricoStatus, Oficio, StatusOficio, TipoAnexo, Usuario
 from app.schemas import AnexoOut
 from app.services import armazenamento
@@ -15,7 +15,7 @@ from app.services.oficios import buscar_oficio, escopo
 NOME_TIPO = {TipoAnexo.OFICIO: "documento do ofício", TipoAnexo.REFERENCIA: "documento de referência",
              TipoAnexo.RESPOSTA: "evidência da resposta", TipoAnexo.RECEBIMENTO: "evidência da entrega"}
 
-router = APIRouter(tags=["Anexos"])
+router = APIRouter(tags=["Anexos"], dependencies=ACESSO_OFICIOS)
 
 
 def _buscar_anexo(db: Session, anexo_id: int, usuario: Usuario) -> Anexo:

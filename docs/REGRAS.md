@@ -103,13 +103,153 @@ stateDiagram-v2
 - Para cada documento, inclusive os da lixeira, confere se o arquivo **existe** e se o **hash** é o mesmo do envio.
 - Se houver problema, aparece um contador vermelho no menu **Arquivos** e um registro no log.
 
-## Perfis
+## Módulos e perfis
 
-| Perfil | Pode |
+A plataforma é dividida em **módulos**: **Planner de Ofícios** e **Manutenção Clínica**. Cada pessoa é habilitada
+nos módulos no cadastro (feito por um administrador ou pelo master) e tem **um papel em cada módulo**. Quem não foi
+habilitado num módulo não o abre (as rotas dele respondem `403`).
+
+- **O papel vale por módulo.** Quem é administrador de um módulo **não é** administrador do outro: pode ser
+  administrador no Planner e cliente na Manutenção.
+- **O master** tem acesso e poder de administrador em **todos** os módulos. É a única conta que enxerga e edita os dois.
+- **Depois do login**, quem tem mais de um módulo escolhe qual abrir. Quem tem um só entra direto nele.
+
+| Papel no módulo | Pode |
 |---|---|
-| `CLIENTE` | Tudo nos **próprios** ofícios, inclusive nos confirmados. Para excluir, **pede a um administrador** |
-| `ADMIN` | Ver e alterar todos os ofícios, excluir direto, aprovar ou recusar pedidos de exclusão, gerenciar clientes, feriados e tipos, usar a lixeira e a verificação de arquivos, fazer correções |
-| `MASTER` | Tudo do administrador, e também criar e alterar administradores e masters. Sempre resta pelo menos 1 master ativo |
+| `CLIENTE` | No Planner: tudo nos **próprios** ofícios, inclusive nos confirmados; para excluir, **pede a um administrador** |
+| `ADMIN` | No Planner: ver e alterar todos os ofícios, excluir direto, aprovar ou recusar pedidos de exclusão, gerenciar feriados e tipos, usar a lixeira e a verificação de arquivos, fazer correções. Em qualquer módulo: **habilitar clientes** naquele módulo |
+| `MASTER` (global) | Tudo do administrador, em todos os módulos, e também criar e alterar administradores e masters. Sempre resta pelo menos 1 master ativo |
+
+### Quem gerencia o acesso
+
+- O **administrador de um módulo** cria usuários (sempre como **cliente**) e habilita ou retira pessoas **só nesse
+  módulo**. Não toca no acesso dos outros módulos.
+- Só altera **nome, login, senha e situação** de quem usa apenas módulos que ele administra. Assim, o administrador
+  de um módulo não assume a conta de alguém que também usa outro módulo.
+- Não cria nem altera administradores e masters: isso é do **master**.
+- Ninguém muda o próprio acesso nem se desativa.
+- A mudança de acesso vale **na hora**, sem a pessoa precisar sair e entrar de novo, e fica em **Atividades**.
+
+## Manutenção Clínica (helpdesk)
+
+O operacional abre um **chamado** para uma empresa técnica, e o técnico dessa empresa tem um prazo em **horas úteis**
+para dar o **diagnóstico**.
+
+### Papéis no módulo
+
+| Papel | Pode |
+|---|---|
+| Operacional (`CLIENTE`) | Abrir chamados, ver e acompanhar **todos** os chamados, comentar e anexar arquivos, cancelar (em aberto) e reabrir (concluído) |
+| Técnico (`TECNICO`) | Ver só os chamados da **empresa dele**, assumir, comentar, registrar a resposta técnica (texto e/ou **arquivo externo**), fazer o **relatório técnico** no modelo do sistema e concluir |
+| Administrador (`ADMIN`) e master | Tudo isso em todos os chamados, e cadastrar as **empresas técnicas** |
+
+O técnico é um usuário como os outros, cadastrado em **Usuários**: perfil *Técnico* na Manutenção Clínica e a
+empresa dele. O administrador do módulo cadastra operacionais e técnicos.
+
+### Empresas técnicas
+
+- **Iniciais:** MSI, REALIZA PREDIAL e REALIZA CLIMATIZAÇÃO, cada uma com prazo de 24 horas úteis.
+- **Cadastro:** em **Empresas técnicas**, o administrador inclui, renomeia, muda o prazo ou desativa uma empresa.
+- **Mudança de prazo:** vale para os chamados **abertos depois** da mudança.
+- **Exclusão:** uma empresa com chamados ou técnicos não pode ser excluída, só desativada. Desativada, ela não
+  recebe chamados novos.
+
+### Chamado
+
+- **Abertura:** empresa, título, descrição do problema, **data e hora do problema**, local e equipamento (opcionais)
+  e uma foto ou documento (opcional).
+- **Status:** `ABERTO` → `EM_ATENDIMENTO` (o técnico assumiu ou respondeu) → `CONCLUIDO`. Também pode ir para
+  `CANCELADO`, pelo operacional ou administrador, com motivo, enquanto está em aberto.
+- **Reabrir:** um chamado concluído pode ser reaberto pelo operacional ou administrador, com motivo.
+- **Concluir:** só depois do diagnóstico.
+- **Linha do tempo:** guarda tudo (abertura, comentários, respostas técnicas, relatórios, conclusão, reabertura,
+  cancelamento), com autor e hora. Nada é apagado.
+
+### Prazo do diagnóstico (horas úteis)
+
+- **Contagem:** começa na **abertura** do chamado e conta só o expediente (`MANUTENCAO_EXPEDIENTE_INICIO` a
+  `MANUTENCAO_EXPEDIENTE_FIM`, padrão 08:00–18:00), de segunda a sexta, sem os feriados de **Feriados**.
+  - Exemplo: com 24 h úteis e expediente de 10 h, um chamado aberto na sexta às 15:00 vence na quarta às 09:00.
+- **O que conta como diagnóstico:** a **primeira** resposta técnica (texto e/ou arquivo externo marcado como
+  resposta técnica) ou o primeiro relatório técnico. Comentar ou assumir não conta.
+- **Situação**, calculada na hora:
+
+  | Situação | Quando |
+  |---|---|
+  | No prazo | Sem diagnóstico, com mais de `MANUTENCAO_ALERTA_HORAS` (4) h úteis restantes |
+  | Vencendo | Sem diagnóstico, com até 4 h úteis restantes |
+  | Atrasado | Sem diagnóstico, prazo vencido |
+  | Diagnóstico no prazo / com atraso | Diagnosticado antes ou depois do prazo |
+
+- **Painel:** mostra, por empresa, os chamados em aberto e atrasados, a porcentagem de diagnósticos no prazo, o tempo
+  médio até o diagnóstico e o tempo médio de solução.
+
+### Tempo de solução
+
+- **O que é:** o tempo entre o **diagnóstico** e a **conclusão**, gravado no chamado quando ele é concluído, em horas
+  úteis (mesmo expediente do prazo) e em horas corridas. Também fica escrito na linha do tempo, junto da conclusão.
+- **Durante o atendimento:** o chamado mostra há quanto tempo está em execução desde o diagnóstico.
+- **Reabertura:** apaga o tempo gravado. A nova conclusão grava de novo, contando desde o diagnóstico original.
+
+### Quadro de acompanhamento
+
+- **Painel do técnico:** é a tela inicial do técnico. Mostra os chamados da empresa dele por etapa:
+
+  | Coluna | Chamados |
+  |---|---|
+  | Aguardando diagnóstico | Ainda sem diagnóstico; o mais perto do vencimento primeiro |
+  | Em execução | Diagnosticados, com o serviço em andamento e há quanto tempo |
+  | Aguardando peças / equipamentos | Com solicitação no Planner ainda não entregue |
+  | Concluídos | Dos últimos 7, 30 ou 90 dias, com o tempo de solução |
+
+- **Indicadores:** em aberto, atrasados, aguardando peças, % de diagnósticos no prazo e tempo médio de solução no
+  período.
+- **Filtro:** *Só os meus* mostra os chamados que o técnico assumiu ou respondeu.
+- **Outros papéis:** operacionais e administradores usam o mesmo quadro, em **Quadro de acompanhamento**, com filtro
+  por empresa.
+
+### Solicitação de peças ou equipamentos (Planner de Ofícios)
+
+- **Quem:** o operacional ou o administrador, com o chamado em aberto, clica em **Solicitar peças ou equipamentos**.
+- **Formulário:** tipo (Peças para Manutenção/Engenharia Clínica ou Equipamentos), nº e data do ofício, protocolo,
+  destinatário e os itens solicitados.
+- **Resultado:** o sistema cadastra um **ofício no Planner de Ofícios**, ligado ao chamado.
+  - Ele fica em nome de quem pediu e segue as regras e os prazos normais do Planner (resposta e entrega).
+  - A observação traz o chamado e os itens.
+  - O número e o protocolo seguem a mesma regra de unicidade dos outros ofícios.
+- **Documento:** é anexado **no Planner**, no próprio ofício (documento do ofício, de referência, evidência da
+  resposta, comprovante de entrega). O chamado tem o atalho *Anexar o documento no Planner de Ofícios*.
+- **Espelho no chamado:** tudo o que é feito no Planner com esse ofício aparece no chamado.
+  - **Documentos:** listados na seção **Peças e equipamentos**. Quem vê o chamado, inclusive o técnico, pode baixá-los
+    por ali.
+  - **Status e datas:** resposta, entrega, correções, desfazer e exclusão do ofício.
+  - **Linha do tempo:** cada uma dessas ações entra como *Planner de Ofícios · …*, com o autor.
+- **Quadro:** o chamado fica em *Aguardando peças* enquanto o ofício estiver pendente de resposta ou de entrega.
+  - Com a entrega registrada no Planner, ele volta sozinho para a etapa em que estava.
+  - O cartão mostra o status de cada ofício.
+  - O quadro e o chamado se atualizam a cada 30 segundos.
+- **No Planner:** o ofício mostra a **origem**, ou seja, o chamado.
+
+### Operacional e o Planner de Ofícios
+
+- **Regra:** todo operacional da Manutenção Clínica (cliente ou administrador do módulo) também tem acesso ao
+  **Planner de Ofícios**.
+- **Concessão automática:** quem é habilitado como operacional e ainda não tinha o Planner ganha acesso de **cliente**
+  automaticamente, mesmo quando quem cadastra é o administrador da Manutenção.
+- **Papéis independentes:** pode ser administrador em um módulo e cliente no outro.
+- **Retirada:** o Planner não pode ser retirado de um operacional (`400`). Para isso, primeiro mude o papel dele na
+  Manutenção.
+- **Técnicos:** os técnicos das empresas usam só a Manutenção Clínica.
+- **Gestão da conta:** o acesso de cliente ao Planner que vem com o operacional não impede o administrador da
+  Manutenção de gerir a conta dele.
+
+### Relatório técnico
+
+- **Modelo do sistema:** data e hora do atendimento, equipamento, patrimônio/nº de série, situação do equipamento,
+  diagnóstico, causa provável, serviço executado, peças e materiais, e recomendações.
+- **PDF:** gera um PDF com os dados do chamado, do atendimento e espaço para as assinaturas.
+- **Arquivo externo:** quando a empresa usa um laudo próprio, o técnico o anexa na resposta técnica.
+- **Arquivos aceitos:** os mesmos dos ofícios (PDF, imagens, Word, ODT, até `UPLOAD_MAX_MB`).
 
 ## Correções (administrador e master)
 

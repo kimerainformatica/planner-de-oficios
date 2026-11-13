@@ -124,22 +124,26 @@ def test_auditoria_de_anexos_usuarios_e_feriados(api, master, ana):
 
 def test_hierarquia_master_admin(api, master, admin, ana):
     novo = {"nome": "Outro", "login": "outro", "senha": "12345678"}
-    assert api.post("/api/usuarios", json={**novo, "perfil": "ADMIN"}, headers=admin).status_code == 403
-    assert api.post("/api/usuarios", json={**novo, "perfil": "MASTER"}, headers=admin).status_code == 403
-    cliente = api.post("/api/usuarios", json=novo, headers=admin)
+    cliente_planner = [{"modulo": "OFICIOS", "perfil": "CLIENTE"}]
+    admin_planner = [{"modulo": "OFICIOS", "perfil": "ADMIN"}]
+    assert api.post("/api/usuarios", json={**novo, "modulos": admin_planner}, headers=admin).status_code == 403
+    assert api.post("/api/usuarios", json={**novo, "master": True}, headers=admin).status_code == 403
+    cliente = api.post("/api/usuarios", json={**novo, "modulos": cliente_planner}, headers=admin)
     assert cliente.status_code == 201  # admin gerencia clientes
 
     id_master = me(api, master)["id"]
     id_admin = me(api, admin)["id"]
     assert api.patch(f"/api/usuarios/{id_master}", json={"nome": "X"}, headers=admin).status_code == 403
-    assert api.patch(f"/api/usuarios/{cliente.json()['id']}", json={"perfil": "ADMIN"}, headers=admin).status_code == 403
+    assert api.patch(f"/api/usuarios/{cliente.json()['id']}", json={"modulos": admin_planner},
+                     headers=admin).status_code == 403
     assert api.patch(f"/api/usuarios/{id_admin}", json={"nome": "Admin 2"}, headers=admin).status_code == 200  # o próprio
 
     # MASTER manda em todos
     assert api.patch(f"/api/usuarios/{id_admin}", json={"ativo": False}, headers=master).status_code == 200
-    assert api.patch(f"/api/usuarios/{cliente.json()['id']}", json={"perfil": "ADMIN"}, headers=master).status_code == 200
-    assert api.patch(f"/api/usuarios/{id_master}", json={"perfil": "ADMIN"}, headers=master).status_code == 400
-    assert api.post("/api/usuarios", json={"nome": "Master 2", "login": "master2", "senha": "12345678", "perfil": "MASTER"},
+    assert api.patch(f"/api/usuarios/{cliente.json()['id']}", json={"modulos": admin_planner},
+                     headers=master).status_code == 200
+    assert api.patch(f"/api/usuarios/{id_master}", json={"master": False}, headers=master).status_code == 400
+    assert api.post("/api/usuarios", json={"nome": "Master 2", "login": "master2", "senha": "12345678", "master": True},
                     headers=master).status_code == 201
 
     # Cliente continua sem acesso à gestão

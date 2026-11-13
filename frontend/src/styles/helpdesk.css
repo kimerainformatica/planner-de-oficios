@@ -1,0 +1,440 @@
+/* Manutenção Clínica (helpdesk): status, prazo, linha do tempo do chamado e relatório técnico */
+
+/* ================= Badges ================= */
+.badge-tecnico {
+  color: var(--recebimento);
+  background: var(--recebimento-fundo);
+  border-color: var(--recebimento-borda);
+}
+.chamado-status-ABERTO {
+  color: var(--pendente);
+  background: var(--pendente-fundo);
+}
+.chamado-status-EM_ATENDIMENTO {
+  color: var(--recebimento);
+  background: var(--recebimento-fundo);
+}
+.chamado-status-CONCLUIDO {
+  color: var(--confirmado);
+  background: var(--confirmado-fundo);
+}
+.chamado-status-CANCELADO {
+  color: var(--nao-confirmado);
+  background: var(--nao-confirmado-fundo);
+}
+.chamado-prazo-NO_PRAZO,
+.chamado-prazo-CUMPRIDO {
+  color: var(--normal);
+  background: var(--normal-fundo);
+  border-color: var(--normal-borda);
+}
+.chamado-prazo-VENCENDO,
+.chamado-prazo-CUMPRIDO_COM_ATRASO {
+  color: var(--atencao);
+  background: var(--atencao-fundo);
+  border-color: var(--atencao-borda);
+}
+.chamado-prazo-ATRASADO {
+  color: var(--critico);
+  background: var(--critico-fundo);
+  border-color: var(--critico-borda);
+}
+.chamado-prazo-SUSPENSO {
+  color: var(--nao-confirmado);
+  background: var(--nao-confirmado-fundo);
+}
+.prazo-chamado {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.linha-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.linha-badges .prazo-chamado {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.texto-critico {
+  color: var(--critico);
+  font-weight: 700;
+}
+
+/* faixa lateral na lista conforme o prazo */
+.chamado-linha-ATRASADO td:first-child,
+.chamado-item-ATRASADO {
+  box-shadow: inset 4px 0 0 var(--critico-forte);
+}
+.chamado-linha-VENCENDO td:first-child,
+.chamado-item-VENCENDO {
+  box-shadow: inset 4px 0 0 var(--atencao-forte);
+}
+
+/* ================= Painel ================= */
+.cartoes-helpdesk {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .cartoes-helpdesk {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .cartoes-helpdesk {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.cartoes-helpdesk .cartao-CRITICO .indicador-ic {
+  background: var(--critico-fundo);
+  color: var(--critico);
+}
+.cartoes-helpdesk .cartao-ATENCAO .indicador-ic {
+  background: var(--atencao-fundo);
+  color: var(--atencao);
+}
+
+/* ================= Detalhe do chamado ================= */
+.acoes-chamado {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.dados-chamado {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 22px;
+}
+.titulo-descricao {
+  margin: 20px 0 6px;
+  font-size: 15px;
+}
+.texto-livre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.linha-tempo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.evento {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 18px;
+}
+/* trilho vertical ligando os eventos */
+.evento:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 34px;
+  bottom: 0;
+  width: 2px;
+  background: var(--borda);
+}
+.evento-icone {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  color: var(--texto-suave);
+}
+.evento-DIAGNOSTICO .evento-icone,
+.evento-RELATORIO .evento-icone {
+  background: var(--recebimento-fundo);
+  border-color: var(--recebimento-borda);
+  color: var(--recebimento);
+}
+.evento-CONCLUSAO .evento-icone {
+  background: var(--confirmado-fundo);
+  color: var(--confirmado);
+}
+.evento-CANCELAMENTO .evento-icone {
+  background: var(--critico-fundo);
+  color: var(--critico);
+}
+.evento-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 5px;
+}
+.evento-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.evento-DIAGNOSTICO .evento-corpo > .texto-livre,
+.evento-COMENTARIO .evento-corpo > .texto-livre {
+  padding: 10px 14px;
+  border-radius: var(--raio-m);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+}
+.evento-DIAGNOSTICO .evento-corpo > .texto-livre {
+  border-left: 3px solid var(--recebimento);
+}
+.arquivo-baixar {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  max-width: 460px;
+}
+.arquivo-baixar:hover {
+  border-color: var(--marca);
+}
+
+.relatorio-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.relatorio-visao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--recebimento-borda);
+  border-radius: var(--raio-m);
+  background: var(--superficie);
+}
+.relatorio-visao h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ================= Peças e equipamentos (ofícios do Planner) ================= */
+.oficios-chamado {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.oficios-chamado .cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  box-shadow: none;
+}
+.anexos-oficio {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.anexos-oficio .arquivo-baixar {
+  width: 100%;
+  max-width: none;
+}
+.oficio-chamado-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ================= Quadro de acompanhamento ================= */
+.filtros-quadro {
+  flex-wrap: wrap;
+}
+.filtros-quadro select.input {
+  width: auto;
+}
+.alternador {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+}
+.alternador button {
+  border: 0;
+  background: transparent;
+  padding: 7px 14px;
+  border-radius: 99px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+.alternador button.ativo {
+  background: var(--primaria);
+  color: var(--primaria-texto);
+}
+.quadro {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+@media (max-width: 1100px) {
+  .quadro {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .quadro {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.quadro-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--raio);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-top: 4px solid var(--borda-forte);
+}
+.coluna-AGUARDANDO_DIAGNOSTICO {
+  border-top-color: var(--atencao-forte);
+}
+.coluna-EM_EXECUCAO {
+  border-top-color: var(--recebimento);
+}
+.coluna-AGUARDANDO_PECAS {
+  border-top-color: var(--marca-azul);
+}
+.coluna-CONCLUIDOS {
+  border-top-color: var(--normal-forte);
+}
+.quadro-topo {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.quadro-topo h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.quadro-topo small {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.quadro-icone {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto-suave);
+}
+.quadro-total {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  margin-left: 4px;
+  border-radius: 99px;
+  background: var(--superficie);
+  font-size: 12px;
+}
+.quadro-cartoes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quadro-vazio {
+  margin: 6px 2px;
+  font-size: 13px;
+}
+.quadro-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--raio-m);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  color: var(--texto);
+  box-shadow: var(--sombra);
+  transition: transform 0.25s var(--mola), border-color 0.2s;
+}
+.quadro-cartao:hover {
+  transform: translateY(-2px);
+  border-color: var(--marca);
+}
+.quadro-cartao:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+.quadro-cartao-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.quadro-cartao-titulo {
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.quadro-cartao-info {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+.quadro-cartao-info li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quadro-cartao-info .info-pecas {
+  color: var(--marca-azul);
+  font-weight: 700;
+}
+.quadro-cartao-info .info-solucao {
+  color: var(--normal);
+  font-weight: 700;
+}
+.quadro-cartao-rodape {
+  font-size: 12px;
+}
+
+.responder {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borda);
+}
+.grupo-fim {
+  justify-content: flex-end;
+}

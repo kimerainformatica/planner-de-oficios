@@ -53,11 +53,41 @@ flowchart LR
 | `exportacao.py` | Gera o Excel (openpyxl, com gráficos nativos) e o PDF (ReportLab) |
 | `exclusoes.py` | Exclusão de ofício com remoção dos arquivos, inclusive os da lixeira |
 | `auditoria.py` | Registro de atividades (ação, descrição, antes → depois) e os nomes legíveis das ações |
+| `modulos.py` | Catálogo dos módulos e quem administra o quê |
+| `manutencao.py` | Helpdesk: papéis (operacional, técnico, admin), visibilidade por empresa, transições do chamado e situação do prazo |
+| `horas_uteis.py` | Soma e conta horas úteis (expediente em dias úteis, sem feriados) para o prazo do diagnóstico |
+| `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
+
+## Módulos
+
+A plataforma é uma base de módulos: **Planner de Ofícios** (`OFICIOS`) e **Manutenção Clínica** (`MANUTENCAO`).
+
+- **Acesso:** `usuario_modulos` guarda o papel (`ADMIN` ou `CLIENTE`) de cada usuário em cada módulo. `usuarios.perfil` é
+  global: `MASTER` (acesso total) ou `CLIENTE`. `Usuario.perfil_no(modulo)`, `tem_acesso(modulo)` e `eh_admin_no(modulo)`
+  (em `models.py`) respondem a todas as perguntas de permissão. Elas leem o banco a cada requisição, então uma mudança
+  de acesso vale na hora.
+- **Rotas de um módulo:** o `APIRouter` do módulo declara `dependencies=[Depends(exige_acesso_ao(Modulo.X))]`
+  (`deps.py`). Para algo só dos administradores do módulo, use `exige_admin_do(Modulo.X)`. O Planner usa
+  `ACESSO_OFICIOS`, e `AdminDep`/`eh_admin` significam "administrador do Planner".
+- **Gestão de usuários:** `routers/usuarios.py` (regras no cabeçalho do arquivo). `GestorDep` = master ou admin de algum módulo.
+- **Catálogo:** `services/modulos.py` (nome, descrição e rota de cada módulo) e `GET /api/modulos`.
+- **Front-end:** depois do login, `/modulos` mostra o que o usuário pode abrir (com um só módulo, entra direto).
+  O Planner mantém os endereços de sempre (`/`, `/oficios`…); a Manutenção fica em `/manutencao` (`LayoutManutencao`,
+  `pages/manutencao/`). `/usuarios` fica fora dos módulos (`LayoutPortal`).
+
+### Criar um módulo novo
+
+1. Acrescente o valor em `Modulo` (`models.py`) e uma migração que amplie o enum `modulo` do banco.
+2. Registre nome, descrição e rota em `CATALOGO` (`services/modulos.py`).
+3. Crie o router com `exige_acesso_ao(Modulo.X)` e registre em `main.py`.
+4. No front-end: `Modulo` (`types.ts`), `MODULOS` (`utils/modulos.ts`), um layout, as rotas em `App.tsx` dentro de
+   `<ComAcesso modulo="X" />` e um ícone em `pages/Modulos.tsx`.
 
 ## Modelo de dados
 
 ```mermaid
 erDiagram
+    usuarios ||--o{ usuario_modulos : "acessa módulos"
     usuarios ||--o{ oficios : "é dono"
     tipos_oficio ||--o{ oficios : classifica
     oficios ||--o{ historico_status : "tem eventos"
@@ -72,9 +102,15 @@ erDiagram
         int id PK
         string login UK
         string senha_hash
-        enum perfil "CLIENTE | ADMIN | MASTER"
+        enum perfil "MASTER (global) | CLIENTE (comum)"
         bool ativo
         int sessao_versao "vai no JWT"
+    }
+    usuario_modulos {
+        int id PK
+        int usuario_id FK
+        enum modulo "OFICIOS | MANUTENCAO"
+        enum perfil "ADMIN | CLIENTE"
     }
     tipos_oficio {
         string codigo PK
@@ -170,6 +206,10 @@ Decisões importantes:
 | 0008 | Lixeira de anexos |
 | 0009 | Tipos cadastráveis (tabela `tipos_oficio`) |
 | 0010 | `sessao_versao` (trocar a senha encerra as sessões) |
+| 0011 | Módulos: tabela `usuario_modulos`. Quem já existia vira cliente/administrador do Planner de Ofícios |
+| 0012 | Helpdesk da Manutenção Clínica: `empresas_manutencao` (MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO), perfil `TECNICO` com `usuario_modulos.empresa_id`, `chamados`, `chamado_interacoes` e `relatorios_tecnicos` |
+| 0013 | Tempo de solução do chamado (`solucao_horas_uteis`, `solucao_horas_corridas`) e `oficios.chamado_id` (solicitação de peças/equipamentos) |
+| 0014 | Regra: todo operacional da Manutenção (cliente/admin) recebe acesso de cliente ao Planner, se não tinha |
 
 ## Segurança
 

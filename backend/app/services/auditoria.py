@@ -3,12 +3,12 @@
 As entradas são adicionadas à mesma sessão da alteração, então só existem se ela for confirmada.
 """
 
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 from sqlalchemy.orm import Session
 
-from app.models import Auditoria, Oficio, Usuario
+from app.models import Auditoria, ChamadoInteracao, Oficio, TipoInteracao, Usuario
 
 
 class Acao(str, Enum):
@@ -51,6 +51,8 @@ NOME_CAMPO = {
     "nome": "nome",
     "login": "login",
     "perfil": "perfil",
+    "master": "acesso total (master)",
+    "modulos": "acesso aos módulos",
     "ativo": "situação",
     "senha": "senha",
     "nome_curto": "nome curto",
@@ -107,3 +109,17 @@ def registrar(
             detalhes=detalhes or None,
         )
     )
+    if oficio is not None and acao != Acao.OFICIO_CRIADO:
+        espelhar_no_chamado(db, oficio, usuario, descricao)
+
+
+def espelhar_no_chamado(db: Session, oficio: Oficio, usuario: Usuario, descricao: str) -> None:
+    """Ofício de solicitação de peças/equipamentos: o que acontece com ele no Planner (documentos, resposta,
+    entrega, correções, exclusão) aparece também na linha do tempo do chamado da Manutenção Clínica."""
+    chamado = oficio.chamado if oficio.chamado_id else None
+    if chamado is None:
+        return
+    agora = datetime.now().replace(microsecond=0)
+    db.add(ChamadoInteracao(chamado=chamado, autor=usuario, tipo=TipoInteracao.OFICIO, criado_em=agora,
+                            texto=f"Planner de Ofícios · {descricao}"))
+    chamado.atualizado_em = agora
