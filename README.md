@@ -31,6 +31,7 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 - **Painel e quadro:** indicadores por empresa e um quadro por etapa (aguardando diagnóstico, em execução, aguardando
   peças, concluídos), atualizado a cada 30 segundos. O técnico tem o próprio painel.
 - **Peças e equipamentos:** o operacional pede pelo chamado. O pedido vira um ofício no Planner, ligado ao chamado.
+  Um ofício que já existe no Planner também pode ser vinculado ao chamado.
   Os documentos são anexados no Planner, e tudo o que acontece com o ofício aparece na linha do tempo do chamado.
 
 ## Planner de Ofícios
@@ -131,7 +132,7 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 - **Peças e equipamentos:** o pedido feito no chamado vira um ofício no Planner. Os documentos são anexados no
   Planner, e o chamado acompanha cada passo.
 - **Banco:** migrações 0011 a 0014.
-- **Testes:** 104 testes da API.
+- **Testes:** 106 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
 aplicar no servidor está em [docs/ATUALIZACOES.md](https://github.com/kimerainformatica/planner-de-oficios/blob/feature/modulos-manutencao-clinica/docs/ATUALIZACOES.md).
@@ -179,7 +180,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 104 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 106 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

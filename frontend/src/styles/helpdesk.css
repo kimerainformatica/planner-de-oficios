@@ -258,6 +258,65 @@
   gap: 8px;
 }
 
+.btn-desvincular {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+/* Janela "Vincular ofício existente" */
+.busca-vincular {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.busca-vincular svg {
+  position: absolute;
+  left: 12px;
+  color: var(--texto-suave);
+  pointer-events: none;
+}
+.busca-vincular .input {
+  padding-left: 36px;
+}
+.lista-vincular {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.lista-vincular li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--superficie-2);
+}
+.vincular-dados {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.vincular-obs {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .lista-vincular li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* ================= Quadro de acompanhamento ================= */
 .filtros-quadro {
   flex-wrap: wrap;

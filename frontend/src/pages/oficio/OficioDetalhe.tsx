@@ -121,7 +121,7 @@ export function OficioDetalhe() {
             {o.protocolo && <Dado rotulo="Protocolo" valor={o.protocolo} />}
             {ehAdmin && <Dado rotulo="Cliente" valor={o.dono.nome} />}
             {o.chamado && (
-              <Dado rotulo="Origem (Manutenção Clínica)"
+              <Dado rotulo="Chamado (Manutenção Clínica)"
                 valor={modulos.includes("MANUTENCAO")
                   ? <Link to={`/manutencao/chamados/${o.chamado.id}`} className="link-forte">{o.chamado.codigo} · {o.chamado.titulo}</Link>
                   : `${o.chamado.codigo} · ${o.chamado.titulo}`} />

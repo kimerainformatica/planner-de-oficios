@@ -236,7 +236,7 @@ class DonoOut(Esquema):
 
 
 class ChamadoRef(Esquema):
-    """Chamado da Manutenção Clínica que originou o ofício (solicitação de peças/equipamentos)."""
+    """Chamado da Manutenção Clínica ligado ao ofício (solicitação feita pelo chamado ou ofício vinculado depois)."""
 
     id: int
     codigo: str

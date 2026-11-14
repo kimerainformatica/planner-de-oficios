@@ -254,6 +254,17 @@ Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza
    chamado como "Planner de Ofícios · …", e os documentos podem ser baixados pela seção **Peças e equipamentos**.
 5. Com a entrega registrada, o chamado volta sozinho à etapa em que estava.
 
+**Ofício que já existe no Planner.** Se o ofício já foi cadastrado no Planner, não cadastre de novo:
+
+1. No chamado, clique em **Vincular ofício existente**.
+2. Busque pelo número, protocolo, setor ou um trecho da observação. A lista mostra os ofícios que você vê no Planner
+   e que ainda não estão em nenhum chamado: os seus, ou todos, se você for administrador do Planner.
+3. Clique em **Vincular**. O ofício aparece na seção **Peças e equipamentos** com os documentos e o andamento que já
+   tinha, e daí em diante tudo o que for feito nele no Planner aparece no chamado.
+
+Cada ofício fica ligado a um chamado só. Para desfazer, use **Desvincular do chamado** no cartão do ofício: ele sai do
+chamado e continua no Planner. Quem desvincula é o dono do ofício ou um administrador, com o chamado em aberto.
+
 ### Quadro de acompanhamento
 
 Os chamados em quatro colunas: **aguardando diagnóstico**, **em execução**, **aguardando peças** e **concluídos**.

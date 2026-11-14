@@ -24,6 +24,7 @@ from app.models import (
     ChamadoInteracao,
     EmpresaManutencao,
     Modulo,
+    Oficio,
     Perfil,
     StatusChamado,
     StatusOficio,
@@ -41,8 +42,27 @@ TIPOS_SOLICITACAO = ("PECAS_MANUTENCAO", "SOLICITACAO_EQUIPAMENTOS")
 OFICIO_PENDENTE = {StatusOficio.PENDENTE_RESPOSTA, StatusOficio.PENDENTE_RECEBIMENTO}
 
 
+ROTULO_OFICIO = {
+    StatusOficio.PENDENTE_RESPOSTA: "aguardando resposta",
+    StatusOficio.CONFIRMADO: "resposta confirmada",
+    StatusOficio.NAO_CONFIRMADO: "resposta não confirmada",
+    StatusOficio.PENDENTE_RECEBIMENTO: "aguardando entrega",
+    StatusOficio.RECEBIDO: "entregue",
+}
+
+
+def numero_oficio(oficio: Oficio) -> str:
+    """"45" → "45/2026"; "072/2026" fica como está (o número já traz o ano)."""
+    return oficio.numero if str(oficio.ano) in oficio.numero else f"{oficio.numero}/{oficio.ano}"
+
+
 def oficios_pendentes(chamado: Chamado) -> int:
     return sum(o.status in OFICIO_PENDENTE for o in chamado.oficios)
+
+
+def pode_desvincular(usuario: Usuario, oficio: Oficio) -> bool:
+    """Quem desfaz o vínculo de um ofício com o chamado: o dono do ofício ou um administrador (de um dos módulos)."""
+    return oficio.dono_id == usuario.id or eh_admin(usuario) or usuario.eh_admin_no(Modulo.OFICIOS)
 
 
 def texto_horas(h: float) -> str:

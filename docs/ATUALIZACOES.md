@@ -63,7 +63,12 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
   - desfazer e exclusão.
 - O chamado fica em **Aguardando peças** enquanto algum ofício estiver pendente de resposta ou de entrega. Com a
   entrega registrada no Planner, volta sozinho à etapa em que estava.
-- No Planner, o ofício mostra a **origem** (o chamado da Manutenção), com um link para ele.
+- No Planner, o ofício mostra o **chamado** da Manutenção a que está ligado, com um link para ele.
+- **Ofícios que já existem no Planner** (14/11/2026): o botão **Vincular ofício existente** liga ao chamado um
+  ofício já cadastrado, sem cadastrar de novo.
+  - A busca mostra os ofícios que a pessoa vê no Planner e que ainda não têm chamado.
+  - Cada ofício fica em um chamado só. **Desvincular do chamado** desfaz, e o ofício continua no Planner.
+  - Não muda o banco: usa a ligação `oficios.chamado_id` da migração 0013.
 
 ### Banco de dados
 
@@ -99,7 +104,7 @@ O ramo parte do `main` (visual "Correnteza"). O `visual-classico` ainda não tem
 
 ### Testes
 
-- **API:** 104 testes passando (eram 62). Os novos cobrem módulos e acessos, horas úteis, prazo, visibilidade do
+- **API:** 106 testes passando (eram 62). Os novos cobrem módulos e acessos, horas úteis, prazo, visibilidade do
   técnico, relatório em PDF, tempo de solução, quadro, solicitação de peças e o espelhamento do Planner no chamado.
 - **Front-end:** checagem de tipos (`tsc --noEmit`) sem erros e `npm run build` concluído.
 - **Telas (Playwright):** os testes foram ajustados para a tela de Módulos, mas **não foram executados** nesta

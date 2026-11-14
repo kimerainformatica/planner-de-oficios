@@ -1,20 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, CheckCircle2, ClipboardList, Download, FileText, Hand, MessageSquare, PackagePlus, RotateCcw, Stethoscope,
-  XCircle,
+  ArrowLeft, CheckCircle2, ClipboardList, Download, FileText, Hand, Link2, MessageSquare, PackagePlus, RotateCcw, Search,
+  Stethoscope, Unlink, XCircle,
 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   assumirChamado, baixarAnexoOficio, baixarArquivoInteracao, baixarRelatorioPdf, cancelarChamado, concluirChamado, criarRelatorio,
-  reabrirChamado, responderChamado, solicitarPecas, tiposSolicitacao, verChamado, type RelatorioForm,
+  desvincularOficio, oficiosDisponiveis, reabrirChamado, responderChamado, solicitarPecas, tiposSolicitacao, verChamado,
+  vincularOficio, type RelatorioForm,
 } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthContext";
 import { SeletorArquivo } from "../../components/SeletorArquivo";
 import { useToast } from "../../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal, StatusBadge } from "../../components/ui";
 import type {
-  AnexoOficio, ChamadoDetalhe as Detalhe, Destinatario, Interacao, RelatorioTecnico, SituacaoEquipamento,
+  AnexoOficio, ChamadoDetalhe as Detalhe, Destinatario, Interacao, OficioVinculado, RelatorioTecnico, SituacaoEquipamento,
 } from "../../types";
 import { salvarArquivo } from "../../utils/arquivo";
 import { data, dataHora, hojeIso, ROTULO_DESTINATARIO, tamanho } from "../../utils/formato";
@@ -22,7 +23,7 @@ import { agoraLocal, horas, ROTULO_EQUIPAMENTO, ROTULO_INTERACAO, ROTULO_PAPEL_M
 import { Dado } from "../oficio/Dados";
 import { BadgePrazo, BadgeStatusChamado } from "./comum";
 
-type Janela = "relatorio" | "concluir" | "reabrir" | "cancelar" | "pecas" | null;
+type Janela = "relatorio" | "concluir" | "reabrir" | "cancelar" | "pecas" | "vincular" | null;
 
 export function ChamadoDetalhe() {
   const id = Number(useParams().id);
@@ -32,11 +33,19 @@ export function ChamadoDetalhe() {
   // O que é feito no Planner (documentos, resposta, entrega) aparece aqui: atualiza sozinho a cada 30 s
   const consulta = useQuery({ queryKey: ["chamado", id], queryFn: () => verChamado(id), refetchInterval: 30_000 });
   const [janela, setJanela] = useState<Janela>(null);
+  const [desvincular, setDesvincular] = useState<OficioVinculado | null>(null);
 
   const atualizar = (c: Detalhe) => {
     queryClient.setQueryData(["chamado", id], c);
     queryClient.invalidateQueries({ queryKey: ["chamados"] });
     queryClient.invalidateQueries({ queryKey: ["manutencao-painel"] });
+  };
+  // Vincular ou desvincular um ofício muda também o quadro, a lista do Planner e os ofícios disponíveis
+  const atualizarOficios = (c: Detalhe) => {
+    atualizar(c);
+    for (const chave of ["oficios", "oficio", "manutencao-quadro", "oficios-disponiveis"]) {
+      queryClient.invalidateQueries({ queryKey: [chave] });
+    }
   };
   const assumir = useMutation({ mutationFn: () => assumirChamado(id), onSuccess: atualizar });
 
@@ -121,16 +130,23 @@ export function ChamadoDetalhe() {
           <div className="bloco-topo">
             <div>
               <h2>Peças e equipamentos</h2>
-              <small className="texto-suave">Solicitações registradas como ofício no Planner de Ofícios.</small>
+              <small className="texto-suave">
+                Ofícios do Planner de Ofícios ligados a este chamado: solicitações novas e ofícios que já existiam.
+              </small>
             </div>
             {c.pode_solicitar_pecas && (
-              <button className="btn btn-secundario" onClick={() => setJanela("pecas")}>
-                <PackagePlus size={17} /> Solicitar peças ou equipamentos
-              </button>
+              <div className="grupo">
+                <button className="btn btn-secundario" onClick={() => setJanela("vincular")}>
+                  <Link2 size={17} /> Vincular ofício existente
+                </button>
+                <button className="btn btn-secundario" onClick={() => setJanela("pecas")}>
+                  <PackagePlus size={17} /> Solicitar peças ou equipamentos
+                </button>
+              </div>
             )}
           </div>
           {c.oficios.length === 0 ? (
-            <p className="texto-suave">Nenhuma solicitação para este chamado.</p>
+            <p className="texto-suave">Nenhum ofício ligado a este chamado.</p>
           ) : (
             <ul className="oficios-chamado">
               {c.oficios.map((o) => (
@@ -142,7 +158,7 @@ export function ChamadoDetalhe() {
                   <small className="texto-suave">
                     {o.tipo_nome} · {data(o.data_oficio)}
                     {o.protocolo && ` · protocolo ${o.protocolo}`}
-                    {o.dono_nome && ` · solicitado por ${o.dono_nome}`}
+                    {o.dono_nome && ` · de ${o.dono_nome}`}
                   </small>
                   <small className="texto-suave">
                     {o.data_resposta ? `Resposta em ${data(o.data_resposta)}` : "Aguardando resposta"}
@@ -161,6 +177,11 @@ export function ChamadoDetalhe() {
                       {o.anexos.some((a) => a.tipo === "OFICIO") ? "Abrir no Planner de Ofícios" : "Anexar o documento no Planner de Ofícios"}
                     </Link>
                   )}
+                  {o.pode_desvincular && (
+                    <button className="btn btn-fantasma btn-pequeno btn-desvincular" onClick={() => setDesvincular(o)}>
+                      <Unlink size={15} /> Desvincular do chamado
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -178,6 +199,10 @@ export function ChamadoDetalhe() {
 
       {janela === "relatorio" && <ModalRelatorio chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizar} />}
       {janela === "pecas" && <ModalPecas chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizar} />}
+      {janela === "vincular" && <ModalVincular chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizarOficios} />}
+      {desvincular && (
+        <ModalDesvincular chamado={c} oficio={desvincular} aoFechar={() => setDesvincular(null)} aoSalvar={atualizarOficios} />
+      )}
       {janela === "concluir" && (
         <ModalTexto titulo="Concluir chamado" rotulo="Resumo da solução" obrigatorio={false} botao="Concluir"
           acao={(t) => concluirChamado(id, t)} aoFechar={() => setJanela(null)} aoSalvar={atualizar} />
@@ -475,6 +500,118 @@ function ModalPecas({ chamado, aoFechar, aoSalvar }: {
           <Botao type="submit" carregando={salvar.isPending}>Registrar no Planner</Botao>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** Vincula ao chamado um ofício que já existe no Planner (os que o usuário vê lá e ainda não têm chamado). */
+function ModalVincular({ chamado, aoFechar, aoSalvar }: {
+  chamado: Detalhe; aoFechar: () => void; aoSalvar: (c: Detalhe) => void;
+}) {
+  const avisar = useToast();
+  const [texto, setTexto] = useState("");
+  const [busca, setBusca] = useState("");
+  // busca com uma pequena espera enquanto digita
+  useEffect(() => {
+    const t = setTimeout(() => setBusca(texto.trim()), 350);
+    return () => clearTimeout(t);
+  }, [texto]);
+  const consulta = useQuery({
+    queryKey: ["oficios-disponiveis", busca], queryFn: () => oficiosDisponiveis(busca), placeholderData: keepPreviousData,
+  });
+  const vincular = useMutation({
+    mutationFn: (oficioId: number) => vincularOficio(chamado.id, oficioId),
+    onSuccess: (c, oficioId) => {
+      const numero = c.oficios.find((o) => o.id === oficioId)?.numero;
+      aoSalvar(c);
+      avisar(`Ofício nº ${numero ?? ""} vinculado ao chamado ${chamado.codigo}.`);
+      aoFechar();
+    },
+  });
+  const itens = consulta.data ?? [];
+  return (
+    <Modal titulo={`Vincular ofício existente · ${chamado.codigo}`} aoFechar={aoFechar}>
+      <div className="formulario">
+        <p className="texto-suave">
+          Escolha um ofício <strong>já cadastrado no Planner de Ofícios</strong>. Os documentos, a resposta e a entrega
+          registrados lá passam a aparecer neste chamado. Cada ofício fica ligado a um chamado só.
+        </p>
+        <Campo rotulo="Buscar ofício" dica="Número, protocolo, setor ou um trecho da observação.">
+          {(id) => (
+            <div className="busca-vincular">
+              <Search size={16} aria-hidden />
+              <input id={id} className="input" type="search" autoFocus maxLength={80} value={texto}
+                onChange={(e) => setTexto(e.target.value)} placeholder="Ex.: 45 ou fonte 12V" />
+            </div>
+          )}
+        </Campo>
+        {consulta.isPending ? <Carregando /> : consulta.isError ? <ErroBox erro={consulta.error} /> : itens.length === 0 ? (
+          <p className="texto-suave">
+            {busca
+              ? "Nenhum ofício disponível com essa busca."
+              : "Nenhum ofício disponível: os seus ofícios do Planner já estão ligados a um chamado, ou ainda não há ofícios."}
+          </p>
+        ) : (
+          <ul className="lista-vincular" aria-label="Ofícios disponíveis">
+            {itens.map((o) => (
+              <li key={o.id}>
+                <div className="vincular-dados">
+                  <div className="oficio-chamado-topo">
+                    <strong>Ofício nº {o.numero}</strong>
+                    <StatusBadge status={o.status} curto />
+                  </div>
+                  <small className="texto-suave">
+                    {o.tipo_nome ?? "Sem tipo"} · {data(o.data_oficio)}
+                    {o.protocolo && ` · protocolo ${o.protocolo}`}
+                    {o.dono_nome && ` · de ${o.dono_nome}`}
+                  </small>
+                  {o.observacao && <small className="texto-suave vincular-obs">{o.observacao}</small>}
+                </div>
+                <Botao className="btn btn-secundario btn-pequeno" carregando={vincular.isPending && vincular.variables === o.id}
+                  disabled={vincular.isPending} onClick={() => vincular.mutate(o.id)}>
+                  <Link2 size={15} /> Vincular
+                </Botao>
+              </li>
+            ))}
+          </ul>
+        )}
+        {itens.length === 20 && <small className="texto-suave">Mostrando os 20 mais recentes. Use a busca para achar outros.</small>}
+        {vincular.isError && <div className="alerta-erro">{vincular.error.message}</div>}
+        <div className="acoes-form">
+          <button type="button" className="btn btn-secundario" onClick={aoFechar}>Fechar</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ModalDesvincular({ chamado, oficio, aoFechar, aoSalvar }: {
+  chamado: Detalhe; oficio: OficioVinculado; aoFechar: () => void; aoSalvar: (c: Detalhe) => void;
+}) {
+  const avisar = useToast();
+  const desfazer = useMutation({
+    mutationFn: () => desvincularOficio(chamado.id, oficio.id),
+    onSuccess: (c) => {
+      aoSalvar(c);
+      avisar(`Ofício nº ${oficio.numero} desvinculado do chamado.`);
+      aoFechar();
+    },
+  });
+  return (
+    <Modal titulo={`Desvincular o ofício nº ${oficio.numero}`} aoFechar={aoFechar}>
+      <div className="formulario">
+        <p>
+          O ofício deixa de aparecer no chamado <strong>{chamado.codigo}</strong> e de contar em "Aguardando peças".
+          Ele <strong>continua no Planner de Ofícios</strong>, com os documentos e o andamento, e pode ser vinculado de novo.
+        </p>
+        {desfazer.isError && <div className="alerta-erro">{desfazer.error.message}</div>}
+        <div className="acoes-form">
+          <button type="button" className="btn btn-secundario" onClick={aoFechar}>Voltar</button>
+          <Botao className="btn btn-perigo" carregando={desfazer.isPending} onClick={() => desfazer.mutate()}>
+            <Unlink size={16} /> Desvincular
+          </Botao>
+        </div>
+      </div>
     </Modal>
   );
 }

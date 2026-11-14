@@ -130,6 +130,9 @@ da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REG
 | GET | `/api/manutencao/quadro` | todos | Quadro por etapa (aguardando diagnóstico, em execução, aguardando peças, concluídos) e indicadores; `meus`, `empresa_id`, `dias` |
 | GET | `/api/manutencao/tipos-solicitacao` | todos | Tipos de ofício aceitos na solicitação de peças/equipamentos |
 | GET | `/api/manutencao/chamados/{id}/oficios/anexos/{anexo_id}` | todos | Baixa um documento do ofício de peças (anexado no Planner) pelo chamado |
+| GET | `/api/manutencao/oficios-disponiveis` | operacional, admin | Ofícios do Planner ainda sem chamado, na visibilidade de quem consulta (`busca`, `limite` até 50) |
+| PUT | `/api/manutencao/chamados/{id}/oficios/{oficio_id}` | operacional, admin | Vincula ao chamado um ofício que já existe no Planner (`404` se não for visível, `409` se já tiver chamado) |
+| DELETE | `/api/manutencao/chamados/{id}/oficios/{oficio_id}` | dono do ofício, admin | Desfaz o vínculo; o ofício continua no Planner |
 | POST | `/api/manutencao/chamados/{id}/oficios` | operacional, admin | Solicita peças/equipamentos: cadastra um ofício no Planner ligado ao chamado (`tipo`, `numero`, `data_oficio`, `protocolo`, `destinatario_tipo`, `destinatario_setor`, `itens`) |
 | POST | `/api/manutencao/chamados/{id}/reabrir` · `/cancelar` | operacional, admin | Reabre um concluído ou cancela um em aberto, com `motivo` |
 

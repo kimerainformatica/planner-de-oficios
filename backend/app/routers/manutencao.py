@@ -19,6 +19,7 @@ from app.models import (
     ChamadoInteracao,
     EmpresaManutencao,
     Modulo,
+    Oficio,
     Perfil,
     RelatorioTecnico,
     StatusChamado,
@@ -34,6 +35,7 @@ from app.schemas_manutencao import (
     ChamadoOut,
     ColunaQuadro,
     Conclusao,
+    OficioDisponivel,
     OficioResumo,
     OficioVinculado,
     QuadroOut,
@@ -56,8 +58,11 @@ from app.schemas_manutencao import (
 from app.services import armazenamento
 from app.services import manutencao as regras
 from app.services.manutencao import ABERTOS, SituacaoPrazo
+from app.services.auditoria import Acao
+from app.services.auditoria import registrar as registrar_atividade
 from app.services.modulos import CATALOGO
 from app.services.oficios import cadastrar_oficio
+from app.services.oficios import escopo as escopo_planner
 from app.services.relatorio_tecnico import gerar_pdf
 
 router = APIRouter(
@@ -79,13 +84,19 @@ def _chamado_out(c: Chamado, agora, exp, settings) -> ChamadoOut:
         if c.diagnosticado_em is not None and c.status in ABERTOS else None
     )
     c.oficios_pendentes = regras.oficios_pendentes(c)
-    c.oficios_resumo = [OficioResumo(id=o.id, numero=o.numero, status=o.status) for o in c.oficios]
+    c.oficios_resumo = [OficioResumo(id=o.id, numero=o.numero, status=o.status) for o in _oficios(c)]
     return ChamadoOut.model_validate(c)
+
+
+def _oficios(c: Chamado) -> list[Oficio]:
+    """Ofícios do chamado na ordem do cadastro (um recém-vinculado entra no fim da lista em memória)."""
+    return sorted(c.oficios, key=lambda o: o.id)
 
 
 def _detalhe(c: Chamado, usuario: Usuario, agora, exp, settings) -> ChamadoDetalhe:
     atendente = regras.eh_tecnico(usuario) or regras.eh_admin(usuario)
     solicitante = regras.eh_operacional(usuario) or regras.eh_admin(usuario)
+    pode_oficios = solicitante and c.status in ABERTOS
     interacoes = []
     for i in c.interacoes:
         dados = InteracaoOut.model_validate(i)
@@ -94,14 +105,15 @@ def _detalhe(c: Chamado, usuario: Usuario, agora, exp, settings) -> ChamadoDetal
     oficios = [
         OficioVinculado.model_validate(o).model_copy(update={
             "tipo_nome": o.tipo_info.nome if o.tipo_info else o.tipo, "dono_nome": o.dono.nome if o.dono else None,
+            "pode_desvincular": pode_oficios and regras.pode_desvincular(usuario, o),
         })
-        for o in c.oficios
+        for o in _oficios(c)
     ]
     return ChamadoDetalhe(
         **_chamado_out(c, agora, exp, settings).model_dump(),
         interacoes=interacoes,
         oficios=oficios,
-        pode_solicitar_pecas=solicitante and c.status in ABERTOS,
+        pode_solicitar_pecas=pode_oficios,
         pode_assumir=regras.eh_tecnico(usuario) and c.status in ABERTOS and c.tecnico_id != usuario.id,
         pode_responder=atendente and c.status in ABERTOS,
         pode_comentar=c.status != StatusChamado.CANCELADO,
@@ -499,7 +511,7 @@ def quadro(
             ColunaQuadro(chave="EM_EXECUCAO", titulo="Em execução",
                          descricao="Diagnosticados, com o serviço em andamento.", chamados=out(execucao)),
             ColunaQuadro(chave="AGUARDANDO_PECAS", titulo="Aguardando peças / equipamentos",
-                         descricao="Com solicitação no Planner de Ofícios ainda não entregue.", chamados=out(pecas)),
+                         descricao="Com ofício no Planner de Ofícios ainda sem resposta ou entrega.", chamados=out(pecas)),
             ColunaQuadro(chave="CONCLUIDOS", titulo=f"Concluídos ({dias} dias)",
                          descricao="Com o tempo de solução depois do diagnóstico.", chamados=out(concluidos)),
         ],
@@ -542,8 +554,84 @@ def solicitar_pecas(chamado_id: int, dados: SolicitacaoPecasCriar, db: DbDep, us
     oficio.chamado = chamado
     nome_tipo = db.get(TipoOficio, dados.tipo).nome
     regras.registrar(db, chamado, usuario, TipoInteracao.OFICIO, agora,
-                     f"Solicitação registrada no Planner de Ofícios: ofício nº {oficio.numero}/{oficio.ano} "
+                     f"Solicitação registrada no Planner de Ofícios: ofício nº {regras.numero_oficio(oficio)} "
                      f"({nome_tipo}).\nItens: {dados.itens}")
+    db.commit()
+    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+
+
+# ---------- ofícios que já existem no Planner: vincular ao chamado ----------
+
+
+@router.get("/oficios-disponiveis", response_model=list[OficioDisponivel],
+            summary="Ofícios já cadastrados no Planner, ainda sem chamado, que o usuário pode vincular")
+def oficios_disponiveis(db: DbDep, usuario: UsuarioDep, busca: str | None = None,
+                        limite: int = Query(20, ge=1, le=50)):
+    """Vale a visibilidade do Planner: o administrador de lá encontra todos; os demais, só os próprios."""
+    regras.exigir_solicitante(usuario)
+    consulta = select(Oficio).where(escopo_planner(usuario), Oficio.chamado_id.is_(None))
+    if busca and busca.strip():
+        termo = f"%{busca.strip()}%"
+        consulta = consulta.where(or_(Oficio.numero.like(termo), Oficio.protocolo.like(termo),
+                                      Oficio.destinatario_setor.like(termo), Oficio.observacao.like(termo)))
+    oficios = db.scalars(consulta.order_by(Oficio.data_oficio.desc(), Oficio.id.desc()).limit(limite)).all()
+    return [
+        OficioDisponivel.model_validate(o).model_copy(update={
+            "tipo_nome": o.tipo_info.nome if o.tipo_info else o.tipo, "dono_nome": o.dono.nome if o.dono else None,
+        })
+        for o in oficios
+    ]
+
+
+@router.put("/chamados/{chamado_id}/oficios/{oficio_id}", response_model=ChamadoDetalhe,
+            summary="Vincula ao chamado um ofício que já existe no Planner")
+def vincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
+                    calendario: CalendarioDep, agora: AgoraDep):
+    chamado = regras.buscar(db, chamado_id, usuario)
+    regras.exigir_solicitante(usuario)
+    regras.exigir_status(chamado, ABERTOS, "vincular um ofício a")
+    # Ofício que o usuário não vê no Planner responde 404, para não revelar que existe
+    oficio = db.scalar(select(Oficio).where(Oficio.id == oficio_id, escopo_planner(usuario)))
+    if oficio is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ofício não encontrado no Planner")
+    if oficio.chamado_id == chamado.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O ofício já está vinculado a este chamado")
+    if oficio.chamado_id is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"O ofício já está vinculado ao chamado {oficio.chamado.codigo}. Desvincule-o de lá antes")
+    # A atividade é registrada antes do vínculo para não ser espelhada (a linha do tempo recebe o texto abaixo)
+    registrar_atividade(db, usuario, Acao.OFICIO_EDITADO,
+                        f"Vinculou o ofício nº {oficio.numero} ao chamado {chamado.codigo} da Manutenção Clínica", oficio)
+    oficio.chamado = chamado
+    nome_tipo = oficio.tipo_info.nome if oficio.tipo_info else "sem tipo"
+    regras.registrar(db, chamado, usuario, TipoInteracao.OFICIO, agora,
+                     f"Ofício nº {regras.numero_oficio(oficio)} ({nome_tipo}), já cadastrado no Planner de Ofícios, "
+                     f"vinculado a este chamado. Situação no Planner: {regras.ROTULO_OFICIO[oficio.status]}.")
+    db.commit()
+    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+
+
+@router.delete("/chamados/{chamado_id}/oficios/{oficio_id}", response_model=ChamadoDetalhe,
+               summary="Desfaz o vínculo do ofício com o chamado (o ofício continua no Planner)")
+def desvincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
+                       calendario: CalendarioDep, agora: AgoraDep):
+    chamado = regras.buscar(db, chamado_id, usuario)
+    regras.exigir_solicitante(usuario)
+    regras.exigir_status(chamado, ABERTOS, "desvincular um ofício de")
+    oficio = next((o for o in chamado.oficios if o.id == oficio_id), None)
+    if oficio is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ofício não encontrado neste chamado")
+    if not regras.pode_desvincular(usuario, oficio):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "Só o dono do ofício ou um administrador desfaz o vínculo com o chamado")
+    oficio.chamado = None
+    db.flush()  # o vínculo sai antes da atividade, para ela não ser espelhada no chamado
+    registrar_atividade(db, usuario, Acao.OFICIO_EDITADO,
+                        f"Desvinculou o ofício nº {oficio.numero} do chamado {chamado.codigo} da Manutenção Clínica",
+                        oficio)
+    regras.registrar(db, chamado, usuario, TipoInteracao.OFICIO, agora,
+                     f"Ofício nº {regras.numero_oficio(oficio)} desvinculado deste chamado. Ele continua no Planner "
+                     "de Ofícios.")
     db.commit()
     return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
 

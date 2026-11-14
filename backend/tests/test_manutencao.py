@@ -418,3 +418,97 @@ def test_documento_e_andamento_feitos_no_planner_aparecem_no_chamado(api, paulo,
     assert coluna_do_chamado() == "AGUARDANDO_PECAS"  # respondido, mas ainda não entregue
     api.patch(f"/api/oficios/{oid}/status", json={"status": "RECEBIDO", "data_recebimento": "2026-10-20"}, headers=admin)
     assert coluna_do_chamado() == "AGUARDANDO_DIAGNOSTICO"  # entregue: volta para a etapa em que estava
+
+# ---------- ofícios que já existem no Planner: vincular ao chamado ----------
+
+
+def oficio_no_planner(api, quem, numero="70", **extra):
+    corpo = {"numero": numero, "data_oficio": "2026-10-15", "tipo": "PECAS_MANUTENCAO",
+             "observacao": "Compra de fontes 12V", **extra}
+    r = api.post("/api/oficios", json=corpo, headers=quem)
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def disponiveis(api, quem, **params):
+    return [o["id"] for o in api.get("/api/manutencao/oficios-disponiveis", params=params, headers=quem).json()]
+
+
+def test_operacional_vincula_oficio_que_ja_existe_no_planner(api, paulo, tiago, ana, admin):
+    oid = oficio_no_planner(api, paulo)
+    alheio = oficio_no_planner(api, ana, numero="71")
+    chamado = abrir(api, paulo).json()
+    cid = chamado["id"]
+
+    # A busca segue a visibilidade do Planner: o operacional (cliente lá) só encontra os próprios ofícios
+    assert disponiveis(api, paulo) == [oid]
+    assert disponiveis(api, paulo, busca="fontes") == [oid] and disponiveis(api, paulo, busca="tomógrafo") == []
+    assert api.get("/api/manutencao/oficios-disponiveis", headers=tiago).status_code == 403
+
+    url = f"/api/manutencao/chamados/{cid}/oficios"
+    assert api.put(f"{url}/{oid}", headers=tiago).status_code == 403  # técnico não vincula
+    assert api.put(f"{url}/{alheio}", headers=paulo).status_code == 404  # ofício de outro cliente
+    r = api.put(f"{url}/{oid}", headers=paulo)
+    assert r.status_code == 200, r.text
+    c = r.json()
+    vinculado = c["oficios"][0]
+    assert (vinculado["id"], vinculado["numero"], vinculado["status"], vinculado["pode_desvincular"]) == (
+        oid, "70", "PENDENTE_RESPOSTA", True)
+    assert c["oficios_pendentes"] == 1
+    ultimo = c["interacoes"][-1]
+    assert ultimo["tipo"] == "OFICIO" and "já cadastrado no Planner de Ofícios" in ultimo["texto"]
+    assert tipos(c).count("OFICIO") == 1  # o vínculo não é espelhado duas vezes na linha do tempo
+
+    # Um ofício fica em um chamado só, e some da lista dos disponíveis
+    assert api.put(f"{url}/{oid}", headers=paulo).status_code == 409
+    outro = abrir(api, paulo, titulo="Bomba de infusão").json()
+    r = api.put(f"/api/manutencao/chamados/{outro['id']}/oficios/{oid}", headers=paulo)
+    assert r.status_code == 409 and chamado["codigo"] in r.json()["detail"]
+    assert disponiveis(api, paulo) == []
+
+    # No Planner o ofício mostra o chamado, e a atividade fica registrada
+    assert api.get(f"/api/oficios/{oid}", headers=paulo).json()["chamado"]["id"] == cid
+    atividade = api.get("/api/auditoria", params={"oficio_id": oid, "acao": "OFICIO_EDITADO"}, headers=admin).json()
+    assert atividade["itens"][0]["descricao"].startswith("Vinculou o ofício nº 70 ao chamado")
+
+    # Daí em diante vale a regra de sempre: o que é feito no Planner aparece no chamado
+    api.post(f"/api/oficios/{oid}/anexos/OFICIO", files={"arquivo": ("oficio-70.pdf", PDF)}, headers=paulo)
+    c = api.get(f"/api/manutencao/chamados/{cid}", headers=tiago).json()
+    assert c["oficios"][0]["anexos"][0]["nome_original"] == "oficio-70.pdf"
+    assert c["interacoes"][-1]["texto"].startswith("Planner de Ofícios · Anexou")
+    assert c["oficios"][0]["pode_desvincular"] is False  # o técnico só acompanha
+
+
+def test_desvincular_oficio_do_chamado(api, paulo, marta, ana, master):
+    def coluna(cid):
+        q = api.get("/api/manutencao/quadro", headers=paulo).json()
+        return next(col["chave"] for col in q["colunas"] if any(x["id"] == cid for x in col["chamados"]))
+
+    oid = oficio_no_planner(api, ana)
+    cid = abrir(api, paulo).json()["id"]
+    url = f"/api/manutencao/chamados/{cid}/oficios/{oid}"
+
+    # Quem vê tudo no Planner (master ou administrador de lá) vincula o ofício de qualquer cliente
+    assert disponiveis(api, master) == [oid]
+    assert api.put(url, headers=master).status_code == 200
+    assert coluna(cid) == "AGUARDANDO_PECAS"
+
+    # O operacional acompanha, mas não desfaz o vínculo de um ofício que não é dele; a administradora desfaz
+    assert api.get(f"/api/manutencao/chamados/{cid}", headers=paulo).json()["oficios"][0]["pode_desvincular"] is False
+    assert api.delete(url, headers=paulo).status_code == 403
+    r = api.delete(url, headers=marta)
+    assert r.status_code == 200, r.text
+    c = r.json()
+    assert c["oficios"] == [] and c["oficios_pendentes"] == 0
+    assert "desvinculado deste chamado" in c["interacoes"][-1]["texto"]
+    assert coluna(cid) == "AGUARDANDO_DIAGNOSTICO"
+    assert api.delete(url, headers=marta).status_code == 404
+
+    # O ofício continua no Planner, sem o chamado, e volta a ficar disponível
+    oficio = api.get(f"/api/oficios/{oid}", headers=ana).json()
+    assert oficio["chamado"] is None and oficio["status"] == "PENDENTE_RESPOSTA"
+    assert disponiveis(api, master) == [oid]
+
+    # Chamado encerrado não recebe vínculo
+    api.post(f"/api/manutencao/chamados/{cid}/cancelar", json={"motivo": "Aberto por engano"}, headers=paulo)
+    assert api.put(url, headers=master).status_code == 409

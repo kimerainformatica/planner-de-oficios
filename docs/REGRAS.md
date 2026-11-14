@@ -228,7 +228,24 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
   - Com a entrega registrada no Planner, ele volta sozinho para a etapa em que estava.
   - O cartão mostra o status de cada ofício.
   - O quadro e o chamado se atualizam a cada 30 segundos.
-- **No Planner:** o ofício mostra a **origem**, ou seja, o chamado.
+- **No Planner:** o ofício mostra o **chamado** a que está ligado.
+
+### Vincular um ofício que já existe no Planner
+
+- **Quem:** o operacional ou o administrador, com o chamado em aberto, clica em **Vincular ofício existente**.
+- **Quais ofícios:** os que a pessoa vê no Planner e que ainda não têm chamado.
+  - Cliente do Planner: só os próprios ofícios.
+  - Administrador do Planner e master: os de todos os clientes.
+  - Vale qualquer tipo e qualquer status. Ofício de outro cliente responde "não encontrado".
+- **Um chamado por ofício:** vincular um ofício que já está em outro chamado é recusado (`409`). É preciso
+  desvincular de lá antes.
+- **Depois do vínculo:** o ofício se comporta como uma solicitação feita pelo chamado.
+  - Os documentos e o andamento que ele já tinha aparecem no chamado.
+  - Vale o espelho: o que for feito no Planner entra na linha do tempo do chamado.
+  - Se estiver pendente de resposta ou de entrega, o chamado vai para *Aguardando peças*.
+- **Desvincular:** o dono do ofício ou um administrador (da Manutenção ou do Planner), com o chamado em aberto. O
+  ofício continua no Planner, sem alteração, e pode ser vinculado de novo.
+- **Registro:** o vínculo e a desvinculação entram na linha do tempo do chamado e nas atividades do ofício.
 
 ### Operacional e o Planner de Ofícios
 

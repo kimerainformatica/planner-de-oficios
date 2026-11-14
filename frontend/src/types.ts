@@ -147,8 +147,23 @@ export interface AnexoOficio {
   enviado_em: string;
 }
 
-/** Ofício do Planner com a solicitação de peças/equipamentos do chamado. */
+/** Ofício já cadastrado no Planner, ainda sem chamado, que o usuário pode vincular. */
+export interface OficioDisponivel {
+  id: number;
+  numero: string;
+  ano: number;
+  data_oficio: string;
+  tipo_nome: string | null;
+  protocolo: string | null;
+  status: StatusOficio;
+  observacao: string | null;
+  dono_nome: string | null;
+}
+
+/** Ofício do Planner ligado ao chamado: solicitação feita pelo chamado ou ofício que já existia e foi vinculado. */
 export interface OficioVinculado {
+  /** Quem consulta pode desfazer o vínculo agora. */
+  pode_desvincular: boolean;
   id: number;
   numero: string;
   data_oficio: string;

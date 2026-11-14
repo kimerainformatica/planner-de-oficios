@@ -23,6 +23,7 @@ import type {
   ModuloDisponivel,
   Oficio,
   OficioDetalhe,
+  OficioDisponivel,
   Pagina,
   Prazos,
   ResumoManutencao,
@@ -244,6 +245,16 @@ export const solicitarPecas = (
     itens: string;
   },
 ) => api<ChamadoDetalhe>(`/manutencao/chamados/${id}/oficios`, { method: "POST", body: json(dados) });
+
+/** Ofícios que já existem no Planner (na visibilidade de quem consulta) e ainda não têm chamado. */
+export const oficiosDisponiveis = (busca: string) =>
+  api<OficioDisponivel[]>("/manutencao/oficios-disponiveis", { params: { busca: busca || undefined } });
+
+export const vincularOficio = (id: number, oficioId: number) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/oficios/${oficioId}`, { method: "PUT" });
+
+export const desvincularOficio = (id: number, oficioId: number) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/oficios/${oficioId}`, { method: "DELETE" });
 
 export const assumirChamado = (id: number) =>
   api<ChamadoDetalhe>(`/manutencao/chamados/${id}/assumir`, { method: "POST" });

@@ -130,7 +130,7 @@ class AnexoOficio(Esquema):
 
 
 class OficioVinculado(Esquema):
-    """Ofício do Planner com a solicitação de peças/equipamentos do chamado."""
+    """Ofício do Planner ligado ao chamado: solicitação feita pelo chamado ou ofício que já existia e foi vinculado."""
 
     id: int
     numero: str
@@ -145,6 +145,21 @@ class OficioVinculado(Esquema):
     dono_id: int
     dono_nome: str | None = None
     anexos: list[AnexoOficio] = []
+    pode_desvincular: bool = False  # para quem consulta, agora
+
+
+class OficioDisponivel(Esquema):
+    """Ofício já cadastrado no Planner, ainda sem chamado, que quem consulta pode vincular."""
+
+    id: int
+    numero: str
+    ano: int
+    data_oficio: date
+    tipo_nome: str | None = None
+    protocolo: str | None
+    status: StatusOficio
+    observacao: str | None
+    dono_nome: str | None = None
 
 
 class ChamadoDetalhe(ChamadoOut):
