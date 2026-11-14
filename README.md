@@ -3,6 +3,9 @@
 Sistema web interno para cadastrar ofícios, guardar os documentos e acompanhar o prazo de resposta e de entrega em
 **dias úteis**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
 
+> **Versão 2.0 em homologação:** módulos e Manutenção Clínica (helpdesk) integrada ao Planner, no ramo
+> `feature/modulos-manutencao-clinica` ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)). Veja [Versões e ramos](#versões-e-ramos).
+
 ![Painel do Planner de Ofícios](docs/imagens/painel.png)
 
 ## O que ele faz
@@ -84,20 +87,40 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 | [API](docs/API.md) | Desenvolvedores | Todos os endpoints, com perfil exigido |
 | [Desenvolvimento](docs/DESENVOLVIMENTO.md) | Desenvolvedores | Ambiente, testes, migrações, convenções |
 
-## Versões do visual
+## Versões e ramos
 
-| Ramo | Visual | Quando usar |
-|---|---|---|
-| `main` | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Computadores com folga de processamento |
-| `visual-classico` | Visual original, **sem nenhuma animação** nem transição, fontes do sistema | Computadores mais simples; é o que está no ar hoje |
+| Ramo | Versão | Módulos | Visual | Situação |
+|---|---|---|---|---|
+| `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
+| `main` | 1.1 | Planner de Ofícios | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Estável, para computadores com folga de processamento |
+| `visual-classico` | 1.1 | Planner de Ofícios | Clássico, **sem nenhuma animação** nem transição, fontes do sistema | Estável, para computadores mais simples; é o que está no ar hoje |
+
+### Versão 2.0 (ramo `feature/modulos-manutencao-clinica`)
+
+- **Módulos com um login só:** Planner de Ofícios e Manutenção Clínica, com o papel definido por módulo. Todo
+  operacional da Manutenção também usa o Planner.
+- **Manutenção Clínica (helpdesk):** chamados para MSI, Realiza Predial e Realiza Climatização, com diagnóstico em
+  24 horas úteis. O técnico tem login próprio e responde com um relatório técnico em PDF. O sistema mostra o tempo de
+  solução e um quadro de acompanhamento.
+- **Peças e equipamentos:** o pedido feito no chamado vira um ofício no Planner. Os documentos são anexados no
+  Planner, e o chamado acompanha cada passo.
+- **Banco:** migrações 0011 a 0014.
+- **Testes:** 104 testes da API.
+
+A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
+aplicar no servidor está em [docs/ATUALIZACOES.md](https://github.com/kimerainformatica/planner-de-oficios/blob/feature/modulos-manutencao-clinica/docs/ATUALIZACOES.md).
+
+### Custo de cada visual
 
 O servidor consome o mesmo nas duas. No navegador, com a tela aberta e parada, a Correnteza usa de 17% a 50% de um
 núcleo do processador por causa das animações em loop, e a Clássica usa de 2% a 15%. As telas compiladas da Clássica
 são 24% menores (461 KB contra 606 KB). Medições completas em
 [docs/RECURSOS-SERVIDOR.md](docs/RECURSOS-SERVIDOR.md#versões-do-visual-custo-no-computador-de-quem-usa).
 
-As telas, opções e regras são as mesmas nos dois. Para trocar o visual do sistema no ar, mude de ramo e gere o build
-das telas (não precisa reiniciar a API):
+### Trocar de ramo no servidor
+
+Entre `main` e `visual-classico` as telas, opções e regras são as mesmas. Basta mudar de ramo e gerar o build das
+telas, sem reiniciar a API:
 
 ```powershell
 git checkout visual-classico   # ou: git checkout main
@@ -105,6 +128,10 @@ cd frontend
 npm install
 npm run build                  # depois, Ctrl+F5 no navegador
 ```
+
+Para ir para a **2.0**, o banco também muda. Faça o backup, rode `alembic upgrade head` e reinicie o sistema. O passo
+a passo está em [ATUALIZACOES.md](https://github.com/kimerainformatica/planner-de-oficios/blob/feature/modulos-manutencao-clinica/docs/ATUALIZACOES.md#como-aplicar-no-servidor). Depois da migração, voltar para a 1.1 exige
+restaurar o backup do banco.
 
 ## Estrutura
 
