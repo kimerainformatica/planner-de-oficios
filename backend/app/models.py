@@ -6,6 +6,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     JSON,
@@ -28,10 +29,19 @@ class Perfil(str, enum.Enum):
 
     MASTER = "MASTER"
     ADMIN = "ADMIN"
-    CLIENTE = "CLIENTE"
+    CLIENTE = "CLIENTE"  # na Manutenção Clínica é o "operacional": abre e acompanha os chamados
+    TECNICO = "TECNICO"  # só na Manutenção Clínica: técnico de uma empresa, atende os chamados dela
 
 
 PERFIS_ADMIN = {Perfil.MASTER, Perfil.ADMIN}
+
+
+class Modulo(str, enum.Enum):
+    """Módulos da plataforma. Para criar um novo: acrescente aqui, em services/modulos.py (nome e rota) e
+    numa migração (o enum do banco)."""
+
+    OFICIOS = "OFICIOS"  # Planner de Ofícios
+    MANUTENCAO = "MANUTENCAO"  # Manutenção Clínica
 
 
 class StatusSolicitacao(str, enum.Enum):
@@ -103,6 +113,206 @@ class Usuario(Base):
     sessao_versao: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    # `perfil` é global: MASTER (acesso total a todos os módulos) ou CLIENTE (comum). O papel de quem não é
+    # MASTER em cada módulo (ADMIN ou CLIENTE) vem de `modulos`.
+    modulos: Mapped[list["UsuarioModulo"]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan", lazy="selectin", order_by="UsuarioModulo.modulo"
+    )
+
+    @property
+    def eh_master(self) -> bool:
+        return self.perfil == Perfil.MASTER
+
+    def perfil_no(self, modulo: Modulo) -> Perfil | None:
+        """MASTER em todos os módulos; senão o papel gravado para o módulo; None se não tem acesso."""
+        if self.eh_master:
+            return Perfil.MASTER
+        for acesso in self.modulos:
+            if acesso.modulo == modulo:
+                return acesso.perfil
+        return None
+
+    def tem_acesso(self, modulo: Modulo) -> bool:
+        return self.perfil_no(modulo) is not None
+
+    def eh_admin_no(self, modulo: Modulo) -> bool:
+        return self.perfil_no(modulo) in PERFIS_ADMIN
+
+    def acesso_no(self, modulo: Modulo) -> "UsuarioModulo | None":
+        return next((a for a in self.modulos if a.modulo == modulo), None)
+
+    @property
+    def modulos_efetivos(self) -> list["UsuarioModulo"]:
+        """Acessos do usuário. O MASTER recebe um acesso MASTER (não gravado) em cada módulo."""
+        if self.eh_master:
+            return [UsuarioModulo(modulo=m, perfil=Perfil.MASTER) for m in Modulo]
+        return list(self.modulos)
+
+
+class UsuarioModulo(Base):
+    """Acesso de um usuário a um módulo, com o papel dele ali (ADMIN, CLIENTE ou, na Manutenção, TECNICO).
+    Um admin de um módulo não é admin dos outros. O técnico pertence a uma empresa (`empresa_id`)."""
+
+    __tablename__ = "usuario_modulos"
+    __table_args__ = (UniqueConstraint("usuario_id", "modulo", name="uk_usuario_modulo"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+    modulo: Mapped[Modulo] = mapped_column(Enum(Modulo, name="modulo"))
+    perfil: Mapped[Perfil] = mapped_column(Enum(Perfil, name="perfil"), default=Perfil.CLIENTE)
+    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"))
+
+    usuario: Mapped[Usuario] = relationship(back_populates="modulos")
+    empresa: Mapped["EmpresaManutencao | None"] = relationship(lazy="selectin")
+
+
+# ================= Manutenção Clínica (helpdesk) =================
+
+
+class StatusChamado(str, enum.Enum):
+    ABERTO = "ABERTO"  # aguardando o técnico
+    EM_ATENDIMENTO = "EM_ATENDIMENTO"  # um técnico assumiu ou já respondeu
+    CONCLUIDO = "CONCLUIDO"
+    CANCELADO = "CANCELADO"
+
+
+class TipoInteracao(str, enum.Enum):
+    """Linha do tempo do chamado. Nada aqui é apagado: é o histórico do atendimento."""
+
+    ABERTURA = "ABERTURA"
+    COMENTARIO = "COMENTARIO"
+    DIAGNOSTICO = "DIAGNOSTICO"  # resposta técnica (texto e/ou arquivo externo); a 1ª encerra o prazo
+    RELATORIO = "RELATORIO"  # relatório técnico no modelo do sistema; também conta como diagnóstico
+    ASSUMIDO = "ASSUMIDO"
+    CONCLUSAO = "CONCLUSAO"
+    REABERTURA = "REABERTURA"
+    CANCELAMENTO = "CANCELAMENTO"
+    OFICIO = "OFICIO"  # solicitação de peças/equipamentos registrada no Planner de Ofícios
+
+
+class SituacaoEquipamento(str, enum.Enum):
+    OPERANDO = "OPERANDO"
+    OPERANDO_COM_RESTRICAO = "OPERANDO_COM_RESTRICAO"
+    PARADO = "PARADO"
+    AGUARDANDO_PECA = "AGUARDANDO_PECA"
+    NAO_SE_APLICA = "NAO_SE_APLICA"
+
+
+class EmpresaManutencao(Base):
+    """Empresa / modalidade técnica que atende chamados (MSI, Realiza Predial, Realiza Climatização…)."""
+
+    __tablename__ = "empresas_manutencao"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nome: Mapped[str] = mapped_column(String(80), unique=True)
+    descricao: Mapped[str | None] = mapped_column(String(200))
+    prazo_horas: Mapped[int] = mapped_column(Integer, default=24, server_default="24")  # horas úteis p/ diagnóstico
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Chamado(Base):
+    __tablename__ = "chamados"
+    __table_args__ = (
+        Index("idx_chamado_status_empresa", "status", "empresa_id"),
+        Index("idx_chamado_empresa_aberto", "empresa_id", "aberto_em"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"))
+    solicitante_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="RESTRICT"))
+    tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))  # responsável
+    titulo: Mapped[str] = mapped_column(String(150))
+    descricao: Mapped[str] = mapped_column(Text)
+    local: Mapped[str | None] = mapped_column(String(120))
+    equipamento: Mapped[str | None] = mapped_column(String(120))
+    ocorrido_em: Mapped[datetime] = mapped_column(DateTime)  # data e hora do problema, informada na abertura
+    aberto_em: Mapped[datetime] = mapped_column(DateTime)
+    # Prazo do diagnóstico: `prazo_horas` horas úteis (da empresa, no momento da abertura) a partir da abertura
+    prazo_horas: Mapped[int] = mapped_column(Integer)
+    prazo_em: Mapped[datetime] = mapped_column(DateTime)
+    status: Mapped[StatusChamado] = mapped_column(
+        Enum(StatusChamado, name="status_chamado"), default=StatusChamado.ABERTO
+    )
+    diagnosticado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    diagnosticado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    concluido_em: Mapped[datetime | None] = mapped_column(DateTime)
+    cancelado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime)
+    # Tempo de solução: do diagnóstico até a conclusão, gravado ao concluir (apagado ao reabrir)
+    solucao_horas_uteis: Mapped[float | None] = mapped_column(Float)
+    solucao_horas_corridas: Mapped[float | None] = mapped_column(Float)
+
+    empresa: Mapped[EmpresaManutencao] = relationship(lazy="joined")
+    solicitante: Mapped[Usuario] = relationship(foreign_keys=[solicitante_id], lazy="joined")
+    tecnico: Mapped[Usuario | None] = relationship(foreign_keys=[tecnico_id], lazy="joined")
+    diagnosticado_por: Mapped[Usuario | None] = relationship(foreign_keys=[diagnosticado_por_id])
+    interacoes: Mapped[list["ChamadoInteracao"]] = relationship(
+        back_populates="chamado", cascade="all, delete-orphan", order_by="ChamadoInteracao.id"
+    )
+    relatorios: Mapped[list["RelatorioTecnico"]] = relationship(
+        back_populates="chamado", cascade="all, delete-orphan", order_by="RelatorioTecnico.id"
+    )
+    # Ofícios do Planner com a solicitação de peças/equipamentos deste chamado
+    oficios: Mapped[list["Oficio"]] = relationship(back_populates="chamado", lazy="selectin", order_by="Oficio.id")
+
+    @property
+    def codigo(self) -> str:
+        return f"CH-{self.id:05d}"
+
+
+class RelatorioTecnico(Base):
+    """Relatório técnico no modelo do sistema (gera PDF)."""
+
+    __tablename__ = "relatorios_tecnicos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chamado_id: Mapped[int] = mapped_column(ForeignKey("chamados.id", ondelete="CASCADE"))
+    tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"))
+    criado_em: Mapped[datetime] = mapped_column(DateTime)
+    atendido_em: Mapped[datetime] = mapped_column(DateTime)  # data e hora do atendimento técnico
+    equipamento: Mapped[str | None] = mapped_column(String(120))
+    identificacao: Mapped[str | None] = mapped_column(String(120))  # patrimônio / nº de série / tag
+    diagnostico: Mapped[str] = mapped_column(Text)
+    causa: Mapped[str | None] = mapped_column(Text)
+    servico_executado: Mapped[str | None] = mapped_column(Text)
+    pecas: Mapped[str | None] = mapped_column(Text)
+    situacao_equipamento: Mapped[SituacaoEquipamento] = mapped_column(
+        Enum(SituacaoEquipamento, name="situacao_equipamento"), default=SituacaoEquipamento.NAO_SE_APLICA
+    )
+    recomendacoes: Mapped[str | None] = mapped_column(Text)
+
+    chamado: Mapped[Chamado] = relationship(back_populates="relatorios")
+    tecnico: Mapped[Usuario | None] = relationship(lazy="joined")
+    empresa: Mapped[EmpresaManutencao] = relationship(lazy="joined")
+
+    @property
+    def codigo(self) -> str:
+        return f"RT-{self.id:05d}"
+
+
+class ChamadoInteracao(Base):
+    __tablename__ = "chamado_interacoes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chamado_id: Mapped[int] = mapped_column(ForeignKey("chamados.id", ondelete="CASCADE"), index=True)
+    autor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    tipo: Mapped[TipoInteracao] = mapped_column(Enum(TipoInteracao, name="tipo_interacao"))
+    texto: Mapped[str | None] = mapped_column(Text)
+    criado_em: Mapped[datetime] = mapped_column(DateTime)
+    relatorio_id: Mapped[int | None] = mapped_column(ForeignKey("relatorios_tecnicos.id", ondelete="SET NULL"))
+    # Arquivo anexado à interação (ex.: relatório externo do técnico, foto do problema)
+    arquivo_nome: Mapped[str | None] = mapped_column(String(255))
+    arquivo_caminho: Mapped[str | None] = mapped_column(String(500))
+    arquivo_mime: Mapped[str | None] = mapped_column(String(100))
+    arquivo_tamanho: Mapped[int | None] = mapped_column(Integer)
+    arquivo_sha256: Mapped[str | None] = mapped_column(String(64))
+
+    chamado: Mapped[Chamado] = relationship(back_populates="interacoes")
+    autor: Mapped[Usuario | None] = relationship(lazy="joined")
+    relatorio: Mapped[RelatorioTecnico | None] = relationship(lazy="joined")
+
 
 class Oficio(Base):
     __tablename__ = "oficios"
@@ -141,8 +351,11 @@ class Oficio(Base):
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+    # Solicitação de peças/equipamentos feita a partir de um chamado da Manutenção Clínica (migração 0013)
+    chamado_id: Mapped[int | None] = mapped_column(ForeignKey("chamados.id", ondelete="SET NULL"), index=True)
 
     dono: Mapped[Usuario] = relationship(foreign_keys=[dono_id])
+    chamado: Mapped["Chamado | None"] = relationship(back_populates="oficios", lazy="selectin")
     tipo_info: Mapped[TipoOficio | None] = relationship(viewonly=True)
     exclusao_pendente: Mapped["SolicitacaoExclusao | None"] = relationship(
         primaryjoin="and_(SolicitacaoExclusao.oficio_id == Oficio.id, SolicitacaoExclusao.status == 'PENDENTE')",

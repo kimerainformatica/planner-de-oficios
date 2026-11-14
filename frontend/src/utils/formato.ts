@@ -68,10 +68,11 @@ export const ROTULO_ALERTA: Record<NivelAlerta, string> = {
   CRITICO: "Crítico",
 };
 
-export const ROTULO_PERFIL: Record<"MASTER" | "ADMIN" | "CLIENTE", string> = {
+export const ROTULO_PERFIL: Record<"MASTER" | "ADMIN" | "CLIENTE" | "TECNICO", string> = {
   MASTER: "Master",
   ADMIN: "Administrador",
   CLIENTE: "Cliente",
+  TECNICO: "Técnico",
 };
 
 export const ROTULO_ACAO: Record<string, string> = {

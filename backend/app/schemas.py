@@ -1,9 +1,9 @@
-from datetime import date, datetime
+﻿from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models import Destinatario, NivelAlerta, Perfil, StatusOficio, StatusSolicitacao, TipoAnexo
+from app.models import Destinatario, Modulo, NivelAlerta, Perfil, StatusOficio, StatusSolicitacao, TipoAnexo
 
 
 class Esquema(BaseModel):
@@ -13,27 +13,87 @@ class Esquema(BaseModel):
 # ---------- Usuários / autenticação ----------
 
 
+class AcessoModulo(Esquema):
+    """Papel do usuário em um módulo: ADMIN ou CLIENTE e, na Manutenção Clínica, também TECNICO (com a empresa).
+    Na saída o MASTER aparece como MASTER em todos os módulos."""
+
+    modulo: Modulo
+    perfil: Perfil
+    empresa_id: int | None = None  # obrigatório para TECNICO
+    empresa_nome: str | None = None  # só na saída
+
+
 class UsuarioOut(Esquema):
     id: int
     nome: str
     login: str
-    perfil: Perfil
+    perfil: Perfil  # global: MASTER ou CLIENTE (o papel em cada módulo está em `modulos`)
     ativo: bool
+    modulos: list[AcessoModulo] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _modulos_efetivos(cls, v):
+        # Lê do modelo: o MASTER enxerga todos os módulos
+        if hasattr(v, "modulos_efetivos"):
+            return {
+                "id": v.id, "nome": v.nome, "login": v.login, "perfil": v.perfil, "ativo": v.ativo,
+                "modulos": [
+                    {"modulo": a.modulo, "perfil": a.perfil, "empresa_id": a.empresa_id,
+                     "empresa_nome": a.empresa.nome if a.empresa else None}
+                    for a in v.modulos_efetivos
+                ],
+            }
+        return v
+
+
+def _validar_acessos(modulos: list[AcessoModulo] | None) -> list[AcessoModulo] | None:
+    if modulos is None:
+        return None
+    if any(a.perfil == Perfil.MASTER for a in modulos):
+        raise ValueError("O perfil de um módulo é ADMIN, CLIENTE ou TECNICO (MASTER é global)")
+    if len({a.modulo for a in modulos}) != len(modulos):
+        raise ValueError("Módulo repetido")
+    for a in modulos:
+        if a.perfil == Perfil.TECNICO:
+            if a.modulo != Modulo.MANUTENCAO:
+                raise ValueError("O perfil técnico só existe no módulo Manutenção Clínica")
+            if a.empresa_id is None:
+                raise ValueError("Informe a empresa do técnico")
+        elif a.empresa_id is not None:
+            raise ValueError("Só o técnico é vinculado a uma empresa")
+    return modulos
 
 
 class UsuarioCriar(Esquema):
     nome: str = Field(min_length=1, max_length=120)
     login: str = Field(min_length=3, max_length=60, pattern=r"^[A-Za-z0-9._-]+$")
     senha: str = Field(min_length=8, max_length=128)
-    perfil: Perfil = Perfil.CLIENTE
+    master: bool = False  # acesso total a todos os módulos (só o MASTER concede)
+    modulos: list[AcessoModulo] = []  # módulos habilitados e o papel em cada um
+
+    validar_modulos = field_validator("modulos")(_validar_acessos)
 
 
 class UsuarioAtualizar(Esquema):
     nome: str | None = Field(default=None, min_length=1, max_length=120)
     login: str | None = Field(default=None, min_length=3, max_length=60, pattern=r"^[A-Za-z0-9._-]+$")
     senha: str | None = Field(default=None, min_length=8, max_length=128)
-    perfil: Perfil | None = None
+    master: bool | None = None
+    # Se vier, define o acesso nos módulos informados e remove o dos módulos que o editor administra e
+    # que não vieram na lista. Os módulos que o editor não administra nunca são tocados.
+    modulos: list[AcessoModulo] | None = None
     ativo: bool | None = None
+
+    validar_modulos = field_validator("modulos")(_validar_acessos)
+
+
+class ModuloDisponivel(Esquema):
+    modulo: Modulo
+    nome: str
+    descricao: str
+    rota: str
+    perfil: Perfil  # o papel de quem pergunta neste módulo
 
 
 class Token(Esquema):
@@ -175,9 +235,18 @@ class DonoOut(Esquema):
     nome: str
 
 
+class ChamadoRef(Esquema):
+    """Chamado da Manutenção Clínica que originou o ofício (solicitação de peças/equipamentos)."""
+
+    id: int
+    codigo: str
+    titulo: str
+
+
 class OficioOut(Esquema):
     id: int
     dono: DonoOut
+    chamado: ChamadoRef | None = None
     numero: str
     data_oficio: date
     tipo: str | None

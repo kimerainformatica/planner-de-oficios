@@ -20,7 +20,7 @@ import { type Correcoes, type ModalAberto, ativo, ehResposta, recebimentoAtual, 
 
 export function OficioDetalhe() {
   const id = Number(useParams().id);
-  const { ehAdmin } = useAuth();
+  const { ehAdmin, modulos } = useAuth();
   const navegar = useNavigate();
   const [modal, setModal] = useState<ModalAberto>(null);
   const consulta = useQuery({ queryKey: ["oficio", id], queryFn: () => ep.buscarOficio(id) });
@@ -120,6 +120,12 @@ export function OficioDetalhe() {
             {destinatarioTexto(o) && <Dado rotulo="Destinatário" valor={destinatarioTexto(o)} />}
             {o.protocolo && <Dado rotulo="Protocolo" valor={o.protocolo} />}
             {ehAdmin && <Dado rotulo="Cliente" valor={o.dono.nome} />}
+            {o.chamado && (
+              <Dado rotulo="Origem (Manutenção Clínica)"
+                valor={modulos.includes("MANUTENCAO")
+                  ? <Link to={`/manutencao/chamados/${o.chamado.id}`} className="link-forte">{o.chamado.codigo} · {o.chamado.titulo}</Link>
+                  : `${o.chamado.codigo} · ${o.chamado.titulo}`} />
+            )}
           </BlocoDados>
           <BlocoDados titulo="Resposta" etapa={o.status === "PENDENTE_RESPOSTA" ? "atual" : "feita"}
             ultimo={!(itens || o.data_recebimento)}>

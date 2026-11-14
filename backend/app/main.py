@@ -4,7 +4,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import BASE_DIR, get_settings
-from app.routers import anexos, auditoria, auth, dashboard, exclusoes, feriados, lixeira, oficios, tipos, usuarios
+from app.routers import (
+    anexos, auditoria, auth, dashboard, exclusoes, feriados, lixeira, manutencao, modulos, oficios, tipos, usuarios,
+)
 
 app = FastAPI(
     title="Planner de Ofícios",
@@ -22,8 +24,9 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-for modulo in (auth, usuarios, oficios, anexos, lixeira, exclusoes, auditoria, dashboard, feriados, tipos):
-    app.include_router(modulo.router)
+for rota in (auth, usuarios, modulos, oficios, anexos, lixeira, exclusoes, auditoria, dashboard, feriados, tipos,
+             manutencao):
+    app.include_router(rota.router)
 
 
 @app.get("/api/saude", tags=["Sistema"])

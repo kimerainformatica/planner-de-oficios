@@ -4,13 +4,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.deps import AdminDep, DbDep, SettingsDep, UsuarioDep, eh_admin
+from app.deps import ACESSO_OFICIOS, AdminDep, DbDep, SettingsDep, UsuarioDep, eh_admin
 from app.models import Oficio, SolicitacaoExclusao, StatusSolicitacao
 from app.schemas import SolicitacaoDecidir, SolicitacaoOut
 from app.services.auditoria import Acao, registrar
 from app.services.exclusoes import decidir, excluir_oficio, montar_solicitacao
 
-router = APIRouter(prefix="/api/exclusoes", tags=["Pedidos de exclusão"])
+router = APIRouter(prefix="/api/exclusoes", tags=["Pedidos de exclusão"], dependencies=ACESSO_OFICIOS)
 
 
 @router.get("", response_model=list[SolicitacaoOut], summary="Admin: todos os pedidos · cliente: os seus")

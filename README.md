@@ -1,14 +1,42 @@
 # Planner de Ofícios · Instituto ACQUA
 
-Sistema web interno para cadastrar ofícios, guardar os documentos e acompanhar o prazo de resposta e de entrega em
-**dias úteis**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
+Sistema web interno organizado em **módulos**, com um login só:
+
+- **Planner de Ofícios:** cadastra ofícios, guarda os documentos e acompanha o prazo de resposta e de entrega em
+  **dias úteis**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
+- **Manutenção Clínica:** helpdesk em que o operacional abre chamados para as empresas técnicas (MSI, Realiza Predial,
+  Realiza Climatização…), com diagnóstico em **24 horas úteis**, relatório técnico, quadro de acompanhamento e
+  solicitação de peças que vira um ofício no Planner.
+
+O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
 
 > **Versão 2.0 em homologação:** módulos e Manutenção Clínica (helpdesk) integrada ao Planner, no ramo
 > `feature/modulos-manutencao-clinica` ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)). Veja [Versões e ramos](#versões-e-ramos).
 
 ![Painel do Planner de Ofícios](docs/imagens/painel.png)
 
-## O que ele faz
+## Módulos e perfis
+
+- Depois do login, a tela **Módulos** mostra só os módulos liberados para a pessoa (com um só, ela vai direto).
+- O papel é **por módulo**: administrador ou cliente no Planner; administrador, operacional ou técnico na Manutenção.
+  O **master** administra todos.
+- O master cadastra e edita o acesso aos dois módulos. O administrador de um módulo só mexe no acesso a esse módulo.
+- Todo **operacional** da Manutenção também usa o Planner (como cliente, ou o papel que tiver lá). O **técnico** só
+  vê a Manutenção, e só os chamados da própria empresa.
+
+## Manutenção Clínica
+
+- **Chamado:** empresa técnica, título, descrição do problema, local, equipamento e data/hora da ocorrência.
+- **Prazo de diagnóstico:** 24 horas úteis por empresa (ajustável), contadas no expediente de segunda a sexta, sem
+  feriados. Situação ao vivo: no prazo, vencendo, atrasado, cumprido ou cumprido com atraso.
+- **Resposta do técnico:** comentário, arquivo externo ou **relatório técnico** no modelo do sistema, com PDF.
+- **Tempo de solução:** ao concluir, o chamado grava quanto demorou do diagnóstico à solução (horas úteis e corridas).
+- **Painel e quadro:** indicadores por empresa e um quadro por etapa (aguardando diagnóstico, em execução, aguardando
+  peças, concluídos), atualizado a cada 30 segundos. O técnico tem o próprio painel.
+- **Peças e equipamentos:** o operacional pede pelo chamado. O pedido vira um ofício no Planner, ligado ao chamado.
+  Os documentos são anexados no Planner, e tudo o que acontece com o ofício aparece na linha do tempo do chamado.
+
+## Planner de Ofícios
 
 - **Cadastro de ofícios:** número, data, tipo, destinatário (SES, ACQUA ou outro, com setor), protocolo, observação,
   o documento do ofício e um documento de referência.
@@ -79,8 +107,9 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Documento | Para quem | Conteúdo |
 |---|---|---|
+| [Atualizações](docs/ATUALIZACOES.md) | Todos | O que mudou em cada versão e como aplicar no servidor |
 | [Manual do usuário](docs/MANUAL.md) | Quem usa o sistema | Telas, perfis e o passo a passo de cada tarefa |
-| [Regras de negócio](docs/REGRAS.md) | Todos | Prazos, status, entrega, anexos, perfis, correções e exclusões |
+| [Regras de negócio](docs/REGRAS.md) | Todos | Módulos e acessos, prazos, status, entrega, anexos, correções, exclusões e o helpdesk da Manutenção |
 | [Instalação e operação](docs/INSTALACAO.md) | Quem mantém o servidor | Instalar, configurar (`.env`), ligar, rede, backup, atualizações, feriados |
 | [Recursos de servidor](docs/RECURSOS-SERVIDOR.md) | Quem mantém o servidor | Processador, RAM, threads, disco e rede medidos, o servidor necessário e o custo de cada visual no navegador |
 | [Arquitetura](docs/ARQUITETURA.md) | Desenvolvedores | Estrutura, modelo de dados, fluxo de status, segurança, visual |
@@ -138,7 +167,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0010)
+  alembic/            migrações do banco (0001 … 0014)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -153,7 +182,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 62 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 104 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import Anexo, AnexoLixeira, Oficio
+from app.models import Anexo, AnexoLixeira, ChamadoInteracao, Oficio
 from app.schemas import ProblemaArquivo, VerificacaoArquivos
 from app.services.armazenamento import BLOCO, caminho_absoluto
 
@@ -50,6 +50,11 @@ def verificar(db: Session, settings: Settings) -> VerificacaoArquivos:
                     problemas.append(ProblemaArquivo(origem=origem, id=item.id, oficio_id=item.oficio_id,
                                                      oficio_numero=numero, nome_original=item.nome_original,
                                                      problema=problema))
+        # Arquivos dos chamados da Manutenção Clínica ficam na mesma pasta: não são "sem registro"
+        for (caminho_chamado,) in db.execute(
+            select(ChamadoInteracao.arquivo_caminho).where(ChamadoInteracao.arquivo_caminho.is_not(None))
+        ):
+            usados.add(caminho_absoluto(caminho_chamado, settings))
         pasta = settings.storage_dir.resolve()
         sobras = sum(1 for c in pasta.rglob("*") if c.is_file() and c.resolve() not in usados) if pasta.is_dir() else 0
         _ultima = VerificacaoArquivos(verificado_em=datetime.now(), arquivos=total, problemas=problemas,

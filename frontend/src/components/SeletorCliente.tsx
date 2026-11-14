@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios } from "../api/endpoints";
+import { papelNo } from "../utils/modulos";
 
 /** Select de clientes, usado só pelo admin (filtros e cadastro em nome de alguém). */
 export function SeletorCliente({
@@ -13,7 +14,11 @@ export function SeletorCliente({
   aoMudar: (id: number | undefined) => void;
   rotuloVazio: string;
 }) {
-  const { data: usuarios = [] } = useQuery({ queryKey: ["usuarios"], queryFn: listarUsuarios });
+  // Só quem tem acesso ao Planner de Ofícios pode ser dono de um ofício
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ["usuarios", "OFICIOS"],
+    queryFn: () => listarUsuarios("OFICIOS"),
+  });
   return (
     <select
       id={id}
@@ -27,7 +32,7 @@ export function SeletorCliente({
         .map((u) => (
           <option key={u.id} value={u.id}>
             {u.nome}
-            {u.perfil === "ADMIN" ? " (admin)" : ""}
+            {papelNo(u, "OFICIOS") === "ADMIN" ? " (admin)" : ""}
           </option>
         ))}
     </select>

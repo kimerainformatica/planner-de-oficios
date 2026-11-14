@@ -31,7 +31,9 @@ def test_senha_errada(api):
 
 def test_admin_cria_usuario_e_desativa(api, admin):
     r = api.post(
-        "/api/usuarios", json={"nome": "Caio", "login": "caio", "senha": "12345678", "perfil": "CLIENTE"}, headers=admin
+        "/api/usuarios",
+        json={"nome": "Caio", "login": "caio", "senha": "12345678", "modulos": [{"modulo": "OFICIOS", "perfil": "CLIENTE"}]},
+        headers=admin,
     )
     assert r.status_code == 201
     novo = api.post("/api/auth/login", data={"username": "caio", "password": "12345678"})
@@ -42,7 +44,11 @@ def test_admin_cria_usuario_e_desativa(api, admin):
 
 
 def test_admin_nao_se_rebaixa(api, admin):
-    r = api.patch(f"/api/usuarios/{meu_id(api, admin)}", json={"perfil": "CLIENTE"}, headers=admin)
+    r = api.patch(
+        f"/api/usuarios/{meu_id(api, admin)}",
+        json={"modulos": [{"modulo": "OFICIOS", "perfil": "CLIENTE"}]},
+        headers=admin,
+    )
     assert r.status_code == 400
 
 

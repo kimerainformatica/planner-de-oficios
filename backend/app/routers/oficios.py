@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.deps import AdminDep, CalendarioDep, DbDep, HojeDep, SettingsDep, UsuarioDep, eh_admin
-from app.models import Destinatario, Oficio, SolicitacaoExclusao, StatusOficio, StatusSolicitacao, Usuario
+from app.deps import ACESSO_OFICIOS, AdminDep, CalendarioDep, DbDep, HojeDep, SettingsDep, UsuarioDep, eh_admin
+from app.models import Destinatario, Modulo, Oficio, SolicitacaoExclusao, StatusOficio, StatusSolicitacao, Usuario
 from app.schemas import (
     ConsultaLista,
     EtapaDesfazer,
@@ -27,6 +27,7 @@ from app.services.oficios import (
     ajustar_etapa_recebimento,
     alterar_status,
     buscar_oficio,
+    cadastrar_oficio,
     corrigir_recebimento,
     corrigir_resposta,
     desfazer_etapa,
@@ -41,7 +42,7 @@ from app.services.tipos import validar_para_oficio
 # Campos que aceitam null no PATCH para serem apagados (os demais são obrigatórios).
 APAGAVEIS = {"observacao", "protocolo", "destinatario_tipo", "destinatario_setor"}
 
-router = APIRouter(prefix="/api/oficios", tags=["Ofícios"])
+router = APIRouter(prefix="/api/oficios", tags=["Ofícios"], dependencies=ACESSO_OFICIOS)
 
 
 @router.get("", response_model=PaginaOficios, summary="Lista ofícios (cliente vê só os seus)")
@@ -103,27 +104,13 @@ def criar(
     dono_id = usuario.id
     if eh_admin(usuario) and dados.dono_id is not None:
         dono = db.get(Usuario, dados.dono_id)
-        if dono is None or not dono.ativo:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "O cliente informado não existe ou está inativo")
+        if dono is None or not dono.ativo or not dono.tem_acesso(Modulo.OFICIOS):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "O cliente informado não existe, está inativo ou não tem acesso ao Planner de Ofícios"
+            )
         dono_id = dono.id
 
-    ano = dados.data_oficio.year
-    validar_para_oficio(db, dados.tipo)
-    verificar_duplicidade(db, dono_id, dados.numero, ano, dados.protocolo)
-    # Todo ofício novo entra como PENDENTE_RESPOSTA, sem exceção.
-    oficio = Oficio(
-        **dados.model_dump(exclude={"dono_id"}),
-        ano=ano,
-        dono_id=dono_id,
-        status=StatusOficio.PENDENTE_RESPOSTA,
-        inicio_prazo=dados.data_oficio,
-        criado_por_id=usuario.id,
-    )
-    db.add(oficio)
-    registrar_historico(db, oficio, None, StatusOficio.PENDENTE_RESPOSTA, usuario, "Cadastro do ofício")
-    db.flush()
-    registrar(db, usuario, Acao.OFICIO_CRIADO, f"Cadastrou o ofício nº {oficio.numero}", oficio,
-              detalhes=diferencas({}, dados.model_dump(exclude={"dono_id"}, exclude_none=True)))
+    oficio = cadastrar_oficio(db, dados, dono_id, usuario)
     db.commit()
     return montar_oficio(buscar_oficio(db, oficio.id, usuario, detalhe=True), calendario, hoje, settings, detalhe=True)
 

@@ -43,7 +43,8 @@ export function Login() {
     }
   });
 
-  if (usuario) return <Navigate to="/" replace />;
+  // A tela de módulos manda direto para o módulo quando o usuário tem só um
+  if (usuario) return <Navigate to="/modulos" replace />;
 
   async function enviar(e: FormEvent) {
     e.preventDefault();

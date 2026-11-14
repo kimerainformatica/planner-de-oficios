@@ -1,3 +1,4 @@
+from datetime import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -33,6 +34,13 @@ class Settings(BaseSettings):
 
     # Conferência automática dos arquivos (existência e hash), a cada N horas; 0 desliga
     verificacao_horas: int = 24
+
+    # Manutenção Clínica: o prazo do diagnóstico conta só no expediente dos dias úteis (sem fins de semana e
+    # feriados). 00:00 no fim = até a meia-noite (o dia útil inteiro conta).
+    manutencao_expediente_inicio: time = time(8, 0)
+    manutencao_expediente_fim: time = time(18, 0)
+    # Chamado sem diagnóstico com até N horas úteis restantes aparece como "vencendo"
+    manutencao_alerta_horas: float = 4
 
     cors_origins: list[str] = ["http://localhost:5173"]
     # Libera o front aberto por qualquer endereço da rede interna (10.x, 172.16–31.x, 192.168.x)

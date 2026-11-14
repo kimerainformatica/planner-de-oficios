@@ -1,6 +1,7 @@
 # Manual do usuário
 
-Como usar o Planner de Ofícios no dia a dia. As regras por trás de cada tela estão em [REGRAS.md](REGRAS.md).
+Como usar o sistema no dia a dia: o Planner de Ofícios e, no fim, a [Manutenção Clínica](#manutenção-clínica). As
+regras por trás de cada tela estão em [REGRAS.md](REGRAS.md).
 
 ## Entrar
 
@@ -163,10 +164,19 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 ### Usuários
 
-- **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e perfil (cliente, administrador ou master; só o
-  master cria administradores e masters).
-- **Editar:** altera nome, perfil, situação (ativo ou inativo) e senha. Deixe a senha em branco para manter a atual.
-  Trocar a senha encerra as sessões abertas daquela pessoa.
+- **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
+  - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
+  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*.
+
+  Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
+- **Operacional sempre tem o Planner:** ao escolher *Operacional* ou *Administrador* na Manutenção, o Planner vem
+  como *Cliente* (ou mantém o papel que a pessoa já tinha) e a opção *Sem acesso* some. O técnico fica só na
+  Manutenção.
+- **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
+  para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
+  altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
+- **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
+  **Módulos**. Quem tem só um módulo entra direto nele.
 
 ### Feriados
 
@@ -194,6 +204,66 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
   **Apagar de vez**.
 
 Se um arquivo sumir ou for alterado, recupere-o do backup da pasta `backend/storage` ou envie de novo no ofício.
+
+## Manutenção Clínica
+
+Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza Climatização…). Abra pelo cartão
+**Manutenção Clínica** na tela **Módulos**.
+
+| Item do menu | Quem vê | Para quê |
+|---|---|---|
+| Painel / Meu painel | Todos (o técnico vê "Meu painel") | Situação dos chamados e desempenho por empresa |
+| Quadro de acompanhamento | Operacional e administrador | Os chamados por etapa |
+| Chamados | Todos | Lista com busca e filtros (o técnico só vê os da empresa dele) |
+| Abrir chamado | Operacional e administrador | Pedir um atendimento |
+| Empresas técnicas | Administrador e master | Empresas e o prazo de cada uma |
+
+### Abrir um chamado
+
+1. Em **Abrir chamado**, escolha a empresa, escreva o título e a **descrição do problema**.
+2. Informe o local, o equipamento e a data e hora em que o problema aconteceu.
+3. Clique em **Abrir chamado**. O prazo do diagnóstico (24 horas úteis, das 08:00 às 18:00, de segunda a sexta)
+   começa a contar.
+
+### Tela do chamado
+
+- **Dados:** prazo do diagnóstico, situação do prazo (no prazo, vencendo, atrasado, cumprido), tempo em execução e,
+  depois de concluído, o **tempo de solução após o diagnóstico**.
+- **Linha do tempo:** tudo o que aconteceu, com autor, data, arquivos e relatórios.
+- **Botões** (aparecem conforme o papel e a etapa): **Assumir**, **Relatório técnico**, **Concluir**, **Reabrir** e
+  **Cancelar chamado**. Reabrir e cancelar pedem o motivo.
+- **Responder:** escreva um comentário e, se quiser, anexe um arquivo. O técnico marca **É uma resposta técnica**
+  para registrar o diagnóstico. A primeira resposta técnica encerra o prazo.
+
+### Para o técnico
+
+1. Em **Meu painel**, acompanhe os chamados da sua empresa por etapa.
+2. Abra o chamado e clique em **Assumir** para ficar como responsável.
+3. Responda com o diagnóstico: uma **resposta técnica** (texto e o relatório externo da empresa, se tiver) ou o
+   **Relatório técnico** do sistema (data do atendimento, situação do equipamento, diagnóstico, causa, serviço,
+   peças e recomendações), que gera um PDF.
+4. Quando resolver, clique em **Concluir** e escreva o resumo da solução.
+
+### Peças e equipamentos
+
+1. No chamado, o operacional clica em **Solicitar peças ou equipamentos** e preenche os dados do ofício.
+2. Clique em **Registrar no Planner**. O ofício é criado no Planner de Ofícios, ligado ao chamado, e o chamado passa
+   para **Aguardando peças** no quadro.
+3. Anexe o documento do ofício **no Planner**: use o atalho **Anexar o documento no Planner de Ofícios**.
+4. A resposta e a entrega são registradas no Planner, como em qualquer ofício. Tudo aparece na linha do tempo do
+   chamado como "Planner de Ofícios · …", e os documentos podem ser baixados pela seção **Peças e equipamentos**.
+5. Com a entrega registrada, o chamado volta sozinho à etapa em que estava.
+
+### Quadro de acompanhamento
+
+Os chamados em quatro colunas: **aguardando diagnóstico**, **em execução**, **aguardando peças** e **concluídos**.
+Filtre por "quais chamados", empresa e período dos concluídos. O cartão mostra o prazo e o status de cada ofício de
+peças. O quadro se atualiza sozinho a cada 30 segundos.
+
+### Empresas técnicas (administrador)
+
+Cadastre, altere ou desative as empresas e defina o prazo do diagnóstico de cada uma, em horas úteis. Uma empresa
+só pode ser excluída se não tiver chamados nem técnicos.
 
 ## Celular
 

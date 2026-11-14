@@ -25,17 +25,25 @@ A resposta traz `{"access_token": "...", "token_type": "bearer"}`. Nas demais ch
 | `429` | Login bloqueado por excesso de tentativas |
 
 **Perfis** na coluna "Quem": **todos** = qualquer usuário logado (o cliente só enxerga os próprios ofícios);
-**admin** = `ADMIN` ou `MASTER`.
+**admin** = `ADMIN` do módulo ou `MASTER`. Nas rotas `/api/oficios`, `/api/anexos`, `/api/dashboard`, `/api/feriados`,
+`/api/tipos`, `/api/exclusoes`, `/api/auditoria` e da lixeira, "admin" é o administrador do **Planner de Ofícios**
+e é preciso ter acesso a esse módulo (senão, `403`). As rotas `/api/manutencao/*` exigem acesso ao módulo
+**Manutenção Clínica**. O `MASTER` tem acesso e poder de administrador em todos os módulos.
 
-## Autenticação e usuários
+## Autenticação, módulos e usuários
 
 | Método | Rota | Quem | O que faz |
 |---|---|---|---|
 | POST | `/api/auth/login` | — | Entra e devolve o token |
-| GET | `/api/auth/me` | todos | Usuário atual |
-| GET | `/api/usuarios` | admin | Lista os usuários |
-| POST | `/api/usuarios` | admin | Cria um usuário. Só o master cria administradores e masters |
-| PATCH | `/api/usuarios/{id}` | admin | Altera nome, perfil, situação ou senha. Trocar a senha encerra as sessões da pessoa |
+| GET | `/api/auth/me` | todos | Usuário atual, com o papel dele em cada módulo (`modulos`) |
+| GET | `/api/modulos` | todos | Módulos que o usuário pode abrir, com o papel dele em cada um |
+| GET | `/api/manutencao/resumo` | acesso à Manutenção | Papel do usuário no módulo (e a empresa, se for técnico) |
+| GET | `/api/usuarios` | gestor | Lista os usuários (o master vê todos; o admin vê quem usa os módulos que ele administra). `?modulo=OFICIOS` filtra por quem tem acesso ao módulo |
+| POST | `/api/usuarios` | gestor | Cria um usuário já habilitado nos módulos (`modulos`: lista de `{modulo, perfil}`). Só o master cria administradores e masters (`master: true`) |
+| PATCH | `/api/usuarios/{id}` | gestor | Altera nome, login, situação, senha, `master` ou o acesso (`modulos`). Trocar a senha encerra as sessões da pessoa |
+
+**gestor** = `MASTER` ou administrador de algum módulo. O administrador de um módulo só altera o acesso a **esse**
+módulo, e só altera nome, login, senha e situação de quem usa apenas módulos que ele administra (veja `REGRAS.md`).
 
 ## Ofícios
 
@@ -99,6 +107,31 @@ A resposta traz `{"access_token": "...", "token_type": "bearer"}`. Nas demais ch
 | POST | `/api/exclusoes/{id}/aprovar` | admin | Aprova e exclui o ofício |
 | POST | `/api/exclusoes/{id}/recusar` | admin | Recusa (o ofício continua) |
 | GET | `/api/auditoria` | todos | Registro de atividades, com filtros `acao`, `usuario_id`, `oficio_id`, `data_inicio`, `data_fim` e paginação. O cliente vê o que fez e o que aconteceu nos próprios ofícios |
+
+## Manutenção Clínica (helpdesk)
+
+Todas exigem acesso ao módulo. **operacional** = `CLIENTE` do módulo; **técnico** = `TECNICO` (vê só os chamados
+da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REGRAS.md`.
+
+| Método | Rota | Quem | O que faz |
+|---|---|---|---|
+| GET | `/api/manutencao/painel` | todos | Contagens (aguardando diagnóstico, vencendo, atrasados…), desempenho por empresa e os chamados mais perto do prazo |
+| GET | `/api/manutencao/empresas` | todos | Empresas técnicas (`?ativas=true` só as ativas), com o nº de técnicos e de chamados |
+| POST · PATCH · DELETE | `/api/manutencao/empresas[/{id}]` | admin | Cadastra, altera (nome, descrição, `prazo_horas`, ativo) ou exclui (só sem chamados e técnicos) |
+| GET | `/api/manutencao/chamados` | todos | Lista, com filtros `status` (repetível), `empresa_id`, `situacao` (do prazo), `busca`, `meus` e paginação |
+| POST | `/api/manutencao/chamados` | operacional, admin | Abre um chamado: `empresa_id`, `titulo`, `descricao`, `local`, `equipamento`, `ocorrido_em` |
+| GET | `/api/manutencao/chamados/{id}` | todos | Detalhe com a linha do tempo e o que quem consulta pode fazer (`pode_*`) |
+| POST | `/api/manutencao/chamados/{id}/assumir` | técnico | Vira o técnico responsável (não conta como diagnóstico) |
+| POST | `/api/manutencao/chamados/{id}/interacoes` | todos | `multipart/form-data`: `texto`, `arquivo` e `diagnostico=true` (só técnico/admin) para a resposta técnica |
+| POST | `/api/manutencao/chamados/{id}/relatorios` | técnico, admin | Relatório técnico no modelo do sistema (conta como diagnóstico) |
+| GET | `/api/manutencao/relatorios/{id}` · `/pdf` | todos | O relatório, ou o PDF dele |
+| GET | `/api/manutencao/interacoes/{id}/arquivo` | todos | Baixa o arquivo de uma interação (`inline`, `bruto`) |
+| POST | `/api/manutencao/chamados/{id}/concluir` | técnico, admin | Conclui (exige diagnóstico), com `texto` opcional. Grava o tempo de solução (`solucao_horas_uteis`, `solucao_horas_corridas`) |
+| GET | `/api/manutencao/quadro` | todos | Quadro por etapa (aguardando diagnóstico, em execução, aguardando peças, concluídos) e indicadores; `meus`, `empresa_id`, `dias` |
+| GET | `/api/manutencao/tipos-solicitacao` | todos | Tipos de ofício aceitos na solicitação de peças/equipamentos |
+| GET | `/api/manutencao/chamados/{id}/oficios/anexos/{anexo_id}` | todos | Baixa um documento do ofício de peças (anexado no Planner) pelo chamado |
+| POST | `/api/manutencao/chamados/{id}/oficios` | operacional, admin | Solicita peças/equipamentos: cadastra um ofício no Planner ligado ao chamado (`tipo`, `numero`, `data_oficio`, `protocolo`, `destinatario_tipo`, `destinatario_setor`, `itens`) |
+| POST | `/api/manutencao/chamados/{id}/reabrir` · `/cancelar` | operacional, admin | Reabre um concluído ou cancela um em aberto, com `motivo` |
 
 ## Outros
 

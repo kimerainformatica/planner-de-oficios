@@ -2,14 +2,14 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.deps import AdminDep, DbDep, UsuarioDep
+from app.deps import ACESSO_OFICIOS, AdminDep, DbDep, UsuarioDep
 from app.models import Oficio, StatusOficio, TipoOficio
 from app.schemas import TipoOficioAtualizar, TipoOficioCriar, TipoOficioOut
 from app.services import tipos
 from app.services.auditoria import Acao, campos_legiveis, diferencas, registrar
 from app.services.oficios import ajustar_etapa_recebimento
 
-router = APIRouter(prefix="/api/tipos", tags=["Tipos de ofício"])
+router = APIRouter(prefix="/api/tipos", tags=["Tipos de ofício"], dependencies=ACESSO_OFICIOS)
 
 
 def _montar(db, tipo: TipoOficio) -> TipoOficioOut:

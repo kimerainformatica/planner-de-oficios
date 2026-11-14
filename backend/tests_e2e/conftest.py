@@ -21,7 +21,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database import Base
-from app.models import Destinatario, Feriado, HistoricoStatus, Oficio, Perfil, StatusOficio, Usuario
+from app.models import (
+    Destinatario, Feriado, HistoricoStatus, Modulo, Oficio, Perfil, StatusOficio, Usuario, UsuarioModulo,
+)
 from app.seguranca import gerar_hash_senha
 from app.services.prazos import feriados_nacionais
 from app.services.tipos import semear
@@ -45,7 +47,8 @@ def _semear(url: str) -> None:
         semear(db)
         admin = Usuario(nome="Administrador", login="admin", senha_hash=gerar_hash_senha(SENHAS["admin"]),
                         perfil=Perfil.MASTER)
-        ana = Usuario(nome="Ana Souza", login="ana", senha_hash=gerar_hash_senha(SENHAS["ana"]))
+        ana = Usuario(nome="Ana Souza", login="ana", senha_hash=gerar_hash_senha(SENHAS["ana"]),
+                      modulos=[UsuarioModulo(modulo=Modulo.OFICIOS, perfil=Perfil.CLIENTE)])
         db.add_all([admin, ana])
         db.add_all(Feriado(data=d, descricao=t) for ano in (hoje.year - 1, hoje.year) for d, t in feriados_nacionais(ano))
         db.flush()
@@ -147,7 +150,13 @@ def entrar(page: Page, base: str, login: str = "admin", senha: str | None = None
     page.get_by_label("Usuário").fill(login)
     page.get_by_label("Senha").fill(senha or SENHAS[login])
     page.get_by_role("button", name="Entrar").click()
-    expect(page.get_by_role("heading", name="Painel")).to_be_visible()
+    # Quem tem mais de um módulo (o MASTER) passa antes pela escolha do módulo
+    painel = page.get_by_role("heading", name="Painel")
+    cartao = page.locator("a.modulo-cartao", has_text="Planner de Ofícios")
+    expect(painel.or_(cartao)).to_be_visible()
+    if cartao.is_visible():
+        cartao.click()
+    expect(painel).to_be_visible()
 
 
 @pytest.fixture

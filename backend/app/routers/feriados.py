@@ -3,13 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, status
 from sqlalchemy import extract, select
 
-from app.deps import AdminDep, DbDep, UsuarioDep
+from app.deps import ACESSO_OFICIOS, AdminDep, DbDep, UsuarioDep
 from app.models import Feriado
 from app.schemas import FeriadoCriar, FeriadoOut
 from app.services.auditoria import Acao, registrar
 from app.services.prazos import feriados_nacionais
 
-router = APIRouter(prefix="/api/feriados", tags=["Feriados (dias não úteis)"])
+router = APIRouter(prefix="/api/feriados", tags=["Feriados (dias não úteis)"], dependencies=ACESSO_OFICIOS)
 
 
 @router.get("", response_model=list[FeriadoOut])

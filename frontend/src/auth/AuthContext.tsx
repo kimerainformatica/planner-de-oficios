@@ -2,13 +2,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { definirAoExpirar, lerToken, salvarToken } from "../api/client";
 import * as endpoints from "../api/endpoints";
-import type { Usuario } from "../types";
+import type { Modulo, Perfil, Usuario } from "../types";
+import { ehAdminNo, ehGestor, MODULOS, papelNo, temAcesso } from "../utils/modulos";
 
 interface Auth {
   usuario: Usuario | null;
   carregando: boolean;
-  ehAdmin: boolean; // ADMIN ou MASTER
+  /** Administrador do **Planner de Ofícios** (ADMIN do módulo ou MASTER). Para os outros módulos: `ehAdminNo`. */
+  ehAdmin: boolean;
   ehMaster: boolean;
+  /** MASTER ou administrador de algum módulo: acessa a gestão de usuários. */
+  ehGestor: boolean;
+  /** Módulos que o usuário pode abrir. */
+  modulos: Modulo[];
+  papelNo: (modulo: Modulo) => Perfil | null;
+  ehAdminNo: (modulo: Modulo) => boolean;
   entrar: (login: string, senha: string) => Promise<void>;
   sair: () => void;
 }
@@ -60,8 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       usuario,
       carregando,
-      ehAdmin: usuario?.perfil === "ADMIN" || usuario?.perfil === "MASTER",
+      ehAdmin: ehAdminNo(usuario, "OFICIOS"),
       ehMaster: usuario?.perfil === "MASTER",
+      ehGestor: ehGestor(usuario),
+      modulos: usuario ? MODULOS.filter((m) => temAcesso(usuario, m.modulo)).map((m) => m.modulo) : [],
+      papelNo: (m: Modulo) => papelNo(usuario, m),
+      ehAdminNo: (m: Modulo) => ehAdminNo(usuario, m),
       entrar,
       sair,
     }),
