@@ -37,7 +37,7 @@ import { salvarArquivo } from "../utils/arquivo";
 import {
   data,
   decimal,
-  diasUteis,
+  diasCorridos,
   hojeIso,
   mesCurto,
   porcentagem,
@@ -59,7 +59,7 @@ const MENSAL: Serie[] = [
   { nome: "Respondidos", cor: "var(--serie-2)" },
   { nome: "Recebidos", cor: "var(--serie-3)" },
 ];
-const TEMPO: Serie[] = [{ nome: "Tempo médio (dias úteis)", cor: "var(--serie-1)" }];
+const TEMPO: Serie[] = [{ nome: "Tempo médio (dias)", cor: "var(--serie-1)" }];
 
 const PERIODOS = {
   tudo: "Todo o período",
@@ -82,11 +82,11 @@ function inicioDoPeriodo(p: Periodo): string | undefined {
   return undefined;
 }
 
-/** "45+ dias úteis", "30 a 44 dias úteis", "até 29 dias úteis" conforme a configuração do servidor. */
+/** "45+ dias", "30 a 44 dias", "até 29 dias" conforme a configuração do servidor. */
 function faixa(nivel: NivelAlerta, p: Prazos): string {
-  if (nivel === "CRITICO") return `${p.dias_critico}+ dias úteis`;
-  if (nivel === "ATENCAO") return `${p.dias_atencao} a ${p.dias_critico - 1} dias úteis`;
-  return `até ${p.dias_atencao - 1} dias úteis`;
+  if (nivel === "CRITICO") return `${p.dias_critico}+ dias`;
+  if (nivel === "ATENCAO") return `${p.dias_atencao} a ${p.dias_critico - 1} dias`;
+  return `até ${p.dias_atencao - 1} dias`;
 }
 
 const NOME_NIVEL: Record<NivelAlerta, string> = { CRITICO: "Crítico", ATENCAO: "Atenção", NORMAL: "No prazo" };
@@ -187,7 +187,7 @@ export function Painel() {
             {ehAdmin ? "Todos os ofícios" : `Ofícios de ${usuario?.nome}`}
             {consulta.data && ` · situação em ${data(consulta.data.data_referencia)}`}
             {prazos.data &&
-              ` · atenção a partir de ${prazos.data.dias_atencao} e crítico a partir de ${prazos.data.dias_critico} dias úteis`}
+              ` · atenção a partir de ${prazos.data.dias_atencao} e crítico a partir de ${prazos.data.dias_critico} dias`}
           </p>
         </div>
         <div className="grupo">
@@ -328,11 +328,11 @@ function VisaoGeral({ a, recarregando, filtros }: { a: DadosAnalise; recarregand
             dica="Respostas confirmadas ÷ respondidos" icone={<Percent size={19} />} />
           <Indicador rotulo="Tempo médio de resposta" icone={<Timer size={19} />}
             valor={i.tempo_medio_resposta === null ? "—" : decimal(i.tempo_medio_resposta)}
-            unidade={i.tempo_medio_resposta === null ? undefined : "dias úteis"}
+            unidade={i.tempo_medio_resposta === null ? undefined : "dias"}
             dica={`${porcentagem(i.respondidos_no_prazo)} respondidos antes da atenção`} />
           <Indicador rotulo="Tempo médio de entrega" icone={<Truck size={19} />}
             valor={i.tempo_medio_entrega === null ? "—" : decimal(i.tempo_medio_entrega)}
-            unidade={i.tempo_medio_entrega === null ? undefined : "dias úteis"}
+            unidade={i.tempo_medio_entrega === null ? undefined : "dias"}
             dica={`${porcentagem(i.entregues_no_prazo)} entregues antes da atenção`} />
         </div>
       </section>
@@ -376,7 +376,7 @@ function Analise({
   const tempoPorTipo = (campo: "tempo_medio_resposta" | "tempo_medio_entrega"): LinhaBarra[] =>
     porTipo
       .filter((g) => g[campo] !== null)
-      .map((g) => ({ chave: g.chave ?? "", rotulo: g.rotulo, valores: [g[campo] ?? 0], total: `${decimal(g[campo])} dias úteis` }));
+      .map((g) => ({ chave: g.chave ?? "", rotulo: g.rotulo, valores: [g[campo] ?? 0], total: `${decimal(g[campo])} dias` }));
 
   return (
     <div className={`painel-conteudo ${recarregando ? "recarregando" : ""}`}>
@@ -404,17 +404,17 @@ function Analise({
       </CartaoGrafico>
 
       <div className="duas-colunas">
-        <CartaoGrafico titulo="Tempo médio de resposta por tipo" subtitulo="Dias úteis do início do prazo até a resposta"
+        <CartaoGrafico titulo="Tempo médio de resposta por tipo" subtitulo="Dias corridos do início do prazo até a resposta"
           carregando={recarregando}
-          tabela={<TabelaMini cabecalho={["Tipo", "Respondidos", "Tempo médio (dias úteis)"]}
+          tabela={<TabelaMini cabecalho={["Tipo", "Respondidos", "Tempo médio (dias)"]}
             linhas={porTipo.map((g) => [g.rotulo, respondidos(g), decimal(g.tempo_medio_resposta)])} />}>
           <BarrasHorizontais linhas={tempoPorTipo("tempo_medio_resposta")} series={TEMPO}
             rotuloVazio="Nenhum ofício respondido nos filtros escolhidos." formatar={(v) => decimal(v)}
             aoClicar={(chave) => chave && abrirLista({ tipo: chave })} />
         </CartaoGrafico>
-        <CartaoGrafico titulo="Tempo médio de entrega por tipo" subtitulo="Dias úteis da resposta até o recebimento"
+        <CartaoGrafico titulo="Tempo médio de entrega por tipo" subtitulo="Dias corridos da resposta até o recebimento"
           carregando={recarregando}
-          tabela={<TabelaMini cabecalho={["Tipo", "Recebidos", "Tempo médio (dias úteis)"]}
+          tabela={<TabelaMini cabecalho={["Tipo", "Recebidos", "Tempo médio (dias)"]}
             linhas={porTipo.map((g) => [g.rotulo, g.recebidos, decimal(g.tempo_medio_entrega)])} />}>
           <BarrasHorizontais linhas={tempoPorTipo("tempo_medio_entrega")} series={TEMPO}
             rotuloVazio="Nenhuma entrega confirmada nos filtros escolhidos." formatar={(v) => decimal(v)}
@@ -584,7 +584,7 @@ function Fila({ nivel, titulo, filtros, prazos }: { nivel: NivelAlerta; titulo: 
                   </small>
                 </div>
                 <div className="fila-dir">
-                  <span className="texto-suave">{diasUteis(o.dias_uteis_decorridos)}</span>
+                  <span className="texto-suave">{diasCorridos(o.dias_decorridos)}</span>
                   <StatusBadge status={o.status} curto />
                   <AlertaBadge nivel={o.nivel_alerta} />
                 </div>

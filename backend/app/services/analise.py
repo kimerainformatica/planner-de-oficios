@@ -1,7 +1,7 @@
 """Números do painel. O mesmo cálculo alimenta a tela, o Excel e o PDF, para nunca divergirem.
 
 A agregação é feita em Python sobre as linhas filtradas: o nível de alerta e o tempo de resposta
-dependem da contagem de dias úteis (feriados), que não é expressável de forma simples em SQL.
+dependem da contagem de dias corridos a partir de datas que mudam com o status.
 """
 
 from collections import defaultdict
@@ -15,7 +15,7 @@ from app.config import Settings
 from app.models import Destinatario, Modulo, NivelAlerta, Oficio, StatusOficio, TipoOficio, Usuario
 from app.schemas import Analise, FiltrosConsulta, Grupo, Indicadores, Mes, Prazos
 from app.services.oficios import Limites, filtros_sql
-from app.services.prazos import CalendarioUtil, classificar
+from app.services.prazos import Calendario, classificar
 
 ROTULO_DESTINATARIO = {Destinatario.SES: "SES", Destinatario.ACQUA: "ACQUA", Destinatario.OUTROS: "Outros"}
 ROTULO_STATUS = {
@@ -37,10 +37,10 @@ class Linha:
 
     oficio: Oficio
     dono_nome: str
-    dias_uteis: int  # da etapa atual (ver prazos.classificar)
+    dias: int  # dias corridos da etapa atual (ver prazos.classificar)
     nivel: NivelAlerta | None
-    tempo_resposta: int | None = None  # dias úteis do início do prazo até a resposta
-    tempo_entrega: int | None = None  # dias úteis da resposta até o recebimento
+    tempo_resposta: int | None = None  # dias corridos do início do prazo até a resposta
+    tempo_entrega: int | None = None  # dias corridos da resposta até o recebimento
 
     @property
     def tipo(self) -> str:
@@ -103,7 +103,7 @@ def carregar_linhas(
     db: Session,
     usuario: Usuario,
     f: FiltrosConsulta,
-    calendario: CalendarioUtil,
+    calendario: Calendario,
     hoje: date,
     settings: Settings,
 ) -> list[Linha]:
@@ -130,9 +130,9 @@ def carregar_linhas(
         recebido = oficio.data_recebimento and oficio.status == StatusOficio.RECEBIDO
         linhas.append(Linha(
             oficio, dono_nome, dias, nivel,
-            tempo_resposta=calendario.dias_uteis_decorridos(oficio.inicio_prazo, oficio.data_resposta)
+            tempo_resposta=calendario.dias_decorridos(oficio.inicio_prazo, oficio.data_resposta)
             if respondido else None,
-            tempo_entrega=calendario.dias_uteis_decorridos(oficio.data_resposta, oficio.data_recebimento)
+            tempo_entrega=calendario.dias_decorridos(oficio.data_resposta, oficio.data_recebimento)
             if recebido else None,
         ))
     return linhas

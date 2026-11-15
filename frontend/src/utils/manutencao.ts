@@ -1,4 +1,6 @@
-import type { Perfil, SituacaoEquipamento, SituacaoPrazo, StatusChamado, TipoInteracao } from "../types";
+import type {
+  Perfil, SituacaoEquipamento, SituacaoPrazo, SituacaoPreventiva, StatusChamado, TipoInteracao, UnidadePeriodo,
+} from "../types";
 
 export const ROTULO_STATUS_CHAMADO: Record<StatusChamado, string> = {
   ABERTO: "Aberto",
@@ -26,6 +28,7 @@ export const ROTULO_INTERACAO: Record<TipoInteracao, string> = {
   REABERTURA: "Chamado reaberto",
   CANCELAMENTO: "Chamado cancelado",
   OFICIO: "Solicitação de peças / equipamentos",
+  CORRECAO: "Correção",
 };
 
 export const ROTULO_EQUIPAMENTO: Record<SituacaoEquipamento, string> = {
@@ -55,16 +58,49 @@ export function horas(h: number): string {
 
 /** Texto curto do prazo de um chamado ainda sem diagnóstico. */
 export function textoPrazo(situacao: SituacaoPrazo, restantes: number | null, diagnostico: number | null): string {
-  if (situacao === "ATRASADO" && restantes !== null) return `atrasado há ${horas(restantes)} úteis`;
-  if ((situacao === "NO_PRAZO" || situacao === "VENCENDO") && restantes !== null) return `restam ${horas(restantes)} úteis`;
+  if (situacao === "ATRASADO" && restantes !== null) return `atrasado há ${horas(restantes)}`;
+  if ((situacao === "NO_PRAZO" || situacao === "VENCENDO") && restantes !== null) return `restam ${horas(restantes)}`;
   if ((situacao === "CUMPRIDO" || situacao === "CUMPRIDO_COM_ATRASO") && diagnostico !== null)
-    return `diagnóstico em ${horas(diagnostico)} úteis`;
+    return `diagnóstico em ${horas(diagnostico)}`;
   return "";
 }
 
 /** Data e hora local no formato do <input type="datetime-local"> (yyyy-mm-ddThh:mm). */
 export function agoraLocal(): string {
-  const d = new Date();
+  return paraInputLocal(new Date().toISOString());
+}
+
+/** Data e hora da API ("2026-10-21T08:30:00", hora local) ou ISO completo no formato do <input type="datetime-local">. */
+export function paraInputLocal(valor: string): string {
+  const d = new Date(valor);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export const ROTULO_PREVENTIVA: Record<SituacaoPreventiva, string> = {
+  PROGRAMADA: "Programada",
+  NA_JANELA: "Para realizar agora",
+  ATRASADA: "Atrasada",
+  REALIZADA: "Realizada no prazo",
+  REALIZADA_COM_ATRASO: "Realizada com atraso",
+  NAO_REALIZADA: "Não realizada",
+};
+
+/** Cor do selo da preventiva (reaproveita as cores do prazo dos chamados). */
+export const CLASSE_PREVENTIVA: Record<SituacaoPreventiva, string> = {
+  PROGRAMADA: "prev-programada",
+  NA_JANELA: "chamado-prazo-VENCENDO",
+  ATRASADA: "chamado-prazo-ATRASADO",
+  REALIZADA: "chamado-prazo-CUMPRIDO",
+  REALIZADA_COM_ATRASO: "chamado-prazo-CUMPRIDO_COM_ATRASO",
+  NAO_REALIZADA: "chamado-prazo-SUSPENSO",
+};
+
+export const ROTULO_UNIDADE_PERIODO: Record<UnidadePeriodo, string> = { DIAS: "dias", SEMANAS: "semanas", MESES: "meses" };
+
+/** "faltam 3 dias", "é hoje", "há 5 dias", a partir dos dias até a data prevista. */
+export function textoDias(dias: number): string {
+  if (dias === 0) return "é hoje";
+  const n = Math.abs(dias);
+  return dias > 0 ? `faltam ${n} ${n === 1 ? "dia" : "dias"}` : `há ${n} ${n === 1 ? "dia" : "dias"}`;
 }

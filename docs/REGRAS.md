@@ -31,22 +31,23 @@ stateDiagram-v2
 - Mudar o tipo de um ofício já confirmado faz ele entrar na etapa de entrega ou sair dela, conforme o novo tipo. A
   mudança fica no histórico.
 
-## Prazo em dias úteis
+## Prazo em dias corridos
 
-- **Dias úteis:** de segunda a sexta, menos os feriados cadastrados em **Feriados**.
+- **Dias corridos:** todos os dias contam, inclusive sábados, domingos e feriados (desde a versão 2.2;
+  antes eram dias úteis). O dia do início não conta: um ofício de 15/10 tem 5 dias em 20/10.
 - **Início:** o prazo de resposta conta a partir da data do ofício, ou do dia da reabertura. O prazo de entrega conta
   a partir da data da resposta.
 - **Alerta** (só para pendentes; é calculado na hora, não fica gravado):
 
-  | Dias úteis | Nível |
+  | Dias corridos | Nível |
   |---|---|
   | 0 a 29 | No prazo (`NORMAL`) |
   | 30 a 44 | Atenção (`ATENCAO`) |
   | 45 ou mais | Crítico (`CRITICO`) |
 
   Os limites vêm de `DIAS_ATENCAO` e `DIAS_CRITICO` no `.env`. Depois de mudar, é preciso reiniciar o sistema.
-- **Tempos registrados:** cada ofício guarda o tempo da resposta ("respondido em X dias úteis") e o da entrega
-  ("entregue em Y dias úteis"). O painel usa esses valores nos tempos médios.
+- **Tempos registrados:** cada ofício guarda o tempo da resposta ("respondido em X dias") e o da entrega
+  ("entregue em Y dias"). O painel usa esses valores nos tempos médios.
 
 ## Tipos de ofício
 
@@ -132,7 +133,7 @@ habilitado num módulo não o abre (as rotas dele respondem `403`).
 
 ## Manutenção Clínica (helpdesk)
 
-O operacional abre um **chamado** para uma empresa técnica, e o técnico dessa empresa tem um prazo em **horas úteis**
+O operacional abre um **chamado** para uma empresa técnica, e o técnico dessa empresa tem um prazo em **horas corridas**
 para dar o **diagnóstico**.
 
 ### Papéis no módulo
@@ -140,7 +141,7 @@ para dar o **diagnóstico**.
 | Papel | Pode |
 |---|---|
 | Operacional (`CLIENTE`) | Abrir chamados, ver e acompanhar **todos** os chamados, comentar e anexar arquivos, cancelar (em aberto) e reabrir (concluído) |
-| Técnico (`TECNICO`) | Ver só os chamados da **empresa dele**, assumir, comentar, registrar a resposta técnica (texto e/ou **arquivo externo**), fazer o **relatório técnico** no modelo do sistema e concluir |
+| Técnico (`TECNICO`) | Ver só os chamados da **empresa dele**, assumir, comentar, registrar o diagnóstico (**relatório externo** e/ou **relatório técnico** no modelo do sistema), editá-lo depois e concluir |
 | Administrador (`ADMIN`) e master | Tudo isso em todos os chamados, e cadastrar as **empresas técnicas** |
 
 O técnico é um usuário como os outros, cadastrado em **Usuários**: perfil *Técnico* na Manutenção Clínica e a
@@ -148,7 +149,7 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 
 ### Empresas técnicas
 
-- **Iniciais:** MSI, REALIZA PREDIAL e REALIZA CLIMATIZAÇÃO, cada uma com prazo de 24 horas úteis.
+- **Iniciais:** MSI, REALIZA PREDIAL e REALIZA CLIMATIZAÇÃO, cada uma com prazo de 24 horas corridas.
 - **Cadastro:** em **Empresas técnicas**, o administrador inclui, renomeia, muda o prazo ou desativa uma empresa.
 - **Mudança de prazo:** vale para os chamados **abertos depois** da mudança.
 - **Exclusão:** uma empresa com chamados ou técnicos não pode ser excluída, só desativada. Desativada, ela não
@@ -165,19 +166,39 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 - **Linha do tempo:** guarda tudo (abertura, comentários, respostas técnicas, relatórios, conclusão, reabertura,
   cancelamento), com autor e hora. Nada é apagado.
 
-### Prazo do diagnóstico (horas úteis)
+### Prazo do diagnóstico (horas corridas)
 
-- **Contagem:** começa na **abertura** do chamado e conta só o expediente (`MANUTENCAO_EXPEDIENTE_INICIO` a
-  `MANUTENCAO_EXPEDIENTE_FIM`, padrão 08:00–18:00), de segunda a sexta, sem os feriados de **Feriados**.
-  - Exemplo: com 24 h úteis e expediente de 10 h, um chamado aberto na sexta às 15:00 vence na quarta às 09:00.
-- **O que conta como diagnóstico:** a **primeira** resposta técnica (texto e/ou arquivo externo marcado como
-  resposta técnica) ou o primeiro relatório técnico. Comentar ou assumir não conta.
+- **Contagem:** começa na **abertura** do chamado e conta todas as horas, inclusive noites, fins de semana e feriados
+  (desde a versão 2.2; antes era só o expediente dos dias úteis). 24 h = 1 dia corrido.
+  - Exemplo: com 24 h, um chamado aberto na sexta às 15:00 vence no sábado às 15:00.
+  - A migração 0016 refez o prazo dos chamados que já existiam com essa regra.
+- **O que conta como diagnóstico:** o **primeiro** registro da seção *Diagnóstico técnico*: o relatório externo
+  (arquivo da empresa, com resumo opcional) ou o relatório técnico no modelo do sistema (que pode levar o arquivo
+  externo junto). Comentar ou assumir não conta.
+- **Complementos:** registros técnicos depois do diagnóstico (com o chamado em aberto). Não mudam a data do
+  diagnóstico e não podem ser anteriores a ela.
+- **Data e hora do diagnóstico:** são as informadas por quem registra, não as do registro. O laudo externo pode
+  chegar depois: o técnico informa quando diagnosticou de fato.
+  - No relatório externo, o campo *Data e hora do diagnóstico* (padrão: agora).
+  - No relatório técnico, a *data e hora do atendimento*.
+  - Limites: não antes da abertura do chamado, não no futuro e, se concluído, não depois da conclusão.
+- **Edição:** o técnico da empresa ou o administrador edita qualquer registro técnico em **Editar**, na seção
+  *Diagnóstico técnico*, enquanto o chamado não estiver cancelado (também depois de concluído).
+  - **Data e hora:** no diagnóstico, o prazo e, se o chamado estiver concluído, o tempo de solução são recalculados.
+    No relatório do sistema, a data do atendimento (e o PDF) acompanha.
+  - **Conteúdo:** o resumo do relatório externo, ou os campos do relatório do sistema.
+  - **Relatório externo:** anexar ou substituir. O arquivo anterior não é apagado: passa para o registro da correção
+    na linha do tempo, de onde pode ser baixado.
+  - Cada edição entra na linha do tempo como *Correção*, com o que mudou, o autor e o motivo (opcional).
+  - O arquivo externo anexado por quem registrou, nos 10 minutos seguintes ao registro, conta como parte dele e não
+    gera correção.
+  - O operacional não edita.
 - **Situação**, calculada na hora:
 
   | Situação | Quando |
   |---|---|
-  | No prazo | Sem diagnóstico, com mais de `MANUTENCAO_ALERTA_HORAS` (4) h úteis restantes |
-  | Vencendo | Sem diagnóstico, com até 4 h úteis restantes |
+  | No prazo | Sem diagnóstico, com mais de `MANUTENCAO_ALERTA_HORAS` (4) h restantes |
+  | Vencendo | Sem diagnóstico, com até 4 h restantes |
   | Atrasado | Sem diagnóstico, prazo vencido |
   | Diagnóstico no prazo / com atraso | Diagnosticado antes ou depois do prazo |
 
@@ -187,7 +208,7 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 ### Tempo de solução
 
 - **O que é:** o tempo entre o **diagnóstico** e a **conclusão**, gravado no chamado quando ele é concluído, em horas
-  úteis (mesmo expediente do prazo) e em horas corridas. Também fica escrito na linha do tempo, junto da conclusão.
+  corridas. Também fica escrito na linha do tempo, junto da conclusão.
 - **Durante o atendimento:** o chamado mostra há quanto tempo está em execução desde o diagnóstico.
 - **Reabertura:** apaga o tempo gravado. A nova conclusão grava de novo, contando desde o diagnóstico original.
 
@@ -265,8 +286,58 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 - **Modelo do sistema:** data e hora do atendimento, equipamento, patrimônio/nº de série, situação do equipamento,
   diagnóstico, causa provável, serviço executado, peças e materiais, e recomendações.
 - **PDF:** gera um PDF com os dados do chamado, do atendimento e espaço para as assinaturas.
-- **Arquivo externo:** quando a empresa usa um laudo próprio, o técnico o anexa na resposta técnica.
+- **Arquivo externo:** quando a empresa usa um laudo próprio, ele é o *relatório externo* do diagnóstico, ou vai
+  anexado ao relatório do sistema, no mesmo registro.
 - **Arquivos aceitos:** os mesmos dos ofícios (PDF, imagens, Word, ODT, até `UPLOAD_MAX_MB`).
+
+### Manutenção preventiva
+
+- **Plano:** uma rotina de uma empresa técnica, com o escopo e a periodicidade ("a cada N dias, semanas ou meses").
+  Só o administrador do módulo cria e altera planos. A periodicidade é decisão da unidade, porque o contrato prevê a
+  preventiva sem fixar os períodos.
+- **Datas:** cada data prevista do plano é uma **preventiva**.
+  - Contam a partir da primeira. Nos planos em meses, mantêm o dia do início (ou o último dia do mês).
+  - São criadas com 90 dias de antecedência e completadas quando as telas são abertas. Sempre existe a próxima.
+  - Um plano novo pode começar até 60 dias atrás, para registrar o que já venceu.
+- **Mudança de periodicidade:** refaz só as preventivas ainda programadas de hoje em diante. As vencidas e as já
+  registradas ficam como estão. Desativar o plano retira as programadas futuras.
+- **Exclusão:** só de plano sem nada vencido ou registrado. Nos outros casos, desativa-se.
+- **Tolerância:** a preventiva conta como feita no prazo até `tolerancia_dias` dias corridos depois da data prevista
+  (padrão do plano: 5).
+- **Situação**, calculada na hora:
+
+  | Situação | Regra |
+  |---|---|
+  | Programada | Faltam mais de 7 dias para a data prevista |
+  | Para realizar agora | Faltam 7 dias ou menos, ou a data passou e ainda está na tolerância |
+  | Atrasada | Passou da tolerância sem registro |
+  | Realizada no prazo | Data da realização até o fim da tolerância |
+  | Realizada com atraso | Data da realização depois da tolerância |
+  | Não realizada | Marcada por quem fiscaliza, com motivo |
+
+- **Realização:** o técnico da empresa, o operacional ou o administrador registra a data (não futura, e no máximo
+  90 dias antes da prevista), quem executou, o que foi feito e a evidência em arquivo (opcional).
+- **Ateste:** só o operacional ou o administrador atestam. O técnico não atesta o serviço da própria empresa.
+  Depois do ateste, o registro não pode ser desfeito.
+- **Não realizada:** o operacional ou o administrador, com motivo, e só depois que a data prevista chega.
+- **Desfazer registro:** só o administrador, e só antes do ateste. A evidência anexada é apagada junto.
+- **Visibilidade:** o técnico vê só os planos e as preventivas da empresa dele.
+- **Cumprimento por empresa:** realizadas ÷ (realizadas + atrasadas + não realizadas) no período. As programadas que
+  ainda não venceram não entram na conta.
+
+### Avisos internos
+
+- O servidor não envia e-mail. Os avisos ficam no menu **Avisos**, com o número de pendências críticas e de atenção.
+- São calculados na hora, sem marcação de lido: o aviso some quando a pendência é resolvida.
+- **Críticos:** chamados com o diagnóstico atrasado e preventivas atrasadas.
+- **Atenção:** chamados com o prazo vencendo, preventivas para realizar agora e, para quem fiscaliza, preventivas
+  realizadas aguardando ateste.
+- O técnico recebe só o que é da empresa dele, e também vê quantos chamados aguardam o diagnóstico.
+
+### Unidade
+
+Cada unidade tem o próprio servidor. O nome da unidade vem do `.env` (`UNIDADE_NOME` e `UNIDADE_DESCRICAO`) e
+aparece no login, no menu e no PDF do relatório técnico. Sem a configuração, nada aparece.
 
 ## Correções (administrador e master)
 
@@ -306,4 +377,5 @@ tudo; clientes veem o que fizeram e o que foi feito nos próprios ofícios.
 - `scripts.inicializar` e o botão de feriados nacionais (`POST /api/feriados/nacionais/{ano}`) cadastram os feriados
   nacionais do ano, incluindo Carnaval e Corpus Christi como dias sem expediente.
 - Feriados estaduais, municipais e pontos facultativos são cadastrados um a um em **Feriados**.
-- **Todo ano novo:** gere os feriados nacionais do ano, senão o prazo vai contar esses dias como úteis.
+- **Desde a versão 2.2 os feriados não entram nos prazos** (todos são em dias corridos). O cadastro continua no
+  banco e na API, mas a tela saiu do menu.

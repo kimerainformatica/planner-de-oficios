@@ -188,6 +188,7 @@ class TipoInteracao(str, enum.Enum):
     REABERTURA = "REABERTURA"
     CANCELAMENTO = "CANCELAMENTO"
     OFICIO = "OFICIO"  # solicitação de peças/equipamentos registrada no Planner de Ofícios
+    CORRECAO = "CORRECAO"  # correção de um registro (ex.: data e hora do diagnóstico)
 
 
 class SituacaoEquipamento(str, enum.Enum):
@@ -206,7 +207,7 @@ class EmpresaManutencao(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     nome: Mapped[str] = mapped_column(String(80), unique=True)
     descricao: Mapped[str | None] = mapped_column(String(200))
-    prazo_horas: Mapped[int] = mapped_column(Integer, default=24, server_default="24")  # horas úteis p/ diagnóstico
+    prazo_horas: Mapped[int] = mapped_column(Integer, default=24, server_default="24")  # horas corridas p/ diagnóstico
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -228,19 +229,19 @@ class Chamado(Base):
     equipamento: Mapped[str | None] = mapped_column(String(120))
     ocorrido_em: Mapped[datetime] = mapped_column(DateTime)  # data e hora do problema, informada na abertura
     aberto_em: Mapped[datetime] = mapped_column(DateTime)
-    # Prazo do diagnóstico: `prazo_horas` horas úteis (da empresa, no momento da abertura) a partir da abertura
+    # Prazo do diagnóstico: `prazo_horas` horas corridas (da empresa, no momento da abertura) a partir da abertura
     prazo_horas: Mapped[int] = mapped_column(Integer)
     prazo_em: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[StatusChamado] = mapped_column(
         Enum(StatusChamado, name="status_chamado"), default=StatusChamado.ABERTO
     )
+    # Data e hora do primeiro diagnóstico, informadas por quem registrou (podem ser corrigidas)
     diagnosticado_em: Mapped[datetime | None] = mapped_column(DateTime)
     diagnosticado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     concluido_em: Mapped[datetime | None] = mapped_column(DateTime)
     cancelado_em: Mapped[datetime | None] = mapped_column(DateTime)
     atualizado_em: Mapped[datetime] = mapped_column(DateTime)
-    # Tempo de solução: do diagnóstico até a conclusão, gravado ao concluir (apagado ao reabrir)
-    solucao_horas_uteis: Mapped[float | None] = mapped_column(Float)
+    # Tempo de solução: do diagnóstico até a conclusão, em horas corridas, gravado ao concluir (apagado ao reabrir)
     solucao_horas_corridas: Mapped[float | None] = mapped_column(Float)
 
     empresa: Mapped[EmpresaManutencao] = relationship(lazy="joined")
@@ -300,7 +301,9 @@ class ChamadoInteracao(Base):
     autor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     tipo: Mapped[TipoInteracao] = mapped_column(Enum(TipoInteracao, name="tipo_interacao"))
     texto: Mapped[str | None] = mapped_column(Text)
-    criado_em: Mapped[datetime] = mapped_column(DateTime)
+    criado_em: Mapped[datetime] = mapped_column(DateTime)  # quando foi registrado no sistema
+    # Resposta técnica e relatório: data e hora do diagnóstico/atendimento informadas por quem registrou
+    ocorrido_em: Mapped[datetime | None] = mapped_column(DateTime)
     relatorio_id: Mapped[int | None] = mapped_column(ForeignKey("relatorios_tecnicos.id", ondelete="SET NULL"))
     # Arquivo anexado à interação (ex.: relatório externo do técnico, foto do problema)
     arquivo_nome: Mapped[str | None] = mapped_column(String(255))
@@ -312,6 +315,93 @@ class ChamadoInteracao(Base):
     chamado: Mapped[Chamado] = relationship(back_populates="interacoes")
     autor: Mapped[Usuario | None] = relationship(lazy="joined")
     relatorio: Mapped[RelatorioTecnico | None] = relationship(lazy="joined")
+
+
+# ---------- manutenção preventiva (migração 0015) ----------
+
+
+class UnidadePeriodo(str, enum.Enum):
+    DIAS = "DIAS"
+    SEMANAS = "SEMANAS"
+    MESES = "MESES"
+
+
+class StatusPreventiva(str, enum.Enum):
+    PROGRAMADA = "PROGRAMADA"
+    REALIZADA = "REALIZADA"
+    NAO_REALIZADA = "NAO_REALIZADA"  # não foi feita, com o motivo registrado
+
+
+class PlanoPreventiva(Base):
+    """Rotina de manutenção preventiva de uma empresa técnica: o que fazer e de quanto em quanto tempo.
+    A periodicidade é definida aqui (o contrato prevê a preventiva, mas não fixa os períodos)."""
+
+    __tablename__ = "planos_preventiva"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"), index=True)
+    titulo: Mapped[str] = mapped_column(String(150))
+    descricao: Mapped[str | None] = mapped_column(Text)  # escopo: o que deve ser verificado/feito
+    local: Mapped[str | None] = mapped_column(String(120))
+    equipamento: Mapped[str | None] = mapped_column(String(120))
+    intervalo: Mapped[int] = mapped_column(Integer)  # a cada `intervalo` `unidade`
+    unidade: Mapped[UnidadePeriodo] = mapped_column(Enum(UnidadePeriodo, name="unidade_periodo"))
+    inicio: Mapped[date] = mapped_column(Date)  # data da primeira preventiva (as demais contam a partir dela)
+    # Dias corridos, depois da data prevista, em que a preventiva ainda conta como feita no prazo
+    tolerancia_dias: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    criado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    empresa: Mapped[EmpresaManutencao] = relationship(lazy="joined")
+    preventivas: Mapped[list["Preventiva"]] = relationship(
+        back_populates="plano", cascade="all, delete-orphan", passive_deletes=True, order_by="Preventiva.data_prevista"
+    )
+
+
+class Preventiva(Base):
+    """Uma ocorrência do plano: a preventiva prevista para uma data, com o registro da realização e o ateste."""
+
+    __tablename__ = "preventivas"
+    __table_args__ = (
+        UniqueConstraint("plano_id", "data_prevista", name="uk_preventiva_plano_data"),
+        Index("idx_preventiva_empresa_data", "empresa_id", "data_prevista"),
+        Index("idx_preventiva_status_data", "status", "data_prevista"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    plano_id: Mapped[int] = mapped_column(ForeignKey("planos_preventiva.id", ondelete="CASCADE"))
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"))
+    data_prevista: Mapped[date] = mapped_column(Date)
+    status: Mapped[StatusPreventiva] = mapped_column(
+        Enum(StatusPreventiva, name="status_preventiva"), default=StatusPreventiva.PROGRAMADA
+    )
+    # Realização (registrada pelo técnico da empresa, pelo operacional ou pelo administrador)
+    realizada_em: Mapped[date | None] = mapped_column(Date)
+    executor: Mapped[str | None] = mapped_column(String(120))  # quem executou o serviço
+    observacao: Mapped[str | None] = mapped_column(Text)
+    registrada_em: Mapped[datetime | None] = mapped_column(DateTime)
+    registrada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    # Evidência: checklist, ordem de serviço ou relatório da empresa
+    arquivo_nome: Mapped[str | None] = mapped_column(String(255))
+    arquivo_caminho: Mapped[str | None] = mapped_column(String(500))
+    arquivo_mime: Mapped[str | None] = mapped_column(String(100))
+    arquivo_tamanho: Mapped[int | None] = mapped_column(Integer)
+    arquivo_sha256: Mapped[str | None] = mapped_column(String(64))
+    motivo: Mapped[str | None] = mapped_column(Text)  # por que não foi realizada
+    # Ateste de quem fiscaliza (operacional ou administrador): confirma que o serviço foi feito
+    atestada_em: Mapped[datetime | None] = mapped_column(DateTime)
+    atestada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    ateste_obs: Mapped[str | None] = mapped_column(Text)
+
+    plano: Mapped[PlanoPreventiva] = relationship(back_populates="preventivas", lazy="joined")
+    empresa: Mapped[EmpresaManutencao] = relationship(lazy="joined")
+    registrada_por: Mapped[Usuario | None] = relationship(foreign_keys=[registrada_por_id], lazy="joined")
+    atestada_por: Mapped[Usuario | None] = relationship(foreign_keys=[atestada_por_id], lazy="joined")
+
+    @property
+    def codigo(self) -> str:
+        return f"PV-{self.id:05d}"
 
 
 class Oficio(Base):
@@ -341,7 +431,7 @@ class Oficio(Base):
     status: Mapped[StatusOficio] = mapped_column(
         Enum(StatusOficio, name="status_oficio"), default=StatusOficio.PENDENTE_RESPOSTA
     )
-    # De onde os dias úteis são contados: a data do ofício, ou a data da última reabertura.
+    # De onde os dias (corridos) são contados: a data do ofício, ou a data da última reabertura.
     inicio_prazo: Mapped[date] = mapped_column(Date)
     data_resposta: Mapped[date | None] = mapped_column(Date)
     data_recebimento: Mapped[date | None] = mapped_column(Date)
@@ -451,7 +541,7 @@ class HistoricoStatus(Base):
 
 
 class Feriado(Base):
-    """Datas que não contam como dia útil (nacionais, estaduais, municipais, pontos facultativos)."""
+    """Feriados cadastrados (nacionais, estaduais, municipais). Desde a 2.2 não entram nos prazos, que são em dias corridos."""
 
     __tablename__ = "feriados"
 

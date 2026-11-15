@@ -3,9 +3,9 @@
 Sistema web interno organizado em **módulos**, com um login só:
 
 - **Planner de Ofícios:** cadastra ofícios, guarda os documentos e acompanha o prazo de resposta e de entrega em
-  **dias úteis**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
+  **dias corridos**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
 - **Manutenção Clínica:** helpdesk em que o operacional abre chamados para as empresas técnicas (MSI, Realiza Predial,
-  Realiza Climatização…), com diagnóstico em **24 horas úteis**, relatório técnico, quadro de acompanhamento e
+  Realiza Climatização…), com diagnóstico em **24 horas corridas**, relatório técnico, quadro de acompanhamento e
   solicitação de peças que vira um ofício no Planner.
 
 O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
@@ -24,12 +24,16 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 ## Manutenção Clínica
 
 - **Chamado:** empresa técnica, título, descrição do problema, local, equipamento e data/hora da ocorrência.
-- **Prazo de diagnóstico:** 24 horas úteis por empresa (ajustável), contadas no expediente de segunda a sexta, sem
-  feriados. Situação ao vivo: no prazo, vencendo, atrasado, cumprido ou cumprido com atraso.
-- **Resposta do técnico:** comentário, arquivo externo ou **relatório técnico** no modelo do sistema, com PDF.
-- **Tempo de solução:** ao concluir, o chamado grava quanto demorou do diagnóstico à solução (horas úteis e corridas).
+- **Prazo de diagnóstico:** 24 horas corridas por empresa (ajustável), contadas da abertura. Situação ao vivo: no prazo, vencendo, atrasado, cumprido ou cumprido com atraso.
+- **Diagnóstico técnico:** numa seção só do chamado, o técnico registra o **relatório externo** da empresa e/ou o
+  **relatório técnico** no modelo do sistema (com PDF), com a data e a hora em que diagnosticou. Tudo pode ser
+  editado depois no mesmo lugar, e cada alteração fica na linha do tempo.
+- **Tempo de solução:** ao concluir, o chamado grava quanto demorou do diagnóstico à solução (em horas corridas).
 - **Painel e quadro:** indicadores por empresa e um quadro por etapa (aguardando diagnóstico, em execução, aguardando
   peças, concluídos), atualizado a cada 30 segundos. O técnico tem o próprio painel.
+- **Preventivas:** planos com a periodicidade de cada rotina, agenda, registro da realização com evidência e
+  **ateste** de quem fiscaliza. Mostra o previsto x realizado por empresa.
+- **Avisos:** as pendências de cada pessoa ficam dentro do sistema, com o número no menu (não há envio de e-mail).
 - **Peças e equipamentos:** o operacional pede pelo chamado. O pedido vira um ofício no Planner, ligado ao chamado.
   Um ofício que já existe no Planner também pode ser vinculado ao chamado.
   Os documentos são anexados no Planner, e tudo o que acontece com o ofício aparece na linha do tempo do chamado.
@@ -38,8 +42,8 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 
 - **Cadastro de ofícios:** número, data, tipo, destinatário (SES, ACQUA ou outro, com setor), protocolo, observação,
   o documento do ofício e um documento de referência.
-- **Prazo em dias úteis:** conta de segunda a sexta, sem os feriados cadastrados. Com os limites padrão, o ofício fica
-  *em atenção* com 30 dias úteis e *crítico* com 45.
+- **Prazo em dias corridos:** conta todos os dias desde a data do ofício (ou da resposta, na etapa de entrega). Com
+  os limites padrão, o ofício fica *em atenção* com 30 dias e *crítico* com 45.
 - **Caminho do ofício:** pendente de resposta → resposta confirmada → (se o tipo exigir) pendente de recebimento →
   recebido. Uma resposta não confirmada pode ser reaberta, e o prazo reinicia.
 - **Evidências:** documento da resposta e comprovante de entrega, ligados ao evento do histórico.
@@ -118,24 +122,27 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Ramo | Versão | Módulos | Visual | Situação |
 |---|---|---|---|---|
+| `feature/2.2-preventivas-prazos-diagnostico` | 2.2 | Planner de Ofícios + Manutenção Clínica, com preventivas | "Correnteza" | Em homologação; parte da 2.0 |
 | `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
 | `main` | 1.1 | Planner de Ofícios | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Estável, para computadores com folga de processamento |
 | `visual-classico` | 1.1 | Planner de Ofícios | Clássico, **sem nenhuma animação** nem transição, fontes do sistema | Estável, para computadores mais simples; é o que está no ar hoje |
 
-### Versão 2.0 (ramo `feature/modulos-manutencao-clinica`)
+### Versões 2.0 a 2.2 (2.0 em `feature/modulos-manutencao-clinica`; 2.1 e 2.2 em `feature/2.2-preventivas-prazos-diagnostico`)
 
 - **Módulos com um login só:** Planner de Ofícios e Manutenção Clínica, com o papel definido por módulo. Todo
   operacional da Manutenção também usa o Planner.
 - **Manutenção Clínica (helpdesk):** chamados para MSI, Realiza Predial e Realiza Climatização, com diagnóstico em
-  24 horas úteis. O técnico tem login próprio e responde com um relatório técnico em PDF. O sistema mostra o tempo de
+  24 horas corridas. O técnico tem login próprio e responde com um relatório técnico em PDF. O sistema mostra o tempo de
   solução e um quadro de acompanhamento.
 - **Peças e equipamentos:** o pedido feito no chamado vira um ofício no Planner. Os documentos são anexados no
   Planner, e o chamado acompanha cada passo.
-- **Banco:** migrações 0011 a 0014.
-- **Testes:** 106 testes da API.
+- **Prazos em dias corridos e data do diagnóstico editável (2.2).**
+- **Preventivas e avisos (2.1):** planos com periodicidade, registro com evidência, ateste e avisos internos.
+- **Banco:** migrações 0011 a 0016.
+- **Testes:** 117 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
-aplicar no servidor está em [docs/ATUALIZACOES.md](https://github.com/kimerainformatica/planner-de-oficios/blob/feature/modulos-manutencao-clinica/docs/ATUALIZACOES.md).
+aplicar no servidor está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
 
 ### Custo de cada visual
 
@@ -157,7 +164,7 @@ npm run build                  # depois, Ctrl+F5 no navegador
 ```
 
 Para ir para a **2.0**, o banco também muda. Faça o backup, rode `alembic upgrade head` e reinicie o sistema. O passo
-a passo está em [ATUALIZACOES.md](https://github.com/kimerainformatica/planner-de-oficios/blob/feature/modulos-manutencao-clinica/docs/ATUALIZACOES.md#como-aplicar-no-servidor). Depois da migração, voltar para a 1.1 exige
+a passo está em [ATUALIZACOES.md](docs/ATUALIZACOES.md#como-aplicar-no-servidor). Depois da migração, voltar para a 1.1 exige
 restaurar o backup do banco.
 
 ## Estrutura
@@ -165,7 +172,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0014)
+  alembic/            migrações do banco (0001 … 0016)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -180,7 +187,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 106 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 117 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

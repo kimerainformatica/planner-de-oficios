@@ -3,15 +3,14 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import Feriado, Modulo, Perfil, Usuario
+from app.models import Modulo, Perfil, Usuario
 from app.seguranca import ler_token
 from app.services.modulos import eh_gestor, nome_modulo
-from app.services.prazos import CalendarioUtil
+from app.services.prazos import Calendario
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -31,11 +30,12 @@ HojeDep = Annotated[date, Depends(get_hoje)]
 AgoraDep = Annotated[datetime, Depends(get_agora)]
 
 
-def get_calendario(db: DbDep) -> CalendarioUtil:
-    return CalendarioUtil(db.scalars(select(Feriado.data)))
+def get_calendario() -> Calendario:
+    """Prazos em dias corridos (os feriados cadastrados não entram na contagem)."""
+    return Calendario()
 
 
-CalendarioDep = Annotated[CalendarioUtil, Depends(get_calendario)]
+CalendarioDep = Annotated[Calendario, Depends(get_calendario)]
 
 
 def usuario_atual(token: Annotated[str, Depends(oauth2)], db: DbDep, settings: SettingsDep) -> Usuario:

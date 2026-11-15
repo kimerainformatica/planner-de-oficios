@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import Anexo, AnexoLixeira, ChamadoInteracao, Oficio
+from app.models import Anexo, AnexoLixeira, ChamadoInteracao, Oficio, Preventiva
 from app.schemas import ProblemaArquivo, VerificacaoArquivos
 from app.services.armazenamento import BLOCO, caminho_absoluto
 
@@ -55,6 +55,11 @@ def verificar(db: Session, settings: Settings) -> VerificacaoArquivos:
             select(ChamadoInteracao.arquivo_caminho).where(ChamadoInteracao.arquivo_caminho.is_not(None))
         ):
             usados.add(caminho_absoluto(caminho_chamado, settings))
+        # O mesmo vale para as evidências das preventivas
+        for (caminho_preventiva,) in db.execute(
+            select(Preventiva.arquivo_caminho).where(Preventiva.arquivo_caminho.is_not(None))
+        ):
+            usados.add(caminho_absoluto(caminho_preventiva, settings))
         pasta = settings.storage_dir.resolve()
         sobras = sum(1 for c in pasta.rglob("*") if c.is_file() and c.resolve() not in usados) if pasta.is_dir() else 0
         _ultima = VerificacaoArquivos(verificado_em=datetime.now(), arquivos=total, problemas=problemas,

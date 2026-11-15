@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { type ReactNode } from "react";
 import { IconeAguardando, IconeRecebimento } from "../../components/Icones";
 import type { Prazos } from "../../types";
-import { data, diasUteis } from "../../utils/formato";
+import { data, diasCorridos } from "../../utils/formato";
 
 /** feita: etapa concluída · atual: o ofício está nela · futura: ainda não começou */
 export type EtapaCaminho = "feita" | "atual" | "futura";
@@ -48,12 +48,12 @@ export function Dado({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
   );
 }
 
-/** "15/09/2026 · 9 dias úteis" */
+/** "15/09/2026 · 9 dias" */
 export function DataComDias({ iso, dias }: { iso: string; dias: number | null }) {
   return (
     <>
       {data(iso)}
-      {dias !== null && <span className="dado-extra"> · {diasUteis(dias)}</span>}
+      {dias !== null && <span className="dado-extra"> · {diasCorridos(dias)}</span>}
     </>
   );
 }
@@ -77,12 +77,12 @@ export function BarraPrazo({
     <section className={`cartao prazo prazo-${nivel}`}>
       {etapa === "recebimento" && <span className="prazo-etapa">Etapa de recebimento · resposta já confirmada</span>}
       <div className="prazo-texto">
-        <strong>{diasUteis(dias)}</strong>{" "}
+        <strong>{diasCorridos(dias)}</strong>{" "}
         {etapa === "recebimento" ? "aguardando a entrega desde a resposta" : `sem resposta${reaberto ? " desde a reabertura" : ""}`}
         <span className="texto-suave">
           {falta === null
             ? " · prazo crítico atingido"
-            : ` · faltam ${diasUteis(falta)} para ${dias >= atencao ? "ficar crítico" : "entrar em atenção"}`}
+            : ` · faltam ${diasCorridos(falta)} para ${dias >= atencao ? "ficar crítico" : "entrar em atenção"}`}
         </span>
       </div>
       {/* trilho com as faixas do prazo (no prazo até a atenção, atenção até o crítico) e uma boia no dia de hoje */}

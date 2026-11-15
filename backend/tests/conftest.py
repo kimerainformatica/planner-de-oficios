@@ -17,7 +17,7 @@ from app.seguranca import gerar_hash_senha
 from app.services import limite_login, manutencao, tipos
 
 HOJE = date(2026, 10, 20)  # terça-feira
-AGORA = datetime(2026, 10, 20, 10, 0)  # terça-feira, 10:00 (dentro do expediente 08:00–18:00)
+AGORA = datetime(2026, 10, 20, 10, 0)  # terça-feira, 10:00
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def api(tmp_path, estado):
     # Limites de alerta fixos nos testes (15/30), independentes do .env; o padrão real é testado à parte
     settings = Settings(
         database_url="sqlite://", jwt_secret="chave-de-teste-" * 4, storage_dir=tmp_path / "storage", upload_max_mb=1,
-        dias_atencao=15, dias_critico=30,
+        dias_atencao=15, dias_critico=30, unidade_nome="", unidade_descricao="",
     )
     app.dependency_overrides[get_db] = db_teste
     app.dependency_overrides[get_settings] = lambda: settings

@@ -56,14 +56,14 @@ export function ChamadoNovo() {
         <div>
           <Link to="/manutencao/chamados" className="voltar"><ArrowLeft size={16} /> Chamados</Link>
           <h1>Abrir chamado</h1>
-          <p className="texto-suave">Descreva o problema. O técnico da empresa escolhida tem um prazo em horas úteis para o diagnóstico.</p>
+          <p className="texto-suave">Descreva o problema. O técnico da empresa escolhida tem um prazo em horas corridas, a partir da abertura, para o diagnóstico.</p>
         </div>
       </header>
 
       <form className="cartao formulario" onSubmit={enviar}>
         <div className="grade-2">
           <Campo rotulo="Empresa / modalidade *"
-            dica={empresa ? `Prazo para o diagnóstico: ${empresa.prazo_horas} h úteis.` : "Quem vai atender o chamado."}>
+            dica={empresa ? `Prazo para o diagnóstico: ${empresa.prazo_horas} h corridas a partir da abertura.` : "Quem vai atender o chamado."}>
             {(id) => (
               <select id={id} className="input" required value={empresaId}
                 onChange={(e) => setEmpresaId(e.target.value ? Number(e.target.value) : "")}>

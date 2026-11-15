@@ -129,7 +129,7 @@ def test_novo_oficio_sempre_entra_pendente(api, ana):
     assert corpo["status"] == "PENDENTE_RESPOSTA"
     assert corpo["inicio_prazo"] == "2026-10-15"
     assert corpo["nivel_alerta"] == "NORMAL"
-    assert corpo["dias_uteis_decorridos"] == 3
+    assert corpo["dias_decorridos"] == 5  # 15/10 -> 20/10, dias corridos
     assert [(h["status_novo"], h["usuario_nome"]) for h in corpo["historico"]] == [("PENDENTE_RESPOSTA", "Ana")]
 
 
@@ -152,10 +152,10 @@ def test_editar_data_move_o_prazo(api, ana):
 
 def test_alertas_filtros_e_dashboard(api, admin):
     # Hoje (fixo nos testes) = 20/10/2026
-    criar(api, admin, "1", "2026-09-30")  # 14 dias úteis -> NORMAL
-    criar(api, admin, "2", "2026-09-29")  # 15 -> ATENCAO
-    criar(api, admin, "3", "2026-09-09")  # 29 -> ATENCAO
-    criar(api, admin, "4", "2026-09-08")  # 30 -> CRITICO
+    criar(api, admin, "1", "2026-10-06")  # 14 dias corridos -> NORMAL
+    criar(api, admin, "2", "2026-10-05")  # 15 -> ATENCAO
+    criar(api, admin, "3", "2026-09-21")  # 29 -> ATENCAO
+    criar(api, admin, "4", "2026-09-20")  # 30 -> CRITICO
     respondido = criar(api, admin, "5", "2026-08-01").json()
     responder(api, respondido["id"], "CONFIRMADO", "2026-08-10", headers=admin)
 
@@ -181,19 +181,19 @@ def test_alertas_filtros_e_dashboard(api, admin):
         "recebidos": 0,
     }
 
-    # Cadastrar o feriado de 12/10 tira um dia útil de todos.
+    # Os prazos são em dias corridos: cadastrar um feriado não muda nada
     r = api.post("/api/feriados", json={"data": "2026-10-12", "descricao": "N. Sra."}, headers=admin)
     assert r.status_code == 201
-    assert numeros("NORMAL") == ["2", "1"]
-    assert numeros("CRITICO") == []
+    assert numeros("NORMAL") == ["1"]
+    assert numeros("CRITICO") == ["4"]
 
 
 def test_alerta_avanca_com_o_tempo(api, ana, estado):
     oficio = criar(api, ana, "1", "2026-10-19").json()
     assert oficio["nivel_alerta"] == "NORMAL"
-    estado["hoje"] = date(2026, 11, 9)  # 15 dias úteis depois
+    estado["hoje"] = date(2026, 11, 3)  # 15 dias corridos depois
     assert api.get(f"/api/oficios/{oficio['id']}", headers=ana).json()["nivel_alerta"] == "ATENCAO"
-    estado["hoje"] = date(2026, 11, 30)  # 30 dias úteis depois
+    estado["hoje"] = date(2026, 11, 18)  # 30 dias corridos depois
     assert api.get(f"/api/oficios/{oficio['id']}", headers=ana).json()["nivel_alerta"] == "CRITICO"
 
 
@@ -237,7 +237,7 @@ def test_reabertura_zera_o_prazo_e_mantem_historico(api, admin, ana, estado):
     assert r["data_oficio"] == "2026-09-01"  # a data do ofício não muda
     assert r["inicio_prazo"] == "2026-10-20"  # o prazo recomeça hoje
     assert r["data_resposta"] is None
-    assert (r["dias_uteis_decorridos"], r["nivel_alerta"]) == (0, "NORMAL")
+    assert (r["dias_decorridos"], r["nivel_alerta"]) == (0, "NORMAL")
     ciclo_anterior = r["historico"][1]
     assert (ciclo_anterior["status_novo"], ciclo_anterior["data_resposta"]) == ("NAO_CONFIRMADO", "2026-10-01")
 
@@ -249,7 +249,7 @@ def test_reabertura_zera_o_prazo_e_mantem_historico(api, admin, ana, estado):
     assert r["inicio_prazo"] == "2026-10-20"
     assert api.patch(f"/api/oficios/{oid}", json={"data_oficio": "2026-10-20"}, headers=ana).status_code == 200
 
-    estado["hoje"] = date(2026, 11, 10)  # 15 dias úteis após a reabertura
+    estado["hoje"] = date(2026, 11, 4)  # 15 dias corridos após a reabertura
     assert api.get(f"/api/oficios/{oid}", headers=ana).json()["nivel_alerta"] == "ATENCAO"
 
 

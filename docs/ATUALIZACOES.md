@@ -4,9 +4,116 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 
 | Versão | Data | Ramo | Resumo |
 |---|---|---|---|
+| 2.2 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Prazos em dias e horas corridas; seção Diagnóstico técnico, com relatório externo e do sistema interligados e editáveis |
+| 2.1 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Manutenção preventiva com ateste, avisos internos e nome da unidade |
 | 2.0 | 13/11/2026 | `feature/modulos-manutencao-clinica` | Módulos, Manutenção Clínica (helpdesk) e solicitação de peças integrada ao Planner |
 | 1.1 | 04/11/2026 | `main` | Documentação dos recursos de servidor e do custo de cada visual |
 | 1.0 | 26/10/2026 | `main` | Planner de Ofícios: sistema, testes e documentação |
+
+## 2.2 · Prazos corridos e data do diagnóstico
+
+### Prazos em dias e horas corridas
+
+- **Planner de Ofícios:** o prazo de resposta e o de entrega passam a ser em **dias corridos**, da data do ofício
+  (ou da resposta). Sábados, domingos e feriados contam. Os limites continuam em `DIAS_ATENCAO` (30) e
+  `DIAS_CRITICO` (45), agora em dias corridos: ajuste no `.env` se quiser outros valores.
+- **Manutenção Clínica:** o prazo do diagnóstico passa a ser em **horas corridas** da abertura (24 h = 1 dia), sem
+  expediente. O tempo de solução também fica só em horas corridas.
+- **Feriados:** não entram mais em nenhum prazo. A tela saiu do menu; o cadastro e a API continuam.
+- **Chamados que já existiam:** a migração 0016 refaz o prazo de todos com a regra nova. A situação de cada um (no
+  prazo, atrasado, cumprido) é recalculada.
+
+### Seção Diagnóstico técnico
+
+- No chamado, tudo o que é do diagnóstico fica numa seção só, abaixo dos dados: registrar, ver, editar e complementar.
+  Saíram o botão *Relatório técnico* do topo e a opção *É uma resposta técnica* da caixa de comentário.
+- **Registrar:** *Relatório externo* (o arquivo da empresa, com resumo opcional) ou *Relatório no modelo do sistema*,
+  que pode levar o arquivo externo junto, no mesmo registro.
+- **Editar depois**, no próprio registro: data e hora, resumo ou campos do relatório, e substituir o relatório externo.
+  O arquivo anterior fica guardado na linha do tempo. Toda edição fica registrada como *Correção*.
+- **Complementos:** outros relatórios depois do diagnóstico, sem mudar a data dele.
+
+### Data e hora do diagnóstico
+
+- No relatório externo (o laudo da empresa), o técnico informa **quando o diagnóstico foi feito**. É essa data que
+  conta para o prazo, e não a hora em que o registro foi feito no sistema.
+- No relatório técnico, a data e a hora do atendimento contam como a do diagnóstico.
+- **Corrigir depois:** o técnico da empresa ou o administrador clica em **Editar**, no registro da seção *Diagnóstico
+  técnico*. O prazo e o tempo de solução são recalculados e a correção fica na linha do tempo, com a data antiga e a
+  nova.
+
+### Banco de dados e configuração
+
+| Migração | O que faz |
+|---|---|
+| `0016_prazos_corridos` | Refaz `chamados.prazo_em` em horas corridas, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo de interação `CORRECAO` |
+
+- `MANUTENCAO_EXPEDIENTE_INICIO` e `MANUTENCAO_EXPEDIENTE_FIM` deixam de existir. Se estiverem no `.env`, são
+  ignoradas.
+- Voltar a 0016 não restaura o prazo antigo em horas úteis. A volta segura é o backup.
+
+### Como aplicar no servidor
+
+1. Faça o **backup do banco**.
+2. Troque para o ramo (`git fetch` e `git checkout feature/2.2-preventivas-prazos-diagnostico`) e rode
+   `alembic upgrade head` em `backend`. Confira com `alembic current`: deve mostrar `0016 (head)`.
+3. Gere as telas (`npm run build` em `frontend`) e reinicie o sistema.
+
+### Testes
+
+- **API:** 117 testes passando. Os de prazo foram refeitos para dias e horas corridas, e há testes novos para a data
+  do diagnóstico informada, a correção (permissões, limites, recálculo do prazo e do tempo de solução) e o relatório.
+
+## 2.1 · Preventivas, avisos e unidade
+
+### Manutenção preventiva
+
+- **Planos:** o administrador cadastra cada rotina de preventiva de uma empresa técnica e define a periodicidade
+  (a cada N dias, semanas ou meses), a primeira data e a tolerância. O contrato prevê a preventiva sem fixar os
+  períodos, então eles ficam registrados aqui.
+- **Agenda:** o sistema cria as datas sozinho e mostra a situação de cada uma: programada, para realizar agora,
+  atrasada, realizada (no prazo ou com atraso) e não realizada.
+- **Realização com evidência:** o técnico da empresa registra a data, quem executou e o que foi feito, e anexa o
+  checklist ou a ordem de serviço.
+- **Ateste:** o operacional ou o administrador confirma o serviço. O técnico não atesta.
+- **Previsto x realizado por empresa:** tabela com o cumprimento de cada empresa no mês, para a fiscalização.
+
+### Avisos internos
+
+- O servidor não envia e-mail, então as pendências ficam no item **Avisos** do menu, com o número ao lado.
+- Cada pessoa vê o que é dela: chamados com o diagnóstico atrasado ou vencendo, preventivas atrasadas ou para
+  realizar agora e, para quem fiscaliza, preventivas aguardando ateste.
+
+### Nome da unidade
+
+- Cada unidade tem o próprio servidor. O nome configurado aparece no login, no menu e no PDF do relatório técnico.
+
+### Banco de dados e configuração
+
+| Migração | O que faz |
+|---|---|
+| `0015_preventivas` | Tabelas `planos_preventiva` e `preventivas` |
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `UNIDADE_NOME` | vazio | Nome da unidade deste servidor (ex.: `SORRIR PRAIA GRANDE`) |
+| `UNIDADE_DESCRICAO` | vazio | Descrição que aparece abaixo do nome, no login |
+
+### Como aplicar no servidor
+
+1. Faça o **backup do banco**.
+2. Troque para o ramo `feature/2.2-preventivas-prazos-diagnostico` e rode `alembic upgrade head`. Ele já leva até a
+   2.2: `alembic current` mostra `0016 (head)`.
+3. Acrescente `UNIDADE_NOME` (e, se quiser, `UNIDADE_DESCRICAO`) ao `backend/.env`.
+4. Gere as telas (`npm install` e `npm run build` em `frontend`) e reinicie o sistema.
+5. Cadastre os planos de preventiva em **Manutenção Clínica → Preventivas → Novo plano**.
+
+Voltar a 0015 (`alembic downgrade -1`) apaga os planos e os registros das preventivas. A volta segura é o backup.
+
+### Testes
+
+- **API:** 117 testes passando (eram 106). Os novos cobrem as datas dos planos, a mudança de periodicidade, a
+  visibilidade do técnico, a realização com evidência, o ateste, o previsto x realizado e os avisos por papel.
 
 ## 2.0 · Módulos e Manutenção Clínica
 

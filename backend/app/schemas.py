@@ -260,9 +260,9 @@ class OficioOut(Esquema):
     observacao: str | None
     criado_em: datetime
     atualizado_em: datetime
-    dias_uteis_decorridos: int = Field(description="Da etapa atual: aguardando resposta/entrega, ou até a resposta")
-    dias_resposta: int | None = Field(default=None, description="Dias úteis do início do prazo até a resposta")
-    dias_entrega: int | None = Field(default=None, description="Dias úteis da resposta até a entrega (recebidos)")
+    dias_decorridos: int = Field(description="Da etapa atual: aguardando resposta/entrega, ou até a resposta")
+    dias_resposta: int | None = Field(default=None, description="Dias corridos do início do prazo até a resposta")
+    dias_entrega: int | None = Field(default=None, description="Dias corridos da resposta até a entrega (recebidos)")
     nivel_alerta: NivelAlerta | None
     anexos: list[AnexoOut]
 
@@ -374,9 +374,9 @@ class Indicadores(Esquema):
     taxa_confirmacao: float | None = Field(
         description="Respostas confirmadas (inclusive as que aguardam ou já tiveram recebimento) ÷ respondidos"
     )
-    tempo_medio_resposta: float | None = Field(description="Média de dias úteis até a resposta")
+    tempo_medio_resposta: float | None = Field(description="Média de dias corridos até a resposta")
     respondidos_no_prazo: float | None = Field(description="Fração respondida antes do nível de atenção")
-    tempo_medio_entrega: float | None = Field(description="Média de dias úteis da resposta até o recebimento")
+    tempo_medio_entrega: float | None = Field(description="Média de dias corridos da resposta até o recebimento")
     entregues_no_prazo: float | None = Field(description="Fração entregue antes do nível de atenção (desde a resposta)")
     concluidos: int = Field(description="Encerrados com sucesso: recebidos + confirmados sem etapa de entrega")
 
@@ -404,7 +404,7 @@ class Mes(Esquema):
 
 
 class Prazos(Esquema):
-    """Dias úteis em que o ofício pendente entra em atenção e fica crítico (configuração do servidor)."""
+    """Dias corridos em que o ofício pendente entra em atenção e fica crítico (configuração do servidor)."""
 
     dias_atencao: int
     dias_critico: int

@@ -1,13 +1,12 @@
-"""Helpdesk da Manutenção Clínica: chamados, técnicos por empresa, prazo de 24 h úteis e relatório técnico.
+"""Helpdesk da Manutenção Clínica: chamados, técnicos por empresa, prazo de 24 h corridas e relatório técnico.
 
 Fixtures (conftest): paulo = operacional, marta = admin do módulo, tiago = técnico MSI,
-carla = técnica REALIZA CLIMATIZAÇÃO. "Agora" = terça 20/10/2026 10:00; expediente 08:00–18:00.
+carla = técnica REALIZA CLIMATIZAÇÃO. "Agora" = terça 20/10/2026 10:00. Prazos em horas corridas.
 """
 
 from datetime import date, datetime
 
-from app.services.horas_uteis import Expediente
-from app.services.prazos import CalendarioUtil
+from app.services.manutencao import horas_entre, prazo_do_chamado
 
 PDF = b"%PDF-1.4 relatorio externo do tecnico"
 
@@ -26,39 +25,29 @@ def tipos(chamado):
     return [i["tipo"] for i in chamado["interacoes"]]
 
 
-# ---------- horas úteis ----------
+# ---------- prazo em horas corridas ----------
 
 
-def test_horas_uteis_pulam_noite_fim_de_semana_e_feriado():
-    exp = Expediente(CalendarioUtil([date(2026, 10, 12)]), datetime(1, 1, 1, 8).time(), datetime(1, 1, 1, 18).time())
-    # sexta 15:00 + 24 h úteis: 3 h na sexta, 10 na segunda, 10 na terça, 1 na quarta
-    assert exp.somar(datetime(2026, 10, 16, 15), 24) == datetime(2026, 10, 21, 9)
-    # aberto à noite: começa a contar na abertura do dia útil seguinte
-    assert exp.somar(datetime(2026, 10, 20, 22), 2) == datetime(2026, 10, 21, 10)
-    # sábado 09:00, segunda 12/10 é feriado: começa na terça
-    assert exp.somar(datetime(2026, 10, 10, 9), 1) == datetime(2026, 10, 13, 9)
-    assert exp.horas_entre(datetime(2026, 10, 16, 15), datetime(2026, 10, 21, 9)) == 24
-    assert exp.horas_entre(datetime(2026, 10, 21, 9), datetime(2026, 10, 16, 15)) == -24
-
-
-def test_expediente_ate_meia_noite():
-    exp = Expediente(CalendarioUtil(), datetime(1, 1, 1, 0).time(), datetime(1, 1, 1, 0).time())
-    # dia útil inteiro: sexta 15:00 + 24 h = segunda 15:00 (sábado e domingo não contam)
-    assert exp.somar(datetime(2026, 10, 16, 15), 24) == datetime(2026, 10, 19, 15)
+def test_prazo_em_horas_corridas_conta_noites_e_fins_de_semana():
+    # sexta 15:00 + 24 h = sábado 15:00 (noite e fim de semana contam)
+    assert prazo_do_chamado(datetime(2026, 10, 16, 15), 24) == datetime(2026, 10, 17, 15)
+    assert prazo_do_chamado(datetime(2026, 10, 20, 22), 48) == datetime(2026, 10, 22, 22)
+    assert horas_entre(datetime(2026, 10, 16, 15), datetime(2026, 10, 17, 21, 30)) == 30.5
+    assert horas_entre(datetime(2026, 10, 17, 15), datetime(2026, 10, 16, 15)) == -24
 
 
 # ---------- abertura e prazo ----------
 
 
-def test_operacional_abre_chamado_com_prazo_de_24h_uteis(api, paulo):
+def test_operacional_abre_chamado_com_prazo_de_24h_corridas(api, paulo):
     r = abrir(api, paulo, ocorrido_em="2026-10-20T07:30:00")
     assert r.status_code == 201, r.text
     c = r.json()
     assert c["codigo"] == "CH-00001" and c["status"] == "ABERTO"
     assert c["empresa"]["nome"] == "MSI" and c["solicitante"]["nome"] == "Paulo"
     assert c["ocorrido_em"] == "2026-10-20T07:30:00" and c["aberto_em"] == "2026-10-20T10:00:00"
-    # terça 10:00 + 24 h úteis: 8 h terça, 10 h quarta, 6 h quinta → quinta 14:00
-    assert c["prazo_em"] == "2026-10-22T14:00:00" and c["prazo_horas"] == 24
+    # terça 10:00 + 24 h corridas → quarta 10:00
+    assert c["prazo_em"] == "2026-10-21T10:00:00" and c["prazo_horas"] == 24
     assert c["prazo"]["situacao"] == "NO_PRAZO" and c["prazo"]["horas_restantes"] == 24
     assert tipos(c) == ["ABERTURA"]
     assert c["pode_cancelar"] and not c["pode_responder"] and not c["pode_assumir"]
@@ -74,10 +63,10 @@ def test_tecnico_nao_abre_chamado(api, tiago):
 
 def test_prazo_vencendo_e_atrasado(api, estado, paulo):
     oid = abrir(api, paulo).json()["id"]
-    estado["agora"] = datetime(2026, 10, 22, 11)  # faltam 3 h úteis (alerta: 4 h)
+    estado["agora"] = datetime(2026, 10, 21, 7)  # faltam 3 h (alerta: 4 h); a noite conta
     c = api.get(f"/api/manutencao/chamados/{oid}", headers=paulo).json()
     assert c["prazo"]["situacao"] == "VENCENDO" and c["prazo"]["horas_restantes"] == 3
-    estado["agora"] = datetime(2026, 10, 23, 9)  # passou do prazo (quinta 14:00)
+    estado["agora"] = datetime(2026, 10, 21, 15)  # passou do prazo (quarta 10:00)
     c = api.get(f"/api/manutencao/chamados/{oid}", headers=paulo).json()
     assert c["prazo"]["situacao"] == "ATRASADO" and c["prazo"]["horas_restantes"] == -5
     lista = api.get("/api/manutencao/chamados", params={"situacao": "ATRASADO"}, headers=paulo).json()
@@ -156,7 +145,7 @@ def test_comentario_do_tecnico_inicia_atendimento_sem_encerrar_o_prazo(api, paul
 
 def test_relatorio_tecnico_no_modelo_do_sistema_gera_pdf(api, estado, paulo, tiago):
     oid = abrir(api, paulo).json()["id"]
-    estado["agora"] = datetime(2026, 10, 21, 9, 30)  # quarta 09:30: 9,5 h úteis depois da abertura
+    estado["agora"] = datetime(2026, 10, 21, 9, 30)  # registrado na quarta 09:30; atendido às 09:00
     corpo = {"atendido_em": "2026-10-21T09:00:00", "equipamento": "Monitor Dixtal DX-2023", "identificacao": "PAT 4471",
              "diagnostico": "Fonte de alimentação em curto.", "causa": "Oscilação na rede elétrica <220V>",
              "servico_executado": "Troca da fonte.\nTeste de funcionamento ok.", "pecas": "Fonte 12V",
@@ -164,7 +153,9 @@ def test_relatorio_tecnico_no_modelo_do_sistema_gera_pdf(api, estado, paulo, tia
     r = api.post(f"/api/manutencao/chamados/{oid}/relatorios", json=corpo, headers=tiago)
     assert r.status_code == 201, r.text
     c = r.json()
-    assert c["prazo"]["situacao"] == "CUMPRIDO" and c["prazo"]["horas_ate_diagnostico"] == 9.5
+    # o diagnóstico vale da hora do atendimento (ter 10:00 → qua 09:00 = 23 h), não da hora do registro
+    assert c["prazo"]["situacao"] == "CUMPRIDO" and c["prazo"]["horas_ate_diagnostico"] == 23
+    assert c["diagnosticado_em"] == "2026-10-21T09:00:00" and c["interacoes"][-1]["ocorrido_em"] == "2026-10-21T09:00:00"
     rel = c["interacoes"][-1]["relatorio"]
     assert rel["codigo"] == "RT-00001" and rel["tecnico"]["nome"] == "Tiago" and rel["empresa"]["nome"] == "MSI"
 
@@ -186,8 +177,8 @@ def test_diagnostico_depois_do_prazo_fica_com_atraso(api, estado, paulo, tiago):
     estado["agora"] = datetime(2026, 10, 23, 9)
     c = api.post(f"/api/manutencao/chamados/{oid}/interacoes", data={"texto": "Placa danificada", "diagnostico": "true"},
                  headers=tiago).json()
-    # terça 10:00 → sexta 09:00: 8 + 10 + 10 + 1 = 29 h úteis (prazo de 24)
-    assert c["prazo"]["situacao"] == "CUMPRIDO_COM_ATRASO" and c["prazo"]["horas_ate_diagnostico"] == 29
+    # terça 10:00 → sexta 09:00: 71 h corridas (prazo de 24)
+    assert c["prazo"]["situacao"] == "CUMPRIDO_COM_ATRASO" and c["prazo"]["horas_ate_diagnostico"] == 71
 
 
 def test_concluir_reabrir_e_cancelar(api, paulo, tiago):
@@ -210,6 +201,111 @@ def test_concluir_reabrir_e_cancelar(api, paulo, tiago):
     c = api.post(f"{url}/cancelar", json={"motivo": "Equipamento substituído"}, headers=paulo).json()
     assert c["status"] == "CANCELADO" and not c["pode_comentar"]
     assert api.post(f"{url}/interacoes", data={"texto": "oi"}, headers=paulo).status_code == 409
+
+
+def test_data_e_hora_do_diagnostico_informadas_e_corrigidas(api, estado, paulo, tiago, carla, marta):
+    oid = abrir(api, paulo).json()["id"]  # ter 20/10 10:00; prazo até qua 21/10 10:00
+    url = f"/api/manutencao/chamados/{oid}"
+    assert api.patch(f"{url}/diagnostico", json={"diagnosticado_em": "2026-10-20T11:00"},
+                     headers=tiago).status_code == 409  # ainda sem diagnóstico
+    estado["agora"] = datetime(2026, 10, 22, 15)  # o laudo externo só é anexado na quinta
+    base = {"texto": "Laudo da MSI em anexo", "diagnostico": "true"}
+    assert api.post(f"{url}/interacoes", data={**base, "diagnosticado_em": "2026-10-20T09:00"},
+                    headers=tiago).status_code == 422  # antes da abertura
+    assert api.post(f"{url}/interacoes", data={**base, "diagnosticado_em": "2026-10-23T09:00"},
+                    headers=tiago).status_code == 422  # no futuro
+
+    r = api.post(f"{url}/interacoes", data={**base, "diagnosticado_em": "2026-10-21T08:30"},
+                 files={"arquivo": ("laudo-msi.pdf", PDF)}, headers=tiago)
+    assert r.status_code == 201, r.text
+    c = r.json()
+    assert c["diagnosticado_em"] == "2026-10-21T08:30:00" and c["prazo"]["situacao"] == "CUMPRIDO"
+    assert c["prazo"]["horas_ate_diagnostico"] == 22.5 and c["pode_corrigir_diagnostico"]
+    diag = c["interacoes"][-1]
+    assert (diag["ocorrido_em"], diag["criado_em"]) == ("2026-10-21T08:30:00", "2026-10-22T15:00:00")
+
+    # Correção: o técnico da empresa ou o administrador; o operacional não
+    corpo = {"diagnosticado_em": "2026-10-21T11:00", "motivo": "Horário do laudo"}
+    assert api.patch(f"{url}/diagnostico", json=corpo, headers=paulo).status_code == 403
+    assert api.patch(f"{url}/diagnostico", json=corpo, headers=carla).status_code == 404
+    c = api.patch(f"{url}/diagnostico", json=corpo, headers=tiago).json()
+    assert c["diagnosticado_em"] == "2026-10-21T11:00:00" and c["prazo"]["situacao"] == "CUMPRIDO_COM_ATRASO"
+    correcao = c["interacoes"][-1]
+    assert correcao["tipo"] == "CORRECAO" and correcao["autor"]["nome"] == "Tiago"
+    assert "de 21/10/2026 08:30 para 21/10/2026 11:00" in correcao["texto"] and "Motivo: Horário do laudo" in correcao["texto"]
+    assert next(i for i in c["interacoes"] if i["tipo"] == "DIAGNOSTICO")["ocorrido_em"] == "2026-10-21T11:00:00"
+    assert api.patch(f"{url}/diagnostico", json=corpo, headers=tiago).status_code == 409  # mesma data
+
+    # Concluído: corrigir a data refaz o tempo de solução, que não pode passar da conclusão
+    api.post(f"{url}/concluir", json={}, headers=tiago)  # qui 22/10 15:00 → 28 h depois do diagnóstico
+    estado["agora"] = datetime(2026, 10, 23, 9)
+    c = api.patch(f"{url}/diagnostico", json={"diagnosticado_em": "2026-10-21T15:00"}, headers=marta).json()
+    assert c["solucao_horas_corridas"] == 24
+    assert api.patch(f"{url}/diagnostico", json={"diagnosticado_em": "2026-10-22T16:00"},
+                     headers=marta).status_code == 422  # depois da conclusão
+
+
+def test_corrigir_a_data_de_um_relatorio_atualiza_o_relatorio(api, estado, paulo, tiago):
+    oid = abrir(api, paulo).json()["id"]
+    url = f"/api/manutencao/chamados/{oid}"
+    estado["agora"] = datetime(2026, 10, 21, 9, 30)
+    assert api.post(f"{url}/relatorios", json={"diagnostico": "Fonte em curto", "atendido_em": "2026-10-20T08:00:00"},
+                    headers=tiago).status_code == 422  # antes da abertura
+    c = api.post(f"{url}/relatorios", json={"diagnostico": "Fonte em curto", "atendido_em": "2026-10-21T09:00:00"},
+                 headers=tiago).json()
+    rel = c["interacoes"][-1]["relatorio"]
+    c = api.patch(f"{url}/diagnostico", json={"diagnosticado_em": "2026-10-20T16:45"}, headers=tiago).json()
+    assert c["prazo"]["horas_ate_diagnostico"] == 6.75
+    assert api.get(f"/api/manutencao/relatorios/{rel['id']}", headers=paulo).json()["atendido_em"] == "2026-10-20T16:45:00"
+
+
+def test_secao_diagnostico_editar_resumo_e_substituir_o_relatorio_externo(api, estado, paulo, tiago, carla):
+    oid = abrir(api, paulo).json()["id"]
+    url = f"/api/manutencao/chamados/{oid}"
+    estado["agora"] = datetime(2026, 10, 21, 9)
+    c = api.post(f"{url}/interacoes", data={"diagnostico": "true", "diagnosticado_em": "2026-10-20T16:00"},
+                 files={"arquivo": ("laudo-v1.pdf", PDF)}, headers=tiago).json()
+    diag = c["diagnostico_interacao_id"]
+    assert diag == c["interacoes"][-1]["id"] and c["interacoes"][-1]["texto"] is None  # só o arquivo externo
+
+    # Resumo e data editados juntos; o operacional e a técnica de outra empresa não editam
+    corpo = {"texto": "Válvula travada, conforme laudo.", "ocorrido_em": "2026-10-20T15:30", "motivo": "Revisão"}
+    assert api.patch(f"/api/manutencao/interacoes/{diag}", json=corpo, headers=paulo).status_code == 403
+    assert api.patch(f"/api/manutencao/interacoes/{diag}", json=corpo, headers=carla).status_code == 404
+    c = api.patch(f"/api/manutencao/interacoes/{diag}", json=corpo, headers=tiago).json()
+    assert c["diagnosticado_em"] == "2026-10-20T15:30:00" and c["prazo"]["horas_ate_diagnostico"] == 5.5
+    original = next(i for i in c["interacoes"] if i["id"] == diag)
+    assert (original["texto"], original["ocorrido_em"]) == ("Válvula travada, conforme laudo.", "2026-10-20T15:30:00")
+    edicao = c["interacoes"][-1]
+    assert edicao["tipo"] == "CORRECAO" and edicao["texto"].startswith("Diagnóstico editado: data e hora de 20/10/2026 16:00")
+    assert "resumo do diagnóstico" in edicao["texto"] and "Motivo: Revisão" in edicao["texto"]
+    assert api.patch(f"/api/manutencao/interacoes/{diag}", json=corpo, headers=tiago).status_code == 409  # nada mudou
+
+    # Substituir o relatório externo: o novo fica no diagnóstico, o anterior fica guardado na correção
+    url_arq = f"/api/manutencao/interacoes/{diag}/arquivo"
+    c = api.put(url_arq, files={"arquivo": ("laudo-v2.pdf", b"%PDF-1.4 v2")}, headers=tiago).json()
+    assert next(i for i in c["interacoes"] if i["id"] == diag)["arquivo_nome"] == "laudo-v2.pdf"
+    guardado = c["interacoes"][-1]
+    assert guardado["tipo"] == "CORRECAO" and guardado["arquivo_nome"] == "laudo-v1.pdf"
+    assert api.get(f"/api/manutencao/interacoes/{guardado['id']}/arquivo", headers=paulo).content == PDF
+    assert api.get(f"/api/manutencao/interacoes/{diag}/arquivo", headers=paulo).content == b"%PDF-1.4 v2"
+
+    # Complemento: relatório no modelo do sistema, que não pode ser anterior ao diagnóstico
+    rel = {"diagnostico": "Troca da válvula feita", "atendido_em": "2026-10-20T14:00:00"}
+    assert api.post(f"{url}/relatorios", json=rel, headers=tiago).status_code == 422
+    c = api.post(f"{url}/relatorios", json={**rel, "atendido_em": "2026-10-21T08:00:00"}, headers=tiago).json()
+    assert c["diagnosticado_em"] == "2026-10-20T15:30:00" and c["diagnostico_interacao_id"] == diag  # não muda
+    complemento = c["interacoes"][-1]
+    rid = complemento["relatorio"]["id"]
+    # O relatório também recebe o arquivo externo (interligado) e é editado pelos campos dele
+    api.put(f"/api/manutencao/interacoes/{complemento['id']}/arquivo", files={"arquivo": ("os-123.pdf", PDF)}, headers=tiago)
+    assert api.patch(f"/api/manutencao/interacoes/{complemento['id']}", json={"texto": "x"}, headers=tiago).status_code == 422
+    c = api.patch(f"/api/manutencao/relatorios/{rid}", json={"causa": "Desgaste", "situacao_equipamento": "OPERANDO"},
+                  headers=tiago).json()
+    assert c["interacoes"][-1]["texto"].startswith(f"Relatório técnico {complemento['relatorio']['codigo']} editado: causa provável")
+    r = api.get(f"/api/manutencao/relatorios/{rid}", headers=paulo).json()
+    assert (r["causa"], r["situacao_equipamento"]) == ("Desgaste", "OPERANDO")
+    assert next(i for i in c["interacoes"] if i["id"] == complemento["id"])["arquivo_nome"] == "os-123.pdf"
 
 
 # ---------- empresas ----------
@@ -278,7 +374,7 @@ def test_painel_por_empresa(api, estado, paulo, tiago, marta):
     assert (p["abertos"], p["em_atendimento"], p["aguardando_diagnostico"], p["atrasados"]) == (2, 1, 2, 2)
     msi = next(e for e in p["por_empresa"] if e["empresa"]["nome"] == "MSI")
     assert (msi["abertos"], msi["atrasados"], msi["diagnosticados"], msi["no_prazo_pct"]) == (2, 1, 1, 100.0)
-    assert p["expediente"] == "08:00–18:00" and len(p["urgentes"]) == 2
+    assert len(p["urgentes"]) == 2
 
     do_tiago = api.get("/api/manutencao/painel", headers=tiago).json()
     assert do_tiago["empresa_do_tecnico"]["nome"] == "MSI" and do_tiago["aguardando_diagnostico"] == 1
@@ -293,23 +389,23 @@ def test_tempo_de_solucao_apos_o_diagnostico_fica_registrado(api, estado, paulo,
     api.post(f"{url}/interacoes", data={"texto": "Fonte queimada", "diagnostico": "true"}, headers=tiago)  # ter 10:00
     estado["agora"] = datetime(2026, 10, 21, 11, 30)  # qua 11:30
     c = api.get(url, headers=tiago).json()
-    assert c["execucao_horas_uteis"] == 11.5 and c["solucao_horas_uteis"] is None  # em execução há 11,5 h úteis
+    assert c["execucao_horas"] == 25.5 and c["solucao_horas_corridas"] is None  # em execução há 25,5 h
 
     c = api.post(f"{url}/concluir", json={"texto": "Fonte trocada"}, headers=tiago).json()
-    # ter 10:00 → qua 11:30: 8 h + 3,5 h úteis; 25,5 h corridas
-    assert (c["solucao_horas_uteis"], c["solucao_horas_corridas"], c["execucao_horas_uteis"]) == (11.5, 25.5, None)
+    # ter 10:00 → qua 11:30: 25,5 h corridas
+    assert (c["solucao_horas_corridas"], c["execucao_horas"]) == (25.5, None)
     conclusao = c["interacoes"][-1]["texto"]
-    assert conclusao.startswith("Fonte trocada") and "11 h 30 min úteis (25 h 30 min corridas)" in conclusao
+    assert conclusao.startswith("Fonte trocada") and "Tempo de solução após o diagnóstico: 25 h 30 min." in conclusao
 
     estado["agora"] = datetime(2026, 10, 22, 9)
     c = api.post(f"{url}/reabrir", json={"motivo": "Voltou a desligar"}, headers=paulo).json()
-    assert c["solucao_horas_uteis"] is None  # reaberto: o tempo volta a contar
+    assert c["solucao_horas_corridas"] is None  # reaberto: o tempo volta a contar
     estado["agora"] = datetime(2026, 10, 22, 10)
     c = api.post(f"{url}/concluir", json={}, headers=tiago).json()
-    assert c["solucao_horas_uteis"] == 20  # do diagnóstico (ter 10:00) até a nova conclusão (qui 10:00)
+    assert c["solucao_horas_corridas"] == 48  # do diagnóstico (ter 10:00) até a nova conclusão (qui 10:00)
 
     p = api.get("/api/manutencao/painel", headers=paulo).json()
-    assert next(e for e in p["por_empresa"] if e["empresa"]["nome"] == "MSI")["media_horas_solucao"] == 20
+    assert next(e for e in p["por_empresa"] if e["empresa"]["nome"] == "MSI")["media_horas_solucao"] == 48
 
 
 # ---------- solicitação de peças e equipamentos (Planner de Ofícios) ----------

@@ -38,6 +38,9 @@ import type {
   Usuario,
   VerificacaoArquivos,
 } from "../types";
+import type {
+  Avisos, FiltrosPreventiva, PaginaPreventivas, PlanoPreventiva, Preventiva, Unidade,
+} from "../types";
 import { api, requisicao } from "./client";
 
 const json = (corpo: unknown) => JSON.stringify(corpo);
@@ -260,10 +263,14 @@ export const assumirChamado = (id: number) =>
   api<ChamadoDetalhe>(`/manutencao/chamados/${id}/assumir`, { method: "POST" });
 
 /** Comentário ou resposta técnica (diagnóstico), com arquivo opcional. */
-export function responderChamado(id: number, dados: { texto?: string; diagnostico?: boolean; arquivo?: File | null }) {
+export function responderChamado(
+  id: number,
+  dados: { texto?: string; diagnostico?: boolean; diagnosticado_em?: string; arquivo?: File | null },
+) {
   const corpo = new FormData();
   if (dados.texto) corpo.append("texto", dados.texto);
   if (dados.diagnostico) corpo.append("diagnostico", "true");
+  if (dados.diagnostico && dados.diagnosticado_em) corpo.append("diagnosticado_em", dados.diagnosticado_em);
   if (dados.arquivo) corpo.append("arquivo", dados.arquivo);
   return api<ChamadoDetalhe>(`/manutencao/chamados/${id}/interacoes`, { method: "POST", body: corpo });
 }
@@ -275,6 +282,31 @@ export type RelatorioForm = Omit<
 
 export const criarRelatorio = (id: number, dados: RelatorioForm) =>
   api<ChamadoDetalhe>(`/manutencao/chamados/${id}/relatorios`, { method: "POST", body: json(dados) });
+
+/** Corrige a data e a hora do diagnóstico (fica registrado na linha do tempo). */
+export const corrigirDiagnostico = (id: number, diagnosticado_em: string, motivo?: string) =>
+  api<ChamadoDetalhe>(`/manutencao/chamados/${id}/diagnostico`, {
+    method: "PATCH",
+    body: json({ diagnosticado_em, motivo: motivo || null }),
+  });
+
+/** Edita uma resposta técnica (diagnóstico ou complemento): data e hora e resumo. */
+export const editarResposta = (interacaoId: number, dados: { ocorrido_em?: string; texto?: string; motivo?: string }) =>
+  api<ChamadoDetalhe>(`/manutencao/interacoes/${interacaoId}`, { method: "PATCH", body: json(dados) });
+
+/** Edita o relatório técnico (só os campos enviados). */
+export const editarRelatorio = (
+  relatorioId: number,
+  dados: Partial<Omit<RelatorioForm, "atendido_em">> & { atendido_em?: string; motivo?: string },
+) => api<ChamadoDetalhe>(`/manutencao/relatorios/${relatorioId}`, { method: "PATCH", body: json(dados) });
+
+/** Anexa ou substitui o relatório externo de uma resposta técnica ou de um relatório. */
+export function anexarRelatorioExterno(interacaoId: number, arquivo: File, motivo?: string) {
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo);
+  if (motivo) corpo.append("motivo", motivo);
+  return api<ChamadoDetalhe>(`/manutencao/interacoes/${interacaoId}/arquivo`, { method: "PUT", body: corpo });
+}
 
 export const concluirChamado = (id: number, texto?: string) =>
   api<ChamadoDetalhe>(`/manutencao/chamados/${id}/concluir`, { method: "POST", body: json({ texto: texto || null }) });
@@ -348,3 +380,60 @@ export const recusarExclusao = (id: number, resposta: string) =>
 
 export const listarAtividades = (filtros: FiltrosAtividade) =>
   api<Pagina<Atividade>>("/auditoria", { params: { ...filtros } });
+
+// ---------- Manutenção preventiva, avisos internos e unidade ----------
+
+export const unidadeDoServidor = () => api<Unidade>("/unidade");
+
+export const avisosManutencao = () => api<Avisos>("/manutencao/avisos");
+
+export const listarPlanosPreventiva = () => api<PlanoPreventiva[]>("/manutencao/planos-preventiva");
+
+export type PlanoForm = Pick<
+  PlanoPreventiva,
+  "titulo" | "descricao" | "local" | "equipamento" | "intervalo" | "unidade" | "inicio" | "tolerancia_dias"
+>;
+
+export const criarPlanoPreventiva = (dados: PlanoForm & { empresa_id: number }) =>
+  api<PlanoPreventiva>("/manutencao/planos-preventiva", { method: "POST", body: json(dados) });
+
+export const atualizarPlanoPreventiva = (id: number, dados: Partial<PlanoForm & { ativo: boolean }>) =>
+  api<PlanoPreventiva>(`/manutencao/planos-preventiva/${id}`, { method: "PATCH", body: json(dados) });
+
+export const excluirPlanoPreventiva = (id: number) =>
+  api<void>(`/manutencao/planos-preventiva/${id}`, { method: "DELETE" });
+
+export const listarPreventivas = (f: FiltrosPreventiva) =>
+  api<PaginaPreventivas>("/manutencao/preventivas", {
+    params: { ...f, aguardando_ateste: f.aguardando_ateste || undefined },
+  });
+
+/** Registra a realização da preventiva, com a evidência (arquivo) opcional. */
+export function realizarPreventiva(
+  id: number,
+  dados: { realizada_em: string; executor?: string; observacao?: string; arquivo?: File | null },
+) {
+  const corpo = new FormData();
+  corpo.append("realizada_em", dados.realizada_em);
+  if (dados.executor) corpo.append("executor", dados.executor);
+  if (dados.observacao) corpo.append("observacao", dados.observacao);
+  if (dados.arquivo) corpo.append("arquivo", dados.arquivo);
+  return api<Preventiva>(`/manutencao/preventivas/${id}/realizar`, { method: "POST", body: corpo });
+}
+
+export const atestarPreventiva = (id: number, observacao?: string) =>
+  api<Preventiva>(`/manutencao/preventivas/${id}/atestar`, {
+    method: "POST",
+    body: json({ observacao: observacao || null }),
+  });
+
+export const preventivaNaoRealizada = (id: number, motivo: string) =>
+  api<Preventiva>(`/manutencao/preventivas/${id}/nao-realizada`, { method: "POST", body: json({ motivo }) });
+
+export const reabrirPreventiva = (id: number) =>
+  api<Preventiva>(`/manutencao/preventivas/${id}/reabrir`, { method: "POST" });
+
+export async function baixarEvidenciaPreventiva(p: Preventiva): Promise<Blob> {
+  const resposta = await requisicao(`/manutencao/preventivas/${p.id}/arquivo`, { params: { bruto: true } });
+  return new Blob([await resposta.arrayBuffer()], { type: p.arquivo_mime ?? "application/octet-stream" });
+}

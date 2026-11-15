@@ -17,7 +17,7 @@ from app.models import (
 )
 from app.schemas import FiltrosConsulta, HistoricoOut, OficioDetalhe, OficioOut
 from app.services.exclusoes import montar_solicitacao
-from app.services.prazos import CalendarioUtil, classificar
+from app.services.prazos import Calendario, classificar
 from app.services.tipos import exige_recebimento
 
 P = StatusOficio.PENDENTE_RESPOSTA
@@ -103,7 +103,7 @@ class Limites:
     critico: date
 
     @classmethod
-    def calcular(cls, calendario: CalendarioUtil, hoje: date, settings: Settings) -> "Limites":
+    def calcular(cls, calendario: Calendario, hoje: date, settings: Settings) -> "Limites":
         return cls(
             atencao=calendario.data_limite(settings.dias_atencao, hoje),
             critico=calendario.data_limite(settings.dias_critico, hoje),
@@ -124,7 +124,7 @@ class Limites:
 
 
 def montar_oficio(
-    oficio: Oficio, calendario: CalendarioUtil, hoje: date, settings: Settings, detalhe: bool = False
+    oficio: Oficio, calendario: Calendario, hoje: date, settings: Settings, detalhe: bool = False
 ) -> OficioOut:
     dias, nivel = classificar(
         oficio.status,
@@ -139,11 +139,11 @@ def montar_oficio(
     recebido = oficio.data_recebimento is not None and oficio.status == StatusOficio.RECEBIDO
     dados = {
         **{campo: getattr(oficio, campo) for campo in OficioOut.model_fields if hasattr(oficio, campo)},
-        "dias_uteis_decorridos": dias,
+        "dias_decorridos": dias,
         "nivel_alerta": nivel,
-        "dias_resposta": calendario.dias_uteis_decorridos(oficio.inicio_prazo, oficio.data_resposta)
+        "dias_resposta": calendario.dias_decorridos(oficio.inicio_prazo, oficio.data_resposta)
         if respondido else None,
-        "dias_entrega": calendario.dias_uteis_decorridos(oficio.data_resposta, oficio.data_recebimento)
+        "dias_entrega": calendario.dias_decorridos(oficio.data_resposta, oficio.data_recebimento)
         if recebido else None,
     }
     if not detalhe:

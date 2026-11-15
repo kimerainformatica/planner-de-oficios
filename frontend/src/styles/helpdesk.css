@@ -497,3 +497,225 @@
 .grupo-fim {
   justify-content: flex-end;
 }
+
+/* ================= Unidade (nome do servidor) ================= */
+.marca-unidade {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #3f6b70;
+}
+.portal-unidade {
+  font-family: var(--fonte-titulo);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.portal-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ================= Preventivas ================= */
+.prev-programada {
+  color: var(--texto-suave);
+  background: var(--superficie-2);
+  border-color: var(--borda);
+}
+.filtros-preventivas {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.filtros-preventivas select.input {
+  width: auto;
+}
+.navegador-mes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 99px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+}
+.navegador-mes strong {
+  min-width: 150px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px;
+}
+.navegador-mes strong::first-letter {
+  text-transform: uppercase;
+}
+.acoes-linha {
+  flex-wrap: nowrap;
+}
+.valor-critico {
+  color: var(--critico);
+  font-weight: 700;
+}
+.valor-atencao {
+  color: var(--atencao);
+  font-weight: 700;
+}
+.input-curto {
+  width: 90px;
+  flex: none;
+}
+
+/* ================= Avisos internos ================= */
+.avisos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 760px;
+}
+.aviso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda);
+  border-left-width: 5px;
+  border-radius: 12px;
+  background: var(--superficie);
+  color: inherit;
+  text-decoration: none;
+}
+.aviso:hover {
+  background: var(--superficie-2);
+}
+.aviso-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.aviso-texto small {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.aviso-CRITICO {
+  border-left-color: var(--critico-forte);
+}
+.aviso-CRITICO .aviso-icone,
+.aviso-CRITICO small {
+  color: var(--critico);
+}
+.aviso-ATENCAO {
+  border-left-color: var(--atencao-forte);
+}
+.aviso-ATENCAO .aviso-icone,
+.aviso-ATENCAO small {
+  color: var(--atencao);
+}
+.aviso-INFO {
+  border-left-color: var(--borda);
+}
+.aviso-INFO .aviso-icone,
+.aviso-INFO small {
+  color: var(--texto-suave);
+}
+.aviso-rodape {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 12.5px;
+}
+
+/* ================= Data do diagnóstico ================= */
+.dado-diagnostico {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.dado-diagnostico .btn-pequeno {
+  padding: 2px 8px;
+}
+.evento-ocorrido {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+.input-data-hora {
+  max-width: 260px;
+}
+
+/* ================= Seção Diagnóstico técnico ================= */
+.secao-diagnostico h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.registros-tecnicos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.registro-tecnico {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--superficie);
+}
+.registro-principal {
+  border-left: 4px solid var(--primaria);
+}
+.registro-novo {
+  margin-top: 12px;
+  border-style: dashed;
+}
+.registro-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.registro-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.registro-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  color: var(--texto-suave);
+  font-size: 12.5px;
+}
+.registro-arquivos {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.form-diagnostico .alternador {
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+.form-diagnostico .alternador button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

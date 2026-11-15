@@ -111,8 +111,8 @@ def _cenario(api, admin, ana, bruno):
     criar(api, ana, "2", data="2026-10-14", tipo="EPIS", destinatario_tipo="SES", destinatario_setor="farmácia ")
     b1 = criar(api, bruno, "1", data="2026-09-01", tipo="SERVICOS", destinatario_tipo="ACQUA",
                destinatario_setor="Obras")
-    responder(api, admin, a1.json()["id"], "CONFIRMADO", "2026-08-10")  # 5 dias úteis
-    responder(api, admin, b1.json()["id"], "NAO_CONFIRMADO", "2026-09-22")  # 15 dias úteis
+    responder(api, admin, a1.json()["id"], "CONFIRMADO", "2026-08-10")  # 7 dias corridos
+    responder(api, admin, b1.json()["id"], "NAO_CONFIRMADO", "2026-09-22")  # 21 dias corridos
 
 
 def test_analise_do_painel(api, admin, ana, bruno):
@@ -123,8 +123,8 @@ def test_analise_do_painel(api, admin, ana, bruno):
     assert (i["total"], i["pendentes"], i["pendentes_recebimento"], i["confirmados"], i["nao_confirmados"]) == (
         3, 1, 1, 0, 1)
     assert i["taxa_confirmacao"] == 0.5
-    assert i["tempo_medio_resposta"] == 10.0  # (5 + 15) / 2
-    assert i["respondidos_no_prazo"] == 0.5  # só o de 5 dias ficou abaixo de 15
+    assert i["tempo_medio_resposta"] == 14.0  # (7 + 21) / 2
+    assert i["respondidos_no_prazo"] == 0.5  # só o de 7 dias ficou abaixo de 15
 
     tipos = {g["chave"]: g for g in a["por_tipo"]}
     assert len(tipos) == 8  # todos os tipos aparecem, mesmo zerados

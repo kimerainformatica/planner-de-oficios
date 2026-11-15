@@ -1,12 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Columns3, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Menu, PlusCircle, ShieldCheck, Users, X } from "lucide-react";
+import {
+  BellRing, Building2, CalendarCheck, Columns3, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Menu, PlusCircle, ShieldCheck,
+  Users, X,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { painelManutencao } from "../api/endpoints";
 import logo from "../assets/acqua-logo.svg";
 import { useAuth } from "../auth/AuthContext";
+import { useAvisos } from "../pages/manutencao/Avisos";
 import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
 import { SeletorTema } from "./SeletorTema";
+import { NomeUnidade } from "./Unidade";
 
 type Link = { para: string; rotulo: string; icone: ReactNode; ativo: boolean; contador?: number; aviso?: string };
 
@@ -28,6 +33,8 @@ export function LayoutManutencao() {
     enabled: papel === "TECNICO" || admin,
   });
   const aguardando = painel.data?.aguardando_diagnostico ?? 0;
+  // Avisos internos (o sistema não envia e-mail): pendências críticas e de atenção de quem está logado
+  const pendencias = useAvisos().data?.total ?? 0;
 
   const emChamados = pathname.startsWith("/manutencao/chamados") && pathname !== "/manutencao/chamados/novo";
   const links: Link[] = [
@@ -44,6 +51,10 @@ export function LayoutManutencao() {
       ? [{ para: "/manutencao/chamados/novo", rotulo: "Abrir chamado", icone: <PlusCircle size={19} />,
           ativo: pathname === "/manutencao/chamados/novo" }]
       : []),
+    { para: "/manutencao/preventivas", rotulo: "Preventivas", icone: <CalendarCheck size={19} />,
+      ativo: pathname === "/manutencao/preventivas" },
+    { para: "/manutencao/avisos", rotulo: "Avisos", icone: <BellRing size={19} />, ativo: pathname === "/manutencao/avisos",
+      contador: pendencias, aviso: "pendência(s) para você" },
   ];
   const administracao: Link[] = admin
     ? [{ para: "/manutencao/empresas", rotulo: "Empresas técnicas", icone: <Building2 size={19} />,
@@ -66,10 +77,11 @@ export function LayoutManutencao() {
             aria-label="Manutenção Clínica · Instituto ACQUA, ir para o painel">
             <img src={logo} alt="Instituto ACQUA" className="marca-logo" />
             <span className="marca-sistema">Manutenção Clínica</span>
+            <NomeUnidade className="marca-unidade" />
           </NavLink>
           <button className="btn-icone so-mobile" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">
             {menuAberto ? <X size={22} /> : <Menu size={22} />}
-            {!menuAberto && aguardando > 0 && <span className="ponto-aviso" aria-hidden />}
+            {!menuAberto && aguardando + pendencias > 0 && <span className="ponto-aviso" aria-hidden />}
           </button>
         </div>
 
