@@ -81,7 +81,7 @@ módulo, e só altera nome, login, senha e situação de quem usa apenas módulo
 | Método | Rota | Quem | O que faz |
 |---|---|---|---|
 | GET | `/api/dashboard/resumo` | todos | Contadores rápidos |
-| GET | `/api/dashboard/prazos` | todos | Limites de atenção e crítico, em dias úteis |
+| GET | `/api/dashboard/prazos` | todos | Limites de atenção e crítico, em dias corridos |
 | GET | `/api/dashboard/analise` | todos | Indicadores e agrupamentos dos gráficos (aceita os mesmos filtros da lista) |
 | GET | `/api/dashboard/exportar?formato=xlsx\|pdf` | todos | Relatório do painel filtrado em Excel ou PDF |
 
@@ -93,7 +93,7 @@ módulo, e só altera nome, login, senha e situação de quem usa apenas módulo
 | POST | `/api/tipos` | admin | Cria um tipo (o código é gerado a partir do nome) |
 | PATCH | `/api/tipos/{codigo}` | admin | Altera nome, nome curto, exige entrega, ativo ou ordem. Mudar "exige entrega" ajusta os ofícios do tipo |
 | DELETE | `/api/tipos/{codigo}` | admin | Apaga um tipo que nunca foi usado (senão `409`) |
-| GET | `/api/feriados?ano=` | todos | Feriados do ano |
+| GET | `/api/feriados?ano=` | todos | Feriados do ano (só cadastro: não entram nos prazos desde a 2.2) |
 | POST | `/api/feriados` | admin | Cadastra um feriado (data e descrição) |
 | POST | `/api/feriados/nacionais/{ano}` | admin | Cadastra os feriados nacionais do ano |
 | DELETE | `/api/feriados/{id}` | admin | Remove um feriado |
@@ -126,8 +126,22 @@ da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REG
 | POST | `/api/manutencao/chamados/{id}/relatorios` | técnico, admin | Relatório técnico no modelo do sistema (conta como diagnóstico) |
 | GET | `/api/manutencao/relatorios/{id}` · `/pdf` | todos | O relatório, ou o PDF dele |
 | GET | `/api/manutencao/interacoes/{id}/arquivo` | todos | Baixa o arquivo de uma interação (`inline`, `bruto`) |
-| POST | `/api/manutencao/chamados/{id}/concluir` | técnico, admin | Conclui (exige diagnóstico), com `texto` opcional. Grava o tempo de solução (`solucao_horas_uteis`, `solucao_horas_corridas`) |
+| POST | `/api/manutencao/chamados/{id}/concluir` | técnico, admin | Conclui (exige diagnóstico), com `texto` opcional. Grava o tempo de solução em horas corridas (`solucao_horas_corridas`) |
+| PATCH | `/api/manutencao/interacoes/{id}` | técnico, admin | Edita uma resposta técnica (diagnóstico ou complemento): `ocorrido_em`, `texto`, `motivo`. Registra uma `CORRECAO` |
+| PATCH | `/api/manutencao/relatorios/{id}` | técnico, admin | Edita o relatório técnico (só os campos enviados, `atendido_em` e `motivo`). Registra uma `CORRECAO` |
+| PUT | `/api/manutencao/interacoes/{id}/arquivo` | técnico, admin | Anexa ou substitui o relatório externo de uma resposta técnica ou relatório (formulário: `arquivo`, `motivo`). O arquivo anterior fica na `CORRECAO` |
+| PATCH | `/api/manutencao/chamados/{id}/diagnostico` | técnico, admin | Corrige a data e a hora do diagnóstico (`diagnosticado_em`, `motivo` opcional). Refaz o prazo e o tempo de solução e registra uma `CORRECAO` na linha do tempo |
 | GET | `/api/manutencao/quadro` | todos | Quadro por etapa (aguardando diagnóstico, em execução, aguardando peças, concluídos) e indicadores; `meus`, `empresa_id`, `dias` |
+| GET | `/api/manutencao/avisos` | todos | Pendências de quem consulta (`total` e `itens` com `nivel`, `quantidade`, `titulo`, `link`) |
+| GET | `/api/manutencao/planos-preventiva` | todos | Planos de preventiva (o técnico vê os da empresa dele), com a próxima data e os totais |
+| POST | `/api/manutencao/planos-preventiva` | admin | Cria o plano (`empresa_id`, `titulo`, `descricao`, `local`, `equipamento`, `intervalo`, `unidade` DIAS/SEMANAS/MESES, `inicio`, `tolerancia_dias`) e gera as datas |
+| PATCH · DELETE | `/api/manutencao/planos-preventiva/{id}` | admin | Altera (refaz só as datas futuras) ou exclui um plano sem nada vencido ou registrado |
+| GET | `/api/manutencao/preventivas` | todos | Agenda e previsto x realizado por empresa (`de`, `ate`, `empresa_id`, `plano_id`, `situacao`, `aguardando_ateste`) |
+| POST | `/api/manutencao/preventivas/{id}/realizar` | todos | Registra a realização (formulário: `realizada_em`, `executor`, `observacao`, `arquivo`) |
+| POST | `/api/manutencao/preventivas/{id}/atestar` | operacional, admin | Ateste de quem fiscaliza (`observacao` opcional) |
+| POST | `/api/manutencao/preventivas/{id}/nao-realizada` | operacional, admin | Marca como não realizada, com `motivo` |
+| POST | `/api/manutencao/preventivas/{id}/reabrir` | admin | Desfaz o registro ainda sem ateste (apaga a evidência) |
+| GET | `/api/manutencao/preventivas/{id}/arquivo` | todos | Baixa a evidência |
 | GET | `/api/manutencao/tipos-solicitacao` | todos | Tipos de ofício aceitos na solicitação de peças/equipamentos |
 | GET | `/api/manutencao/chamados/{id}/oficios/anexos/{anexo_id}` | todos | Baixa um documento do ofício de peças (anexado no Planner) pelo chamado |
 | GET | `/api/manutencao/oficios-disponiveis` | operacional, admin | Ofícios do Planner ainda sem chamado, na visibilidade de quem consulta (`busca`, `limite` até 50) |
@@ -141,6 +155,7 @@ da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REG
 | Método | Rota | O que faz |
 |---|---|---|
 | GET | `/api/saude` | Verificação de que o sistema está no ar (usada pelos testes) |
+| GET | `/api/unidade` | Nome e descrição da unidade deste servidor (pública: a tela de login usa) |
 | GET | `/docs` | Documentação interativa (Swagger) |
 | GET | `/*` | As telas (`frontend/dist`). Rotas desconhecidas devolvem `index.html` |
 

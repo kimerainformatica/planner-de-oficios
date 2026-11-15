@@ -9,7 +9,7 @@ from app.schemas import FeriadoCriar, FeriadoOut
 from app.services.auditoria import Acao, registrar
 from app.services.prazos import feriados_nacionais
 
-router = APIRouter(prefix="/api/feriados", tags=["Feriados (dias não úteis)"], dependencies=ACESSO_OFICIOS)
+router = APIRouter(prefix="/api/feriados", tags=["Feriados (cadastro; não entram nos prazos)"], dependencies=ACESSO_OFICIOS)
 
 
 @router.get("", response_model=list[FeriadoOut])

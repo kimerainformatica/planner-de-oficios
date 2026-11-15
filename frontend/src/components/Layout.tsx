@@ -9,7 +9,6 @@ import {
   IconeArquivos,
   IconeAtividades,
   IconeExclusao,
-  IconeFeriados,
   IconeNovoOficio,
   IconeOficios,
   IconePainel,
@@ -19,6 +18,7 @@ import {
   type PropsIcone,
 } from "./Icones";
 import { SeletorTema } from "./SeletorTema";
+import { NomeUnidade } from "./Unidade";
 import { useAuth } from "../auth/AuthContext";
 import { ROTULO_PERFIL } from "../utils/formato";
 
@@ -71,7 +71,6 @@ export function Layout() {
   const administracao: LinkMenu[] = ehAdmin
     ? [
         { para: "/usuarios", rotulo: "Usuários", icone: IconeUsuarios, ativo: pathname === "/usuarios" },
-        { para: "/feriados", rotulo: "Feriados", icone: IconeFeriados, ativo: pathname === "/feriados" },
         { para: "/tipos", rotulo: "Tipos de ofício", icone: IconeTipos, ativo: pathname === "/tipos" },
         {
           para: "/arquivos",
@@ -106,6 +105,7 @@ export function Layout() {
             aria-label="Planner de Ofícios · Instituto ACQUA, ir para o Painel">
             <img src={logo} alt="Instituto ACQUA" className="marca-logo" />
             <span className="marca-sistema">Planner de Ofícios</span>
+            <NomeUnidade className="marca-unidade" />
           </NavLink>
           <button className="btn-icone so-mobile" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">
             {menuAberto ? <X size={22} /> : <Menu size={22} />}

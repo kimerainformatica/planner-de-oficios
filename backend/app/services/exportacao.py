@@ -53,8 +53,8 @@ def _num(v: float | None) -> str:
 def linhas_indicadores(a: Analise) -> list[tuple[str, str]]:
     i = a.indicadores
     atencao, critico = a.prazos.dias_atencao, a.prazos.dias_critico
-    no_prazo, em_atencao, criticos = (f"até {atencao - 1} dias úteis", f"{atencao} a {critico - 1} dias úteis",
-                                      f"{critico}+ dias úteis")
+    no_prazo, em_atencao, criticos = (f"até {atencao - 1} dias", f"{atencao} a {critico - 1} dias",
+                                      f"{critico}+ dias")
     return [
         ("Total de ofícios", str(i.total)),
         ("Pendentes de resposta", str(i.pendentes)),
@@ -70,16 +70,16 @@ def linhas_indicadores(a: Analise) -> list[tuple[str, str]]:
         ("   Confirmados (sem etapa de entrega: Comunicados)", str(i.confirmados)),
         ("Não confirmados", str(i.nao_confirmados)),
         ("Taxa de confirmação", _pct(i.taxa_confirmacao)),
-        ("Tempo médio de resposta (dias úteis)", _num(i.tempo_medio_resposta)),
+        ("Tempo médio de resposta (dias)", _num(i.tempo_medio_resposta)),
         ("Respondidos antes de entrar em atenção", _pct(i.respondidos_no_prazo)),
-        ("Tempo médio de entrega após a resposta (dias úteis)", _num(i.tempo_medio_entrega)),
+        ("Tempo médio de entrega após a resposta (dias)", _num(i.tempo_medio_entrega)),
         ("Entregues antes de entrar em atenção", _pct(i.entregues_no_prazo)),
     ]
 
 
 CABECALHO_GRUPO = ["", "Total", "Pendentes de resposta", "Pendentes de recebimento", "Atenção", "Críticos",
                    "Confirmados", "Recebidos", "Não confirmados", "Concluídos (confirmados + recebidos)",
-                   "Tempo médio de resposta (dias úteis)", "Tempo médio de entrega (dias úteis)"]
+                   "Tempo médio de resposta (dias)", "Tempo médio de entrega (dias)"]
 # Colunas (1 = A) das séries do gráfico empilhado, na ordem de SITUACOES
 COLUNAS_SITUACAO = (3, 4, 10, 9)
 
@@ -101,7 +101,7 @@ def _linha_oficio(linha: Linha) -> list:
         linha.dono_nome,
         ROTULO_STATUS[o.status],
         ROTULO_ALERTA[linha.nivel] if linha.nivel else "",
-        linha.dias_uteis if linha.nivel else None,
+        linha.dias if linha.nivel else None,
         linha.tempo_resposta,
         linha.tempo_entrega,
         o.inicio_prazo,
@@ -113,7 +113,7 @@ def _linha_oficio(linha: Linha) -> list:
 
 CABECALHO_OFICIOS = [
     "Nº", "Data do ofício", "Tipo", "Destinatário", "Protocolo", "Cliente", "Status", "Prazo",
-    "Dias úteis em aberto", "Dias úteis até a resposta", "Dias úteis até a entrega", "Início do prazo",
+    "Dias em aberto", "Dias até a resposta", "Dias até a entrega", "Início do prazo",
     "Data da resposta", "Data do recebimento", "Observação",
 ]
 
@@ -378,12 +378,12 @@ def gerar_pdf(a: Analise, linhas: list[Linha], filtros: list[str], mostrar_clien
         (str(i.total), "Total de ofícios"),
         (str(i.pendentes), "Pendentes de resposta"),
         (str(i.pendentes_recebimento), "Pendentes de recebimento"),
-        (str(i.pendentes_critico + i.recebimento_critico), f"Críticos ({a.prazos.dias_critico}+ dias úteis)"),
+        (str(i.pendentes_critico + i.recebimento_critico), f"Críticos ({a.prazos.dias_critico}+ dias)"),
         (str(i.concluidos), "Concluídos"),
         (str(i.nao_confirmados), "Não confirmados"),
         (_pct(i.taxa_confirmacao), "Taxa de confirmação"),
-        (_num(i.tempo_medio_resposta), "Tempo médio de resposta (dias úteis)"),
-        (_num(i.tempo_medio_entrega), "Tempo médio de entrega (dias úteis)"),
+        (_num(i.tempo_medio_resposta), "Tempo médio de resposta (dias)"),
+        (_num(i.tempo_medio_entrega), "Tempo médio de entrega (dias)"),
     ]
     blocos = Table(
         [[v for v, _ in destaque], [Paragraph(r, rotulo_bloco) for _, r in destaque]],
@@ -433,7 +433,7 @@ def gerar_pdf(a: Analise, linhas: list[Linha], filtros: list[str], mostrar_clien
             Paragraph(x.tipo, celula),
             Paragraph(x.destinatario, celula), Paragraph(o.protocolo or "", celula), Paragraph(x.dono_nome, celula),
             Paragraph(ROTULO_STATUS[o.status], celula), ROTULO_ALERTA[x.nivel] if x.nivel else "",
-            str(x.dias_uteis) if x.nivel else "", _texto(x.tempo_resposta), _texto(x.tempo_entrega),
+            str(x.dias) if x.nivel else "", _texto(x.tempo_resposta), _texto(x.tempo_entrega),
             _data(o.data_resposta), _data(o.data_recebimento),
             Paragraph(o.observacao or "", celula),
         ])

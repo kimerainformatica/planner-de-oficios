@@ -3,7 +3,7 @@
 Todas as rotas exigem acesso ao módulo (o MASTER sempre tem).
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.deps import AgoraDep, CalendarioDep, DbDep, SettingsDep, UsuarioDep, exige_acesso_ao, exige_admin_do
+from app.deps import AgoraDep, DbDep, SettingsDep, UsuarioDep, exige_acesso_ao, exige_admin_do
 from app.models import (
     Anexo,
     Chamado,
@@ -35,6 +35,9 @@ from app.schemas_manutencao import (
     ChamadoOut,
     ColunaQuadro,
     Conclusao,
+    CorrecaoDiagnostico,
+    RelatorioAtualizar,
+    RespostaAtualizar,
     OficioDisponivel,
     OficioResumo,
     OficioVinculado,
@@ -74,13 +77,13 @@ AdminManutencao = Annotated[Usuario, Depends(exige_admin_do(Modulo.MANUTENCAO))]
 # ---------- montagem das respostas ----------
 
 
-def _chamado_out(c: Chamado, agora, exp, settings) -> ChamadoOut:
-    p = regras.situacao_prazo(c, agora, exp, settings)
+def _chamado_out(c: Chamado, agora, settings) -> ChamadoOut:
+    p = regras.situacao_prazo(c, agora, settings)
     # atributos só para a resposta (não são colunas)
     c.prazo = PrazoOut(situacao=p.situacao, horas_restantes=p.horas_restantes,
                        horas_ate_diagnostico=p.horas_ate_diagnostico)
-    c.execucao_horas_uteis = (
-        round(exp.horas_entre(c.diagnosticado_em, agora), 2)
+    c.execucao_horas = (
+        regras.horas_entre(c.diagnosticado_em, agora)
         if c.diagnosticado_em is not None and c.status in ABERTOS else None
     )
     c.oficios_pendentes = regras.oficios_pendentes(c)
@@ -93,7 +96,7 @@ def _oficios(c: Chamado) -> list[Oficio]:
     return sorted(c.oficios, key=lambda o: o.id)
 
 
-def _detalhe(c: Chamado, usuario: Usuario, agora, exp, settings) -> ChamadoDetalhe:
+def _detalhe(c: Chamado, usuario: Usuario, agora, settings) -> ChamadoDetalhe:
     atendente = regras.eh_tecnico(usuario) or regras.eh_admin(usuario)
     solicitante = regras.eh_operacional(usuario) or regras.eh_admin(usuario)
     pode_oficios = solicitante and c.status in ABERTOS
@@ -110,7 +113,7 @@ def _detalhe(c: Chamado, usuario: Usuario, agora, exp, settings) -> ChamadoDetal
         for o in _oficios(c)
     ]
     return ChamadoDetalhe(
-        **_chamado_out(c, agora, exp, settings).model_dump(),
+        **_chamado_out(c, agora, settings).model_dump(),
         interacoes=interacoes,
         oficios=oficios,
         pode_solicitar_pecas=pode_oficios,
@@ -118,6 +121,8 @@ def _detalhe(c: Chamado, usuario: Usuario, agora, exp, settings) -> ChamadoDetal
         pode_responder=atendente and c.status in ABERTOS,
         pode_comentar=c.status != StatusChamado.CANCELADO,
         pode_concluir=atendente and c.status in ABERTOS and c.diagnosticado_em is not None,
+        pode_corrigir_diagnostico=atendente and c.diagnosticado_em is not None and c.status != StatusChamado.CANCELADO,
+        diagnostico_interacao_id=principal.id if (principal := regras.interacao_do_diagnostico(c)) else None,
         pode_reabrir=solicitante and c.status == StatusChamado.CONCLUIDO,
         pode_cancelar=solicitante and c.status in ABERTOS,
     )
@@ -148,10 +153,9 @@ def resumo(usuario: UsuarioDep, db: DbDep):
 
 
 @router.get("/painel", response_model=PainelManutencao)
-def painel(db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: CalendarioDep, agora: AgoraDep):
-    exp = regras.expediente(calendario, settings)
+def painel(db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep):
     chamados = db.scalars(select(Chamado).where(regras.escopo(usuario))).all()
-    situacoes = {c.id: regras.situacao_prazo(c, agora, exp, settings) for c in chamados}
+    situacoes = {c.id: regras.situacao_prazo(c, agora, settings) for c in chamados}
     abertos = [c for c in chamados if c.status in ABERTOS]
 
     por_empresa = []
@@ -160,7 +164,7 @@ def painel(db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: Ca
         doe = [c for c in chamados if c.empresa_id == empresa.id]
         diag = [situacoes[c.id] for c in doe if c.diagnosticado_em is not None]
         horas = [s.horas_ate_diagnostico for s in diag if s.horas_ate_diagnostico is not None]
-        solucoes = [c.solucao_horas_uteis for c in doe if c.solucao_horas_uteis is not None]
+        solucoes = [c.solucao_horas_corridas for c in doe if c.solucao_horas_corridas is not None]
         por_empresa.append(PainelEmpresa(
             empresa=EmpresaResumo.model_validate(empresa),
             abertos=sum(c.status in ABERTOS for c in doe),
@@ -176,13 +180,11 @@ def painel(db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: Ca
 
     pendentes = [c for c in abertos if c.diagnosticado_em is None]
     pendentes.sort(key=lambda c: c.prazo_em)
-    inicio, fim = settings.manutencao_expediente_inicio, settings.manutencao_expediente_fim
     empresa_id = regras.empresa_do_tecnico(usuario)
     empresa_tec = db.get(EmpresaManutencao, empresa_id) if empresa_id else None
     return PainelManutencao(
         papel=regras.papel(usuario), eh_admin=regras.eh_admin(usuario),
         empresa_do_tecnico=EmpresaResumo.model_validate(empresa_tec) if empresa_tec else None,
-        expediente=f"{inicio:%H:%M}–{'24:00' if fim.hour == 0 and fim.minute == 0 else f'{fim:%H:%M}'}",
         abertos=sum(c.status == StatusChamado.ABERTO for c in chamados),
         em_atendimento=sum(c.status == StatusChamado.EM_ATENDIMENTO for c in chamados),
         aguardando_diagnostico=len(pendentes),
@@ -191,7 +193,7 @@ def painel(db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: Ca
         concluidos=sum(c.status == StatusChamado.CONCLUIDO for c in chamados),
         cancelados=sum(c.status == StatusChamado.CANCELADO for c in chamados),
         por_empresa=por_empresa,
-        urgentes=[_chamado_out(c, agora, exp, settings) for c in pendentes[:8]],
+        urgentes=[_chamado_out(c, agora, settings) for c in pendentes[:8]],
     )
 
 
@@ -265,7 +267,7 @@ def excluir_empresa(empresa_id: int, db: DbDep, _: AdminManutencao):
 
 @router.get("/chamados", response_model=PaginaChamados)
 def listar_chamados(
-    db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: CalendarioDep, agora: AgoraDep,
+    db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep,
     status_: Annotated[list[StatusChamado] | None, Query(alias="status")] = None,
     empresa_id: int | None = None,
     situacao: SituacaoPrazo | None = None,
@@ -291,8 +293,7 @@ def listar_chamados(
         consulta = consulta.where(or_(*filtros))
     # Em aberto primeiro (o prazo mais próximo no topo); depois os encerrados, do mais recente
     chamados = db.scalars(consulta.order_by(Chamado.aberto_em.desc())).all()
-    exp = regras.expediente(calendario, settings)
-    itens = [_chamado_out(c, agora, exp, settings) for c in chamados]
+    itens = [_chamado_out(c, agora, settings) for c in chamados]
     if situacao is not None:
         itens = [c for c in itens if c.prazo.situacao == situacao]
     itens.sort(key=lambda c: (c.status not in ABERTOS, c.prazo_em if c.status in ABERTOS else -c.aberto_em.timestamp()))
@@ -303,7 +304,7 @@ def listar_chamados(
 
 @router.post("/chamados", response_model=ChamadoDetalhe, status_code=status.HTTP_201_CREATED)
 def abrir_chamado(dados: ChamadoCriar, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-                  calendario: CalendarioDep, agora: AgoraDep):
+                  agora: AgoraDep):
     regras.exigir_solicitante(usuario)
     empresa = db.get(EmpresaManutencao, dados.empresa_id)
     if empresa is None or not empresa.ativo:
@@ -312,30 +313,30 @@ def abrir_chamado(dados: ChamadoCriar, db: DbDep, usuario: UsuarioDep, settings:
     if ocorrido > agora + timedelta(minutes=10):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A data e hora do problema não pode estar no futuro")
 
-    exp = regras.expediente(calendario, settings)
     chamado = Chamado(
         empresa=empresa, solicitante=usuario, titulo=dados.titulo, descricao=dados.descricao, local=dados.local or None,
         equipamento=dados.equipamento or None, ocorrido_em=ocorrido, aberto_em=agora,
-        prazo_horas=empresa.prazo_horas, prazo_em=exp.somar(agora, empresa.prazo_horas),
+        prazo_horas=empresa.prazo_horas, prazo_em=regras.prazo_do_chamado(agora, empresa.prazo_horas),
         status=StatusChamado.ABERTO, atualizado_em=agora,
     )
     db.add(chamado)
     regras.registrar(db, chamado, usuario, TipoInteracao.ABERTURA, agora,
-                     f"Chamado aberto para {empresa.nome}. Prazo para o diagnóstico: {empresa.prazo_horas} h úteis.")
+                     f"Chamado aberto para {empresa.nome}. Prazo para o diagnóstico: {regras.texto_horas(empresa.prazo_horas)} "
+                     f"corridas, até {chamado.prazo_em:%d/%m/%Y %H:%M}.")
     db.commit()
-    return _detalhe(chamado, usuario, agora, exp, settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.get("/chamados/{chamado_id}", response_model=ChamadoDetalhe)
 def ver_chamado(chamado_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-                calendario: CalendarioDep, agora: AgoraDep):
+                agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.post("/chamados/{chamado_id}/assumir", response_model=ChamadoDetalhe)
 def assumir(chamado_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-            calendario: CalendarioDep, agora: AgoraDep):
+            agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     if not regras.eh_tecnico(usuario):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Só técnicos assumem chamados")
@@ -347,15 +348,17 @@ def assumir(chamado_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsD
     texto = f"{usuario.nome} assumiu o chamado" + (f" (antes com {anterior})" if anterior else "")
     regras.registrar(db, chamado, usuario, TipoInteracao.ASSUMIDO, agora, texto)
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.post("/chamados/{chamado_id}/interacoes", response_model=ChamadoDetalhe, status_code=status.HTTP_201_CREATED,
              summary="Comentário ou resposta técnica (diagnóstico), com arquivo opcional (ex.: relatório externo)")
 def responder(
-    chamado_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: CalendarioDep, agora: AgoraDep,
+    chamado_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep,
     texto: Annotated[str | None, Form(max_length=10000)] = None,
     diagnostico: Annotated[bool, Form(description="Resposta técnica: a primeira encerra o prazo")] = False,
+    diagnosticado_em: Annotated[datetime | None, Form(
+        description="Resposta técnica: data e hora em que o diagnóstico foi feito (padrão: agora)")] = None,
     arquivo: Annotated[UploadFile | None, File()] = None,
 ):
     chamado = regras.buscar(db, chamado_id, usuario)
@@ -364,9 +367,12 @@ def responder(
         arquivo = None
     if texto is None and arquivo is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Escreva uma mensagem ou anexe um arquivo")
+    quando = None
     if diagnostico:
         regras.exigir_atendente(usuario)
         regras.exigir_status(chamado, ABERTOS, "responder")
+        quando = regras.validar_data_resposta(chamado, diagnosticado_em or agora, agora,
+                                              principal=chamado.diagnosticado_em is None)
     elif chamado.status == StatusChamado.CANCELADO:
         raise HTTPException(status.HTTP_409_CONFLICT, "O chamado foi cancelado")
 
@@ -376,9 +382,9 @@ def responder(
         extra = dict(arquivo_nome=salvo.nome_original, arquivo_caminho=salvo.caminho, arquivo_mime=salvo.mime_type,
                      arquivo_tamanho=salvo.tamanho_bytes, arquivo_sha256=salvo.hash_sha256)
     tipo = TipoInteracao.DIAGNOSTICO if diagnostico else TipoInteracao.COMENTARIO
-    regras.registrar(db, chamado, usuario, tipo, agora, texto, **extra)
+    regras.registrar(db, chamado, usuario, tipo, agora, texto, ocorrido_em=quando, **extra)
     if diagnostico:
-        regras.marcar_diagnostico(chamado, usuario, agora)
+        regras.marcar_diagnostico(chamado, usuario, quando)
     elif regras.eh_tecnico(usuario) and chamado.status in ABERTOS:
         regras.marcar_atendimento(chamado, usuario)
     try:
@@ -388,19 +394,21 @@ def responder(
         if salvo:
             armazenamento.remover_arquivo(salvo.caminho, settings)
         raise
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.post("/chamados/{chamado_id}/relatorios", response_model=ChamadoDetalhe, status_code=status.HTTP_201_CREATED,
              summary="Relatório técnico no modelo do sistema (conta como diagnóstico)")
 def criar_relatorio(chamado_id: int, dados: RelatorioCriar, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-                    calendario: CalendarioDep, agora: AgoraDep):
+                    agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_atendente(usuario)
     regras.exigir_status(chamado, ABERTOS, "registrar relatório em")
     atendido = (dados.atendido_em or agora).replace(tzinfo=None, microsecond=0)
     if atendido > agora + timedelta(minutes=10):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A data do atendimento não pode estar no futuro")
+    # Primeiro diagnóstico: a data e a hora do atendimento são as do diagnóstico; senão, é um complemento
+    atendido = regras.validar_data_resposta(chamado, atendido, agora, principal=chamado.diagnosticado_em is None)
     relatorio = RelatorioTecnico(
         chamado=chamado, tecnico=usuario, empresa=chamado.empresa, criado_em=agora, atendido_em=atendido,
         **dados.model_dump(exclude={"atendido_em"}),
@@ -408,10 +416,179 @@ def criar_relatorio(chamado_id: int, dados: RelatorioCriar, db: DbDep, usuario: 
     db.add(relatorio)
     db.flush()  # o relatório precisa de id para o código RT-…
     regras.registrar(db, chamado, usuario, TipoInteracao.RELATORIO, agora,
-                     f"Relatório técnico {relatorio.codigo} registrado", relatorio=relatorio)
-    regras.marcar_diagnostico(chamado, usuario, agora)
+                     f"Relatório técnico {relatorio.codigo} registrado", relatorio=relatorio, ocorrido_em=atendido)
+    regras.marcar_diagnostico(chamado, usuario, atendido)
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
+
+
+@router.patch("/chamados/{chamado_id}/diagnostico", response_model=ChamadoDetalhe,
+              summary="Corrige a data e a hora do diagnóstico (fica registrado na linha do tempo)")
+def corrigir_diagnostico(chamado_id: int, dados: CorrecaoDiagnostico, db: DbDep, usuario: UsuarioDep,
+                         settings: SettingsDep, agora: AgoraDep):
+    chamado = regras.buscar(db, chamado_id, usuario)
+    regras.exigir_atendente(usuario)
+    if chamado.status == StatusChamado.CANCELADO:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O chamado foi cancelado")
+    if chamado.diagnosticado_em is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O chamado ainda não tem diagnóstico")
+    novo = regras.validar_data_diagnostico(chamado, dados.diagnosticado_em, agora)
+    anterior = chamado.diagnosticado_em
+    if novo == anterior:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O diagnóstico já está com essa data e hora")
+    regras.aplicar_data(chamado, regras.interacao_do_diagnostico(chamado), novo)
+    texto = f"Data e hora do diagnóstico corrigidas: de {anterior:%d/%m/%Y %H:%M} para {novo:%d/%m/%Y %H:%M}."
+    if dados.motivo and dados.motivo.strip():
+        texto += f"\nMotivo: {dados.motivo.strip()}"
+    regras.registrar(db, chamado, usuario, TipoInteracao.CORRECAO, agora, texto)
+    db.commit()
+    return _detalhe(chamado, usuario, agora, settings)
+
+
+# ---------- edição do diagnóstico e dos complementos (seção Diagnóstico técnico) ----------
+
+ROTULO_CAMPO_RELATORIO = {
+    "equipamento": "equipamento", "identificacao": "patrimônio / nº de série", "diagnostico": "diagnóstico",
+    "causa": "causa provável", "servico_executado": "serviço executado", "pecas": "peças e materiais",
+    "situacao_equipamento": "situação do equipamento", "recomendacoes": "recomendações",
+}
+
+
+def _registro_tecnico(db: Session, interacao_id: int, usuario: Usuario) -> tuple[ChamadoInteracao, Chamado]:
+    """Resposta técnica ou relatório que o usuário pode editar (técnico da empresa ou administrador)."""
+    interacao = db.get(ChamadoInteracao, interacao_id)
+    if interacao is None or interacao.tipo not in (TipoInteracao.DIAGNOSTICO, TipoInteracao.RELATORIO):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resposta técnica não encontrada")
+    chamado = regras.buscar(db, interacao.chamado_id, usuario)
+    regras.exigir_atendente(usuario)
+    if chamado.status == StatusChamado.CANCELADO:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O chamado foi cancelado")
+    return interacao, chamado
+
+
+def _mudar_data(chamado: Chamado, interacao: ChamadoInteracao, quando: datetime, agora) -> str | None:
+    principal = interacao is regras.interacao_do_diagnostico(chamado)
+    novo = regras.validar_data_resposta(chamado, quando, agora, principal=principal)
+    anterior = interacao.ocorrido_em or interacao.criado_em
+    if novo == anterior:
+        return None
+    regras.aplicar_data(chamado, interacao, novo)
+    return f"data e hora de {anterior:%d/%m/%Y %H:%M} para {novo:%d/%m/%Y %H:%M}"
+
+
+def _registrar_edicao(db: Session, chamado: Chamado, interacao: ChamadoInteracao, usuario: Usuario, agora,
+                      mudancas: list[str], motivo: str | None) -> None:
+    if not mudancas:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Nada foi alterado")
+    texto = f"{regras.rotulo_registro(chamado, interacao)} editado: {'; '.join(mudancas)}."
+    if motivo and motivo.strip():
+        texto += f"\nMotivo: {motivo.strip()}"
+    regras.registrar(db, chamado, usuario, TipoInteracao.CORRECAO, agora, texto)
+
+
+@router.patch("/interacoes/{interacao_id}", response_model=ChamadoDetalhe,
+              summary="Edita uma resposta técnica (diagnóstico ou complemento): data e hora e resumo")
+def editar_resposta(interacao_id: int, dados: RespostaAtualizar, db: DbDep, usuario: UsuarioDep,
+                    settings: SettingsDep, agora: AgoraDep):
+    interacao, chamado = _registro_tecnico(db, interacao_id, usuario)
+    campos = dados.model_fields_set
+    mudancas = []
+    if "ocorrido_em" in campos and dados.ocorrido_em is not None:
+        if (m := _mudar_data(chamado, interacao, dados.ocorrido_em, agora)):
+            mudancas.append(m)
+    if "texto" in campos:
+        if interacao.relatorio is not None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Edite o relatório técnico pelos campos dele")
+        texto = (dados.texto or "").strip() or None
+        if texto is None and not interacao.arquivo_caminho:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                "Escreva o resumo do diagnóstico ou anexe o relatório externo")
+        if texto != interacao.texto:
+            interacao.texto = texto
+            mudancas.append("resumo do diagnóstico")
+    _registrar_edicao(db, chamado, interacao, usuario, agora, mudancas, dados.motivo)
+    db.commit()
+    return _detalhe(chamado, usuario, agora, settings)
+
+
+@router.patch("/relatorios/{relatorio_id}", response_model=ChamadoDetalhe,
+              summary="Edita o relatório técnico (campos e data do atendimento; o PDF acompanha)")
+def editar_relatorio(relatorio_id: int, dados: RelatorioAtualizar, db: DbDep, usuario: UsuarioDep,
+                     settings: SettingsDep, agora: AgoraDep):
+    relatorio = db.get(RelatorioTecnico, relatorio_id)
+    if relatorio is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Relatório não encontrado")
+    chamado = regras.buscar(db, relatorio.chamado_id, usuario)
+    interacao = next((i for i in chamado.interacoes if i.relatorio_id == relatorio.id), None)
+    if interacao is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Relatório não encontrado")
+    interacao, chamado = _registro_tecnico(db, interacao.id, usuario)
+    campos = dados.model_fields_set - {"motivo", "atendido_em"}
+    mudancas = []
+    if "atendido_em" in dados.model_fields_set and dados.atendido_em is not None:
+        if (m := _mudar_data(chamado, interacao, dados.atendido_em, agora)):
+            mudancas.append(m.replace("data e hora", "data e hora do atendimento", 1))
+    alterados = []
+    for campo in ROTULO_CAMPO_RELATORIO:
+        if campo not in campos:
+            continue
+        valor = getattr(dados, campo)
+        if isinstance(valor, str):
+            valor = valor.strip() or None
+        if campo == "diagnostico" and not valor:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "O diagnóstico do relatório é obrigatório")
+        if campo == "situacao_equipamento" and valor is None:
+            continue
+        if valor != getattr(relatorio, campo):
+            setattr(relatorio, campo, valor)
+            alterados.append(ROTULO_CAMPO_RELATORIO[campo])
+    if alterados:
+        mudancas.append(", ".join(alterados))
+    _registrar_edicao(db, chamado, interacao, usuario, agora, mudancas, dados.motivo)
+    db.commit()
+    return _detalhe(chamado, usuario, agora, settings)
+
+
+@router.put("/interacoes/{interacao_id}/arquivo", response_model=ChamadoDetalhe,
+            summary="Anexa ou substitui o relatório externo de uma resposta técnica ou de um relatório")
+def anexar_relatorio_externo(
+    interacao_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep,
+    arquivo: Annotated[UploadFile, File()],
+    motivo: Annotated[str | None, Form(max_length=2000)] = None,
+):
+    """O arquivo anterior não é apagado: fica no registro da correção, na linha do tempo, e pode ser baixado."""
+    interacao, chamado = _registro_tecnico(db, interacao_id, usuario)
+    if not arquivo.filename:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Escolha o arquivo do relatório externo")
+    salvo = armazenamento.salvar_upload(arquivo, settings)
+    campos = ("arquivo_nome", "arquivo_caminho", "arquivo_mime", "arquivo_tamanho", "arquivo_sha256")
+    anterior = {c: getattr(interacao, c) for c in campos} if interacao.arquivo_caminho else None
+    interacao.arquivo_nome, interacao.arquivo_caminho, interacao.arquivo_mime = (
+        salvo.nome_original, salvo.caminho, salvo.mime_type)
+    interacao.arquivo_tamanho, interacao.arquivo_sha256 = salvo.tamanho_bytes, salvo.hash_sha256
+    rotulo = regras.rotulo_registro(chamado, interacao)
+    # Anexado por quem registrou, logo depois do registro (ex.: relatório do sistema + arquivo da empresa no mesmo
+    # envio): faz parte do registro, não é uma correção
+    junto_do_registro = (anterior is None and interacao.autor_id == usuario.id
+                         and agora - interacao.criado_em <= timedelta(minutes=10))
+    if anterior:
+        texto = (f"{rotulo}: relatório externo substituído por {salvo.nome_original}. "
+                 f"O arquivo anterior ({anterior['arquivo_nome']}) fica guardado neste registro.")
+    else:
+        texto = f"{rotulo}: relatório externo anexado ({salvo.nome_original})."
+    if motivo and motivo.strip():
+        texto += f"\nMotivo: {motivo.strip()}"
+    if junto_do_registro:
+        chamado.atualizado_em = agora
+    else:
+        regras.registrar(db, chamado, usuario, TipoInteracao.CORRECAO, agora, texto, **(anterior or {}))
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        armazenamento.remover_arquivo(salvo.caminho, settings)
+        raise
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.get("/relatorios/{relatorio_id}", response_model=RelatorioOut)
@@ -424,13 +601,13 @@ def ver_relatorio(relatorio_id: int, db: DbDep, usuario: UsuarioDep):
 
 
 @router.get("/relatorios/{relatorio_id}/pdf", summary="PDF do relatório técnico")
-def pdf_relatorio(relatorio_id: int, db: DbDep, usuario: UsuarioDep,
+def pdf_relatorio(relatorio_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
                   bruto: Annotated[bool, Query(description="application/octet-stream (usado pelo front-end)")] = False):
     relatorio = db.get(RelatorioTecnico, relatorio_id)
     if relatorio is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Relatório não encontrado")
     chamado = regras.buscar(db, relatorio.chamado_id, usuario)
-    conteudo = gerar_pdf(relatorio, chamado)
+    conteudo = gerar_pdf(relatorio, chamado, settings.unidade_nome.strip() or None)
     nome = f"relatorio-{relatorio.codigo}-{chamado.codigo}.pdf"
     return Response(
         conteudo, media_type="application/octet-stream" if bruto else "application/pdf",
@@ -457,12 +634,11 @@ def baixar_arquivo(interacao_id: int, db: DbDep, usuario: UsuarioDep, settings: 
 
 @router.get("/quadro", response_model=QuadroOut, summary="Quadro de acompanhamento dos chamados (por etapa)")
 def quadro(
-    db: DbDep, usuario: UsuarioDep, settings: SettingsDep, calendario: CalendarioDep, agora: AgoraDep,
+    db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep,
     meus: bool = Query(False, description="Só os que assumi (técnico) ou abri (operacional)"),
     empresa_id: int | None = None,
     dias: int = Query(30, ge=1, le=365, description="Concluídos e indicadores dos últimos N dias"),
 ):
-    exp = regras.expediente(calendario, settings)
     consulta = select(Chamado).where(regras.escopo(usuario), Chamado.status != StatusChamado.CANCELADO)
     if empresa_id is not None:
         consulta = consulta.where(Chamado.empresa_id == empresa_id)
@@ -482,12 +658,12 @@ def quadro(
     concluidos.sort(key=lambda c: c.concluido_em, reverse=True)
 
     def out(lista):
-        return [_chamado_out(c, agora, exp, settings) for c in lista]
+        return [_chamado_out(c, agora, settings) for c in lista]
 
-    situacoes = {c.id: regras.situacao_prazo(c, agora, exp, settings) for c in chamados}
+    situacoes = {c.id: regras.situacao_prazo(c, agora, settings) for c in chamados}
     diag_periodo = [situacoes[c.id] for c in chamados if c.diagnosticado_em is not None and c.diagnosticado_em >= inicio]
     horas_diag = [s.horas_ate_diagnostico for s in diag_periodo if s.horas_ate_diagnostico is not None]
-    solucoes = [c.solucao_horas_uteis for c in concluidos if c.solucao_horas_uteis is not None]
+    solucoes = [c.solucao_horas_corridas for c in concluidos if c.solucao_horas_corridas is not None]
 
     empresa_ref = empresa_id or regras.empresa_do_tecnico(usuario)
     empresa = db.get(EmpresaManutencao, empresa_ref) if empresa_ref else None
@@ -532,7 +708,7 @@ def tipos_solicitacao(db: DbDep, _: UsuarioDep):
 @router.post("/chamados/{chamado_id}/oficios", response_model=ChamadoDetalhe, status_code=status.HTTP_201_CREATED,
              summary="Solicita peças ou equipamentos: cadastra um ofício no Planner ligado ao chamado")
 def solicitar_pecas(chamado_id: int, dados: SolicitacaoPecasCriar, db: DbDep, usuario: UsuarioDep,
-                    settings: SettingsDep, calendario: CalendarioDep, agora: AgoraDep):
+                    settings: SettingsDep, agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_solicitante(usuario)
     regras.exigir_status(chamado, ABERTOS, "solicitar peças para")
@@ -557,7 +733,7 @@ def solicitar_pecas(chamado_id: int, dados: SolicitacaoPecasCriar, db: DbDep, us
                      f"Solicitação registrada no Planner de Ofícios: ofício nº {regras.numero_oficio(oficio)} "
                      f"({nome_tipo}).\nItens: {dados.itens}")
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 # ---------- ofícios que já existem no Planner: vincular ao chamado ----------
@@ -586,7 +762,7 @@ def oficios_disponiveis(db: DbDep, usuario: UsuarioDep, busca: str | None = None
 @router.put("/chamados/{chamado_id}/oficios/{oficio_id}", response_model=ChamadoDetalhe,
             summary="Vincula ao chamado um ofício que já existe no Planner")
 def vincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-                    calendario: CalendarioDep, agora: AgoraDep):
+                    agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_solicitante(usuario)
     regras.exigir_status(chamado, ABERTOS, "vincular um ofício a")
@@ -608,13 +784,13 @@ def vincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: Usuario
                      f"Ofício nº {regras.numero_oficio(oficio)} ({nome_tipo}), já cadastrado no Planner de Ofícios, "
                      f"vinculado a este chamado. Situação no Planner: {regras.ROTULO_OFICIO[oficio.status]}.")
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.delete("/chamados/{chamado_id}/oficios/{oficio_id}", response_model=ChamadoDetalhe,
                summary="Desfaz o vínculo do ofício com o chamado (o ofício continua no Planner)")
 def desvincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-                       calendario: CalendarioDep, agora: AgoraDep):
+                       agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_solicitante(usuario)
     regras.exigir_status(chamado, ABERTOS, "desvincular um ofício de")
@@ -633,7 +809,7 @@ def desvincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: Usua
                      f"Ofício nº {regras.numero_oficio(oficio)} desvinculado deste chamado. Ele continua no Planner "
                      "de Ofícios.")
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.get("/chamados/{chamado_id}/oficios/anexos/{anexo_id}",
@@ -655,45 +831,42 @@ def baixar_anexo_oficio(chamado_id: int, anexo_id: int, db: DbDep, usuario: Usua
 
 @router.post("/chamados/{chamado_id}/concluir", response_model=ChamadoDetalhe)
 def concluir(chamado_id: int, dados: Conclusao, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-             calendario: CalendarioDep, agora: AgoraDep):
+             agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_atendente(usuario)
     regras.exigir_status(chamado, ABERTOS, "concluir")
     if chamado.diagnosticado_em is None:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "Registre o diagnóstico (resposta técnica ou relatório) antes de concluir")
-    exp = regras.expediente(calendario, settings)
     chamado.status = StatusChamado.CONCLUIDO
     chamado.concluido_em = agora
-    # Registro do tempo de solução: do diagnóstico até agora (horas úteis e corridas)
-    chamado.solucao_horas_uteis = round(exp.horas_entre(chamado.diagnosticado_em, agora), 2)
-    chamado.solucao_horas_corridas = round((agora - chamado.diagnosticado_em).total_seconds() / 3600, 2)
-    tempo = (f"Tempo de solução após o diagnóstico: {regras.texto_horas(chamado.solucao_horas_uteis)} úteis "
-             f"({regras.texto_horas(chamado.solucao_horas_corridas)} corridas).")
+    # Registro do tempo de solução: do diagnóstico até agora, em horas corridas
+    chamado.solucao_horas_corridas = max(regras.horas_entre(chamado.diagnosticado_em, agora), 0.0)
+    tempo = f"Tempo de solução após o diagnóstico: {regras.texto_horas(chamado.solucao_horas_corridas)}."
     texto = f"{dados.texto}\n\n{tempo}" if dados.texto else f"Chamado concluído. {tempo}"
     regras.registrar(db, chamado, usuario, TipoInteracao.CONCLUSAO, agora, texto)
     db.commit()
-    return _detalhe(chamado, usuario, agora, exp, settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.post("/chamados/{chamado_id}/reabrir", response_model=ChamadoDetalhe)
 def reabrir(chamado_id: int, dados: Motivo, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-            calendario: CalendarioDep, agora: AgoraDep):
+            agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_solicitante(usuario)
     regras.exigir_status(chamado, {StatusChamado.CONCLUIDO}, "reabrir")
     chamado.status = StatusChamado.EM_ATENDIMENTO
     chamado.concluido_em = None
     # A solução anterior não resolveu: o tempo volta a contar do diagnóstico e é gravado na nova conclusão
-    chamado.solucao_horas_uteis = chamado.solucao_horas_corridas = None
+    chamado.solucao_horas_corridas = None
     regras.registrar(db, chamado, usuario, TipoInteracao.REABERTURA, agora, dados.motivo)
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)
 
 
 @router.post("/chamados/{chamado_id}/cancelar", response_model=ChamadoDetalhe)
 def cancelar(chamado_id: int, dados: Motivo, db: DbDep, usuario: UsuarioDep, settings: SettingsDep,
-             calendario: CalendarioDep, agora: AgoraDep):
+             agora: AgoraDep):
     chamado = regras.buscar(db, chamado_id, usuario)
     regras.exigir_solicitante(usuario)
     regras.exigir_status(chamado, ABERTOS, "cancelar")
@@ -701,4 +874,4 @@ def cancelar(chamado_id: int, dados: Motivo, db: DbDep, usuario: UsuarioDep, set
     chamado.cancelado_em = agora
     regras.registrar(db, chamado, usuario, TipoInteracao.CANCELAMENTO, agora, dados.motivo)
     db.commit()
-    return _detalhe(chamado, usuario, agora, regras.expediente(calendario, settings), settings)
+    return _detalhe(chamado, usuario, agora, settings)

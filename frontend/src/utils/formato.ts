@@ -49,8 +49,8 @@ export function tamanho(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function diasUteis(n: number): string {
-  return `${n} ${n === 1 ? "dia útil" : "dias úteis"}`;
+export function diasCorridos(n: number): string {
+  return `${n} ${n === 1 ? "dia" : "dias"}`;
 }
 
 // A ordem aqui é a ordem dos filtros: segue o caminho do ofício

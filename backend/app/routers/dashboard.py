@@ -63,7 +63,7 @@ def resumo(
     )
 
 
-@router.get("/prazos", response_model=Prazos, summary="Dias úteis que levam um pendente a atenção e a crítico")
+@router.get("/prazos", response_model=Prazos, summary="Dias corridos que levam um pendente a atenção e a crítico")
 def prazos(settings: SettingsDep, _: UsuarioDep):
     return Prazos(dias_atencao=settings.dias_atencao, dias_critico=settings.dias_critico)
 

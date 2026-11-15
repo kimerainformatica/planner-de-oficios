@@ -60,7 +60,7 @@ export function Empresas() {
                     {e.nome}
                     {e.descricao && <small className="celula-sub">{e.descricao}</small>}
                   </td>
-                  <td className="num">{e.prazo_horas} h úteis</td>
+                  <td className="num">{e.prazo_horas} h corridas</td>
                   <td className="num">{e.tecnicos}</td>
                   <td className="num">{e.chamados}</td>
                   <td>{e.ativo ? "Ativa" : "Inativa"}</td>
@@ -123,8 +123,8 @@ function ModalEmpresa({ empresa, aoFechar }: { empresa: EmpresaManutencao | null
         <Campo rotulo="Descrição" dica="O que a empresa atende (opcional).">
           {(id) => <input id={id} className="input" maxLength={200} value={descricao} onChange={(e) => setDescricao(e.target.value)} />}
         </Campo>
-        <Campo rotulo="Prazo para o diagnóstico (horas úteis) *"
-          dica="Conta só no expediente dos dias úteis. Vale para os chamados abertos a partir de agora.">
+        <Campo rotulo="Prazo para o diagnóstico (horas corridas) *"
+          dica="Contadas da abertura, com noites, fins de semana e feriados (24 = 1 dia). Vale para os chamados abertos a partir de agora.">
           {(id) => <input id={id} className="input" type="number" required min={1} max={720} value={prazo}
             onChange={(e) => setPrazo(Number(e.target.value))} />}
         </Campo>

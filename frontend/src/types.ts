@@ -91,7 +91,8 @@ export type TipoInteracao =
   | "CONCLUSAO"
   | "REABERTURA"
   | "CANCELAMENTO"
-  | "OFICIO";
+  | "OFICIO"
+  | "CORRECAO";
 export type SituacaoEquipamento =
   | "OPERANDO"
   | "OPERANDO_COM_RESTRICAO"
@@ -101,7 +102,7 @@ export type SituacaoEquipamento =
 
 export interface PrazoChamado {
   situacao: SituacaoPrazo;
-  /** Horas úteis até o prazo (negativo = atrasado); null depois do diagnóstico. */
+  /** Horas corridas até o prazo (negativo = atrasado); null depois do diagnóstico. */
   horas_restantes: number | null;
   horas_ate_diagnostico: number | null;
 }
@@ -127,10 +128,9 @@ export interface Chamado {
   atualizado_em: string;
   prazo: PrazoChamado;
   /** Do diagnóstico até a conclusão, gravado ao concluir. */
-  solucao_horas_uteis: number | null;
   solucao_horas_corridas: number | null;
-  /** Em aberto e já diagnosticado: horas úteis desde o diagnóstico. */
-  execucao_horas_uteis: number | null;
+  /** Em aberto e já diagnosticado: horas corridas desde o diagnóstico. */
+  execucao_horas: number | null;
   /** Solicitações de peças/equipamentos ainda não entregues. */
   oficios_pendentes: number;
   /** Nº e status de cada ofício de peças/equipamentos (o andamento vem do Planner). */
@@ -230,7 +230,10 @@ export interface Interacao {
   id: number;
   tipo: TipoInteracao;
   texto: string | null;
+  /** Quando foi registrado no sistema. */
   criado_em: string;
+  /** Resposta técnica e relatório: data e hora do diagnóstico informadas por quem registrou. */
+  ocorrido_em: string | null;
   autor: Referencia | null;
   autor_papel: Perfil | null;
   relatorio: RelatorioTecnico | null;
@@ -247,6 +250,10 @@ export interface ChamadoDetalhe extends Chamado {
   pode_responder: boolean;
   pode_comentar: boolean;
   pode_concluir: boolean;
+  /** Corrigir a data e a hora do diagnóstico (técnico da empresa ou administrador). */
+  pode_corrigir_diagnostico: boolean;
+  /** A resposta técnica ou o relatório que contou como diagnóstico. */
+  diagnostico_interacao_id: number | null;
   pode_reabrir: boolean;
   pode_cancelar: boolean;
 }
@@ -276,7 +283,6 @@ export interface PainelManutencao {
   papel: Perfil;
   eh_admin: boolean;
   empresa_do_tecnico: Referencia | null;
-  expediente: string;
   abertos: number;
   em_atendimento: number;
   aguardando_diagnostico: number;
@@ -338,7 +344,7 @@ export interface Oficio {
   observacao: string | null;
   criado_em: string;
   atualizado_em: string;
-  dias_uteis_decorridos: number; // da etapa atual: aguardando resposta/entrega, ou até a resposta
+  dias_decorridos: number; // dias corridos da etapa atual: aguardando resposta/entrega, ou até a resposta
   dias_resposta: number | null; // do início do prazo até a resposta
   dias_entrega: number | null; // da resposta até a entrega (só recebidos)
   nivel_alerta: NivelAlerta | null;
@@ -508,4 +514,117 @@ export interface VerificacaoArquivos {
     problema: "AUSENTE" | "ALTERADO";
   }[];
   sem_registro: number;
+}
+
+// ---------- Manutenção preventiva e avisos internos ----------
+
+export type UnidadePeriodo = "DIAS" | "SEMANAS" | "MESES";
+export type StatusPreventiva = "PROGRAMADA" | "REALIZADA" | "NAO_REALIZADA";
+export type SituacaoPreventiva =
+  | "PROGRAMADA"
+  | "NA_JANELA"
+  | "ATRASADA"
+  | "REALIZADA"
+  | "REALIZADA_COM_ATRASO"
+  | "NAO_REALIZADA";
+
+/** Rotina de preventiva de uma empresa técnica, com a periodicidade definida pelo administrador. */
+export interface PlanoPreventiva {
+  id: number;
+  empresa: Referencia;
+  titulo: string;
+  descricao: string | null;
+  local: string | null;
+  equipamento: string | null;
+  intervalo: number;
+  unidade: UnidadePeriodo;
+  /** "mensal", "a cada 45 dias"… */
+  periodicidade: string;
+  inicio: string;
+  tolerancia_dias: number;
+  ativo: boolean;
+  proxima: string | null;
+  previstas: number;
+  realizadas: number;
+  atrasadas: number;
+}
+
+/** Uma data prevista do plano, com o registro da realização e o ateste. */
+export interface Preventiva {
+  id: number;
+  codigo: string;
+  plano: Pick<PlanoPreventiva, "id" | "titulo" | "descricao" | "local" | "equipamento" | "tolerancia_dias" | "periodicidade">;
+  empresa: Referencia;
+  data_prevista: string;
+  /** Último dia para contar como feita no prazo. */
+  limite: string;
+  status: StatusPreventiva;
+  situacao: SituacaoPreventiva;
+  /** Dias até a data prevista (negativo: já passou). */
+  dias: number;
+  realizada_em: string | null;
+  executor: string | null;
+  observacao: string | null;
+  registrada_em: string | null;
+  registrada_por: Referencia | null;
+  arquivo_nome: string | null;
+  arquivo_mime: string | null;
+  arquivo_tamanho: number | null;
+  motivo: string | null;
+  atestada_em: string | null;
+  atestada_por: Referencia | null;
+  ateste_obs: string | null;
+  pode_realizar: boolean;
+  pode_atestar: boolean;
+  pode_nao_realizar: boolean;
+  pode_reabrir: boolean;
+}
+
+/** Previsto x realizado de uma empresa no período. */
+export interface ResumoPreventivas {
+  empresa: Referencia;
+  previstas: number;
+  realizadas: number;
+  no_prazo: number;
+  com_atraso: number;
+  atrasadas: number;
+  nao_realizadas: number;
+  aguardando_ateste: number;
+  atestadas: number;
+  cumprimento_pct: number | null;
+}
+
+export interface PaginaPreventivas {
+  de: string | null;
+  ate: string | null;
+  itens: Preventiva[];
+  resumo: ResumoPreventivas[];
+}
+
+export interface FiltrosPreventiva {
+  de?: string;
+  ate?: string;
+  empresa_id?: number;
+  plano_id?: number;
+  situacao?: SituacaoPreventiva;
+  aguardando_ateste?: boolean;
+}
+
+export interface Aviso {
+  chave: string;
+  nivel: "CRITICO" | "ATENCAO" | "INFO";
+  quantidade: number;
+  titulo: string;
+  link: string;
+}
+
+export interface Avisos {
+  total: number;
+  itens: Aviso[];
+}
+
+/** Unidade atendida por este servidor (UNIDADE_NOME e UNIDADE_DESCRICAO no .env). */
+export interface Unidade {
+  nome: string | null;
+  descricao: string | null;
 }

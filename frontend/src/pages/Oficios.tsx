@@ -10,7 +10,7 @@ import type { Destinatario, FiltrosOficio, NivelAlerta, Oficio, StatusOficio, Ti
 import {
   data,
   destinatarioTexto,
-  diasUteis,
+  diasCorridos,
   ROTULO_ALERTA,
   ROTULO_DESTINATARIO,
   ROTULO_STATUS,
@@ -37,15 +37,15 @@ function lerFiltros(sp: URLSearchParams): FiltrosOficio {
   };
 }
 
-/** "respondido em 55 dias úteis" seguido de "entregue em 20 dias úteis" (ou da espera pela entrega). */
+/** "respondido em 55 dias" seguido de "entregue em 20 dias" (ou da espera pela entrega). */
 function TextoPrazo({ oficio: o }: { oficio: Oficio }) {
-  if (o.status === "PENDENTE_RESPOSTA") return <small className="celula-sub">{diasUteis(o.dias_uteis_decorridos)}</small>;
+  if (o.status === "PENDENTE_RESPOSTA") return <small className="celula-sub">{diasCorridos(o.dias_decorridos)}</small>;
   return (
     <>
-      {o.dias_resposta !== null && <small className="celula-sub">respondido em {diasUteis(o.dias_resposta)}</small>}
-      {o.dias_entrega !== null && <small className="celula-sub">entregue em {diasUteis(o.dias_entrega)}</small>}
+      {o.dias_resposta !== null && <small className="celula-sub">respondido em {diasCorridos(o.dias_resposta)}</small>}
+      {o.dias_entrega !== null && <small className="celula-sub">entregue em {diasCorridos(o.dias_entrega)}</small>}
       {o.status === "PENDENTE_RECEBIMENTO" && (
-        <small className="celula-sub">aguardando entrega há {diasUteis(o.dias_uteis_decorridos)}</small>
+        <small className="celula-sub">aguardando entrega há {diasCorridos(o.dias_decorridos)}</small>
       )}
     </>
   );
@@ -283,7 +283,7 @@ export function Oficios() {
                     <td>
                       <StatusBadge status={o.status} curto />
                     </td>
-                    <td title="Dias úteis: do início do prazo até a resposta, e da resposta até a entrega">
+                    <td title="Dias corridos: do início do prazo até a resposta, e da resposta até a entrega">
                       {o.nivel_alerta && <AlertaBadge nivel={o.nivel_alerta} />}
                       <TextoPrazo oficio={o} />
                     </td>

@@ -70,7 +70,7 @@ copy .env.example .env
 Edite o `.env`, no mínimo `DATABASE_URL` e `JWT_SECRET`, e crie as tabelas:
 
 ```powershell
-alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0014)
+alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0016)
 python -m scripts.inicializar   # cria o 1º administrador (pede a senha) e os feriados nacionais
 ```
 
@@ -90,14 +90,14 @@ precisam da empresa).
 | `JWT_SECRET` | `troque-esta-chave` | Chave que assina as sessões. **Obrigatório trocar**: com a chave padrão o sistema não aceita acesso pela rede. Gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `JWT_EXPIRA_MINUTOS` | `480` | Duração da sessão (8 horas) |
 | `UPLOAD_MAX_MB` | `20` | Tamanho máximo de cada arquivo |
-| `DIAS_ATENCAO` | `30` | Dias úteis para um pendente entrar em atenção |
-| `DIAS_CRITICO` | `45` | Dias úteis para um pendente ficar crítico |
+| `DIAS_ATENCAO` | `30` | Dias corridos para um pendente entrar em atenção |
+| `DIAS_CRITICO` | `45` | Dias corridos para um pendente ficar crítico |
 | `LOGIN_MAX_TENTATIVAS` | `5` | Senhas erradas seguidas antes do bloqueio |
 | `LOGIN_BLOQUEIO_MINUTOS` | `5` | Duração do bloqueio |
 | `VERIFICACAO_HORAS` | `24` | Intervalo da verificação dos arquivos (0 desliga a automática) |
-| `MANUTENCAO_EXPEDIENTE_INICIO` | `08:00` | Início do expediente usado no prazo dos chamados (horas úteis) |
-| `MANUTENCAO_EXPEDIENTE_FIM` | `18:00` | Fim do expediente dos chamados (`00:00` = meia-noite) |
-| `MANUTENCAO_ALERTA_HORAS` | `4` | Horas úteis restantes para um chamado aparecer como "vencendo" |
+| `MANUTENCAO_ALERTA_HORAS` | `4` | Horas restantes para um chamado aparecer como "vencendo" |
+| `UNIDADE_NOME` | vazio | Nome da unidade atendida por este servidor. Aparece no login, no menu e nos PDFs |
+| `UNIDADE_DESCRICAO` | vazio | Descrição da unidade, mostrada no login |
 | `STORAGE_DIR` | `backend/storage` | Pasta dos documentos (inclui os arquivos dos chamados) |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | Origens extras liberadas (o servidor de desenvolvimento do Vite). A rede interna já é liberada |
 
@@ -169,13 +169,14 @@ Administradores. Se outra conta precisar fazer backup dela, ajuste as permissõe
 6. Peça aos usuários para recarregar a página com **Ctrl+F5**.
 
 Para conferir a versão do banco: `alembic current`. Para voltar uma migração: `alembic downgrade -1`. A volta segura
-é sempre restaurar o backup: a 0014 só completa acessos e não desfaz nada ao voltar. O que mudou em cada versão
+é sempre restaurar o backup: a 0014 só completa acessos e não desfaz nada ao voltar, e voltar a 0015 apaga os
+planos e os registros das preventivas. O que mudou em cada versão
 está em [ATUALIZACOES.md](ATUALIZACOES.md).
 
 ## 8. Rotina anual
 
-- **Feriados:** em **Feriados**, clique em *Cadastrar nacionais de {ano}* para o ano novo e adicione os feriados
-  locais. Sem isso, o prazo conta esses dias como úteis.
+- **Feriados:** desde a versão 2.2 os prazos são em dias corridos e os feriados não entram na conta. Não é preciso
+  cadastrá-los.
 
 ## Problemas comuns
 

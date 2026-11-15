@@ -6,13 +6,17 @@ Papéis no módulo:
   diagnóstico (texto e/ou arquivo externo), faz o relatório técnico no modelo do sistema e conclui.
 - **Administrador** (ADMIN do módulo) e **MASTER**: tudo, e cadastram as empresas.
 
-Prazo: cada chamado tem `prazo_horas` horas úteis (da empresa, na abertura) para o **primeiro diagnóstico**.
-A situação do prazo é calculada na hora (veja `situacao_prazo`).
+Prazo: cada chamado tem `prazo_horas` horas **corridas** (da empresa, na abertura), contadas da abertura, para o
+**primeiro diagnóstico** (24 h = 1 dia corrido; noites, fins de semana e feriados contam). A situação do prazo é
+calculada na hora (veja `situacao_prazo`).
+
+Data do diagnóstico: é a informada por quem registra (a data e a hora em que o técnico diagnosticou, não a do
+registro no sistema) e pode ser corrigida depois (`corrigir_diagnostico`).
 """
 
 import enum
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import ColumnElement, false, select, true
@@ -31,8 +35,6 @@ from app.models import (
     TipoInteracao,
     Usuario,
 )
-from app.services.horas_uteis import Expediente
-from app.services.prazos import CalendarioUtil
 
 EMPRESAS_INICIAIS = ["MSI", "REALIZA PREDIAL", "REALIZA CLIMATIZAÇÃO"]
 ABERTOS = {StatusChamado.ABERTO, StatusChamado.EM_ATENDIMENTO}
@@ -169,12 +171,71 @@ def marcar_atendimento(chamado: Chamado, usuario: Usuario) -> None:
         chamado.tecnico = usuario
 
 
-def marcar_diagnostico(chamado: Chamado, usuario: Usuario, agora: datetime) -> None:
-    """O primeiro diagnóstico (resposta técnica, arquivo externo ou relatório) encerra o prazo."""
+def marcar_diagnostico(chamado: Chamado, usuario: Usuario, quando: datetime) -> None:
+    """O primeiro diagnóstico (resposta técnica, arquivo externo ou relatório) encerra o prazo.
+
+    `quando` é a data e a hora do diagnóstico informadas por quem registra (já validadas por `validar_data_diagnostico`).
+    """
     marcar_atendimento(chamado, usuario)
     if chamado.diagnosticado_em is None:
-        chamado.diagnosticado_em = agora
+        chamado.diagnosticado_em = quando
         chamado.diagnosticado_por = usuario
+
+
+def validar_data_diagnostico(chamado: Chamado, quando: datetime, agora: datetime) -> datetime:
+    """Data e hora do diagnóstico: entre a abertura do chamado e agora (e antes da conclusão, se já concluído)."""
+    quando = quando.replace(tzinfo=None, second=0, microsecond=0)
+    if quando > agora + timedelta(minutes=10):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A data do diagnóstico não pode estar no futuro")
+    if quando < chamado.aberto_em.replace(second=0, microsecond=0):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            f"A data do diagnóstico não pode ser anterior à abertura do chamado ({chamado.aberto_em:%d/%m/%Y %H:%M})")
+    if chamado.concluido_em is not None and quando > chamado.concluido_em:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            f"A data do diagnóstico não pode ser posterior à conclusão ({chamado.concluido_em:%d/%m/%Y %H:%M})")
+    return max(quando, chamado.aberto_em)
+
+
+def validar_data_resposta(chamado: Chamado, quando: datetime, agora: datetime,
+                          principal: bool) -> datetime:
+    """Data de uma resposta técnica ou relatório. O diagnóstico (`principal`) segue `validar_data_diagnostico`; um
+    complemento, além disso, não pode ser anterior ao diagnóstico."""
+    quando = validar_data_diagnostico(chamado, quando, agora)
+    if not principal and chamado.diagnosticado_em is not None and quando < chamado.diagnosticado_em.replace(second=0):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            f"Um complemento não pode ser anterior ao diagnóstico ({chamado.diagnosticado_em:%d/%m/%Y %H:%M})")
+    return quando
+
+
+def aplicar_data(chamado: Chamado, interacao: ChamadoInteracao | None, novo: datetime) -> None:
+    """Muda a data informada de uma resposta técnica/relatório. Se ela for o diagnóstico do chamado, o chamado
+    (prazo e tempo de solução) e o relatório (PDF) acompanham."""
+    if interacao is not None:
+        interacao.ocorrido_em = novo
+        if interacao.relatorio is not None:
+            interacao.relatorio.atendido_em = novo
+    if interacao is None or interacao is interacao_do_diagnostico(chamado):
+        chamado.diagnosticado_em = novo
+        if chamado.concluido_em is not None:
+            chamado.solucao_horas_corridas = max(horas_entre(novo, chamado.concluido_em), 0.0)
+
+
+def rotulo_registro(chamado: Chamado, interacao: ChamadoInteracao) -> str:
+    """"Diagnóstico", "Complemento do diagnóstico" ou "Relatório técnico RT-…" (para a linha do tempo)."""
+    if interacao.relatorio is not None:
+        return f"Relatório técnico {interacao.relatorio.codigo}"
+    return "Diagnóstico" if interacao is interacao_do_diagnostico(chamado) else "Complemento do diagnóstico"
+
+
+def interacao_do_diagnostico(chamado: Chamado) -> ChamadoInteracao | None:
+    """A resposta técnica ou o relatório que contou como o primeiro diagnóstico."""
+    return next((i for i in chamado.interacoes
+                 if i.tipo in (TipoInteracao.DIAGNOSTICO, TipoInteracao.RELATORIO)), None)
+
+
+def horas_entre(inicio: datetime, fim: datetime) -> float:
+    """Horas corridas de `inicio` a `fim` (negativo se `fim` vier antes)."""
+    return round((fim - inicio).total_seconds() / 3600, 2)
 
 
 # ---------- prazo ----------
@@ -182,7 +243,7 @@ def marcar_diagnostico(chamado: Chamado, usuario: Usuario, agora: datetime) -> N
 
 class SituacaoPrazo(str, enum.Enum):
     NO_PRAZO = "NO_PRAZO"
-    VENCENDO = "VENCENDO"  # sem diagnóstico e com poucas horas úteis restantes
+    VENCENDO = "VENCENDO"  # sem diagnóstico e com poucas horas restantes
     ATRASADO = "ATRASADO"  # sem diagnóstico e o prazo já passou
     CUMPRIDO = "CUMPRIDO"  # diagnosticado dentro do prazo
     CUMPRIDO_COM_ATRASO = "CUMPRIDO_COM_ATRASO"
@@ -192,22 +253,23 @@ class SituacaoPrazo(str, enum.Enum):
 @dataclass(frozen=True)
 class Prazo:
     situacao: SituacaoPrazo
-    horas_restantes: float | None  # horas úteis até o prazo (negativo = atrasado); None se já diagnosticado
-    horas_ate_diagnostico: float | None  # horas úteis da abertura até o diagnóstico
+    horas_restantes: float | None  # horas corridas até o prazo (negativo = atrasado); None se já diagnosticado
+    horas_ate_diagnostico: float | None  # horas corridas da abertura até o diagnóstico
 
 
-def expediente(calendario: CalendarioUtil, settings: Settings) -> Expediente:
-    return Expediente(calendario, settings.manutencao_expediente_inicio, settings.manutencao_expediente_fim)
+def prazo_do_chamado(aberto_em: datetime, prazo_horas: int) -> datetime:
+    """Limite do diagnóstico: `prazo_horas` horas corridas depois da abertura."""
+    return aberto_em + timedelta(hours=prazo_horas)
 
 
-def situacao_prazo(chamado: Chamado, agora: datetime, exp: Expediente, settings: Settings) -> Prazo:
+def situacao_prazo(chamado: Chamado, agora: datetime, settings: Settings) -> Prazo:
     if chamado.diagnosticado_em is not None:
-        horas = round(exp.horas_entre(chamado.aberto_em, chamado.diagnosticado_em), 2)
+        horas = max(horas_entre(chamado.aberto_em, chamado.diagnosticado_em), 0.0)
         no_prazo = chamado.diagnosticado_em <= chamado.prazo_em
         return Prazo(SituacaoPrazo.CUMPRIDO if no_prazo else SituacaoPrazo.CUMPRIDO_COM_ATRASO, None, horas)
     if chamado.status == StatusChamado.CANCELADO:
         return Prazo(SituacaoPrazo.SUSPENSO, None, None)
-    restantes = round(exp.horas_entre(agora, chamado.prazo_em), 2)
+    restantes = horas_entre(agora, chamado.prazo_em)
     if agora > chamado.prazo_em:
         return Prazo(SituacaoPrazo.ATRASADO, restantes, None)
     if restantes <= settings.manutencao_alerta_horas:

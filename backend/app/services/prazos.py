@@ -1,62 +1,36 @@
-"""Contagem de dias úteis e classificação do nível de alerta.
+"""Contagem de dias corridos e classificação do nível de alerta.
 
-Regra: conta-se os dias úteis APÓS o início do prazo até hoje (o próprio dia não conta).
-O início do prazo é a data do ofício; se o ofício for reaberto, passa a ser a data da reabertura.
-Ofícios com a resposta confirmada e entrega pendente contam o prazo da entrega a partir da data da resposta.
-Dia útil = segunda a sexta que não esteja na tabela `feriados`.
+Regra: conta-se os dias corridos APÓS o início do prazo até hoje (o próprio dia não conta), sábados, domingos e
+feriados inclusive. O início do prazo é a data do ofício; se o ofício for reaberto, passa a ser a data da
+reabertura. Ofícios com a resposta confirmada e entrega pendente contam o prazo da entrega a partir da resposta.
 
-Otimização: o nível de alerta não é gravado. Para filtrar no banco, calcula-se uma única vez
-a "data limite" de cada nível (ex.: o prazo mais recente que já soma 30 dias úteis). Assim o
-filtro vira uma comparação simples em `inicio_prazo`, que usa o índice (status, inicio_prazo).
+Otimização: o nível de alerta não é gravado. Para filtrar no banco, calcula-se uma única vez a "data limite" de
+cada nível (o prazo mais recente que já soma N dias). Assim o filtro vira uma comparação simples em
+`inicio_prazo`, que usa o índice (status, inicio_prazo).
+
+Os feriados continuam cadastrados (tabela `feriados`), mas não entram mais na contagem.
 """
 
-from bisect import bisect_right
-from collections.abc import Iterable
 from datetime import date, timedelta
 
 from app.models import NivelAlerta, StatusOficio
 
-UM_DIA = timedelta(days=1)
 
+class Calendario:
+    """Contagem de prazos em dias corridos."""
 
-def _dias_semana_ate(d: date) -> int:
-    """Quantidade de dias seg–sex de 01/01/0001 (uma segunda-feira) até `d`, inclusive."""
-    semanas, resto = divmod(d.toordinal(), 7)
-    return semanas * 5 + min(resto, 5)
+    @staticmethod
+    def dias_decorridos(inicio: date, fim: date) -> int:
+        """Dias corridos no intervalo (inicio, fim]."""
+        return max(0, (fim - inicio).days)
 
-
-class CalendarioUtil:
-    def __init__(self, feriados: Iterable[date] = ()):
-        self._feriados = set(feriados)
-        self._feriados_em_dia_semana = sorted(f for f in self._feriados if f.weekday() < 5)
-
-    def eh_dia_util(self, d: date) -> bool:
-        return d.weekday() < 5 and d not in self._feriados
-
-    def dias_uteis_decorridos(self, inicio: date, fim: date) -> int:
-        """Dias úteis no intervalo (inicio, fim]."""
-        if fim <= inicio:
-            return 0
-        dias = _dias_semana_ate(fim) - _dias_semana_ate(inicio)
-        feriados = bisect_right(self._feriados_em_dia_semana, fim) - bisect_right(
-            self._feriados_em_dia_semana, inicio
-        )
-        return dias - feriados
-
-    def data_limite(self, dias_uteis: int, hoje: date) -> date:
-        """Início de prazo mais recente que, em `hoje`, já acumula `dias_uteis` dias úteis.
+    @staticmethod
+    def data_limite(dias: int, hoje: date) -> date:
+        """Início de prazo mais recente que, em `hoje`, já acumula `dias` dias corridos.
 
         Todo ofício com inicio_prazo <= data_limite atingiu o prazo.
         """
-        if dias_uteis <= 0:
-            return hoje
-        d, contados = hoje, 0
-        while True:
-            if self.eh_dia_util(d):
-                contados += 1
-                if contados == dias_uteis:
-                    return d - UM_DIA
-            d -= UM_DIA
+        return hoje - timedelta(days=max(dias, 0))
 
 
 def classificar(
@@ -64,11 +38,11 @@ def classificar(
     inicio_prazo: date,
     data_resposta: date | None,
     hoje: date,
-    calendario: CalendarioUtil,
+    calendario: Calendario,
     dias_atencao: int,
     dias_critico: int,
 ) -> tuple[int, NivelAlerta | None]:
-    """Retorna (dias úteis decorridos, nível de alerta).
+    """Retorna (dias corridos decorridos, nível de alerta).
 
     Pendente de resposta: dias desde o início do prazo. Pendente de recebimento: dias desde a resposta.
     Encerrados: dias do início do prazo até a resposta (tempo de resposta), sem nível de alerta.
@@ -78,9 +52,9 @@ def classificar(
     elif status == StatusOficio.PENDENTE_RECEBIMENTO:
         inicio = data_resposta or inicio_prazo
     else:
-        return calendario.dias_uteis_decorridos(inicio_prazo, data_resposta or hoje), None
+        return calendario.dias_decorridos(inicio_prazo, data_resposta or hoje), None
 
-    dias = calendario.dias_uteis_decorridos(inicio, hoje)
+    dias = calendario.dias_decorridos(inicio, hoje)
     if dias >= dias_critico:
         return dias, NivelAlerta.CRITICO
     if dias >= dias_atencao:

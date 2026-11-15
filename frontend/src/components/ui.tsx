@@ -1,7 +1,7 @@
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useEffect, useId, type ReactNode } from "react";
 import type { NivelAlerta, StatusOficio } from "../types";
-import { diasUteis, ROTULO_ALERTA, ROTULO_STATUS } from "../utils/formato";
+import { diasCorridos, ROTULO_ALERTA, ROTULO_STATUS } from "../utils/formato";
 
 const ROTULO_CURTO: Partial<Record<StatusOficio, string>> = {
   PENDENTE_RESPOSTA: "Pendente",
@@ -21,7 +21,7 @@ export function StatusBadge({ status, curto }: { status: StatusOficio; curto?: b
 export function AlertaBadge({ nivel, dias }: { nivel: NivelAlerta | null; dias?: number }) {
   if (!nivel) return <span className="texto-suave">—</span>;
   return (
-    <span className={`badge badge-alerta-${nivel}`} title={dias !== undefined ? diasUteis(dias) : undefined}>
+    <span className={`badge badge-alerta-${nivel}`} title={dias !== undefined ? diasCorridos(dias) : undefined}>
       <span className="ponto" aria-hidden />
       {ROTULO_ALERTA[nivel]}
     </span>

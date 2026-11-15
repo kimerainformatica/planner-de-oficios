@@ -8,7 +8,7 @@ import * as ep from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthContext";
 import { AlertaBadge, Carregando, ErroBox, StatusBadge } from "../../components/ui";
 import { ModalDecisao } from "../Exclusoes";
-import { data, dataHora, destinatarioTexto, diasUteis } from "../../utils/formato";
+import { data, dataHora, destinatarioTexto, diasCorridos } from "../../utils/formato";
 import { useTipos } from "../../utils/tipos";
 import { ConteudoEvidencia, LixeiraDoOficio, SlotAnexo } from "./Anexos";
 import { BlocoDados, Dado, DataComDias, BarraPrazo } from "./Dados";
@@ -107,7 +107,7 @@ export function OficioDetalhe() {
       )}
 
       {pendente && prazos.data && (
-        <BarraPrazo dias={o.dias_uteis_decorridos} reaberto={reaberto} prazos={prazos.data}
+        <BarraPrazo dias={o.dias_decorridos} reaberto={reaberto} prazos={prazos.data}
           etapa={o.status === "PENDENTE_RECEBIMENTO" ? "recebimento" : "resposta"} />
       )}
 
@@ -134,7 +134,7 @@ export function OficioDetalhe() {
               valor={data(o.inicio_prazo)}
             />
             {o.status === "PENDENTE_RESPOSTA" ? (
-              <Dado rotulo="Aguardando resposta há" valor={diasUteis(o.dias_uteis_decorridos)} />
+              <Dado rotulo="Aguardando resposta há" valor={diasCorridos(o.dias_decorridos)} />
             ) : (
               o.data_resposta && (
                 <Dado rotulo={o.status === "NAO_CONFIRMADO" ? "Respondido (não confirmado) em" : "Respondido em"}
@@ -148,7 +148,7 @@ export function OficioDetalhe() {
               {o.data_recebimento ? (
                 <Dado rotulo="Entregue em" valor={<DataComDias iso={o.data_recebimento} dias={o.dias_entrega} />} />
               ) : o.status === "PENDENTE_RECEBIMENTO" ? (
-                <Dado rotulo="Aguardando entrega há" valor={diasUteis(o.dias_uteis_decorridos)} />
+                <Dado rotulo="Aguardando entrega há" valor={diasCorridos(o.dias_decorridos)} />
               ) : (
                 <p className="texto-suave">
                   {o.status === "NAO_CONFIRMADO"

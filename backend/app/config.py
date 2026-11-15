@@ -1,4 +1,3 @@
-from datetime import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,6 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
+
+    # Unidade atendida por este servidor (cada unidade tem o seu). Aparece no login, no menu e nos PDFs.
+    unidade_nome: str = ""
+    unidade_descricao: str = ""
 
     # 0.0.0.0 = aceita acesso de outros computadores da rede; 127.0.0.1 = só esta máquina
     app_host: str = "0.0.0.0"
@@ -24,7 +27,7 @@ class Settings(BaseSettings):
     upload_max_mb: int = 20
     extensoes_permitidas: set[str] = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx", ".odt"}
 
-    # Prazos em DIAS ÚTEIS contados a partir da data do ofício
+    # Prazos em DIAS CORRIDOS contados a partir da data do ofício
     dias_atencao: int = 30
     dias_critico: int = 45
 
@@ -35,11 +38,8 @@ class Settings(BaseSettings):
     # Conferência automática dos arquivos (existência e hash), a cada N horas; 0 desliga
     verificacao_horas: int = 24
 
-    # Manutenção Clínica: o prazo do diagnóstico conta só no expediente dos dias úteis (sem fins de semana e
-    # feriados). 00:00 no fim = até a meia-noite (o dia útil inteiro conta).
-    manutencao_expediente_inicio: time = time(8, 0)
-    manutencao_expediente_fim: time = time(18, 0)
-    # Chamado sem diagnóstico com até N horas úteis restantes aparece como "vencendo"
+    # Manutenção Clínica: o prazo do diagnóstico é em horas corridas, da abertura (o de cada empresa).
+    # Chamado sem diagnóstico com até N horas restantes aparece como "vencendo"
     manutencao_alerta_horas: float = 4
 
     cors_origins: list[str] = ["http://localhost:5173"]

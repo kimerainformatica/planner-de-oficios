@@ -24,7 +24,7 @@ class EmpresaOut(Esquema):
 class EmpresaCriar(Esquema):
     nome: str = Field(min_length=2, max_length=80)
     descricao: str | None = Field(default=None, max_length=200)
-    prazo_horas: int = Field(default=24, ge=1, le=720, description="Horas úteis para o diagnóstico")
+    prazo_horas: int = Field(default=24, ge=1, le=720, description="Horas corridas para o diagnóstico (24 = 1 dia)")
 
 
 class EmpresaAtualizar(Esquema):
@@ -73,10 +73,9 @@ class ChamadoOut(Esquema):
     cancelado_em: datetime | None
     atualizado_em: datetime
     prazo: PrazoOut
-    # Tempo de solução: do diagnóstico até a conclusão (gravado ao concluir)
-    solucao_horas_uteis: float | None = None
+    # Tempo de solução: do diagnóstico até a conclusão, em horas corridas (gravado ao concluir)
     solucao_horas_corridas: float | None = None
-    execucao_horas_uteis: float | None = None  # em aberto e já diagnosticado: horas úteis desde o diagnóstico
+    execucao_horas: float | None = None  # em aberto e já diagnosticado: horas corridas desde o diagnóstico
     oficios_pendentes: int = 0  # solicitações de peças/equipamentos ainda não entregues
     oficios_resumo: list["OficioResumo"] = []  # nº e status de cada ofício (cartões do quadro)
 
@@ -104,6 +103,7 @@ class InteracaoOut(Esquema):
     tipo: TipoInteracao
     texto: str | None
     criado_em: datetime
+    ocorrido_em: datetime | None = None  # resposta técnica/relatório: data e hora informadas do diagnóstico
     autor: PessoaOut | None
     autor_papel: Perfil | None = None  # papel do autor no módulo (para a tela mostrar "Técnico", "Operacional"…)
     relatorio: RelatorioOut | None
@@ -171,6 +171,9 @@ class ChamadoDetalhe(ChamadoOut):
     pode_responder: bool  # diagnóstico, relatório e arquivo técnico
     pode_comentar: bool
     pode_concluir: bool
+    # Editar o diagnóstico e os complementos: data e hora, resumo, campos do relatório e o relatório externo
+    pode_corrigir_diagnostico: bool = False
+    diagnostico_interacao_id: int | None = None  # a resposta técnica ou o relatório que contou como diagnóstico
     pode_reabrir: bool
     pode_cancelar: bool
 
@@ -199,6 +202,34 @@ class SolicitacaoPecasCriar(Esquema):
     destinatario_tipo: Destinatario | None = None
     destinatario_setor: str | None = Field(default=None, max_length=120)
     itens: str = Field(min_length=3, max_length=4000, description="Peças ou equipamentos solicitados")
+
+
+class RespostaAtualizar(Esquema):
+    """Edição de uma resposta técnica (o diagnóstico ou um complemento). Só os campos enviados mudam."""
+
+    ocorrido_em: datetime | None = Field(default=None, description="Data e hora do diagnóstico")
+    texto: str | None = Field(default=None, max_length=10000, description="Resumo do diagnóstico")
+    motivo: str | None = Field(default=None, max_length=2000)
+
+
+class RelatorioAtualizar(Esquema):
+    """Edição do relatório técnico. Só os campos enviados mudam."""
+
+    atendido_em: datetime | None = None
+    equipamento: str | None = Field(default=None, max_length=120)
+    identificacao: str | None = Field(default=None, max_length=120)
+    diagnostico: str | None = Field(default=None, min_length=5, max_length=10000)
+    causa: str | None = Field(default=None, max_length=5000)
+    servico_executado: str | None = Field(default=None, max_length=10000)
+    pecas: str | None = Field(default=None, max_length=5000)
+    situacao_equipamento: SituacaoEquipamento | None = None
+    recomendacoes: str | None = Field(default=None, max_length=5000)
+    motivo: str | None = Field(default=None, max_length=2000)
+
+
+class CorrecaoDiagnostico(Esquema):
+    diagnosticado_em: datetime = Field(description="Data e hora corretas do diagnóstico")
+    motivo: str | None = Field(default=None, max_length=2000)
 
 
 class Motivo(Esquema):
@@ -240,14 +271,13 @@ class PainelEmpresa(Esquema):
     diagnosticados: int
     no_prazo_pct: float | None  # % dos diagnósticos feitos dentro do prazo
     media_horas_diagnostico: float | None
-    media_horas_solucao: float | None = None  # do diagnóstico à conclusão, em horas úteis
+    media_horas_solucao: float | None = None  # do diagnóstico à conclusão, em horas corridas
 
 
 class PainelManutencao(Esquema):
     papel: Perfil
     eh_admin: bool
     empresa_do_tecnico: EmpresaResumo | None
-    expediente: str  # "08:00–18:00"
     abertos: int
     em_atendimento: int
     aguardando_diagnostico: int

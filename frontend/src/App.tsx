@@ -8,13 +8,14 @@ import type { Modulo } from "./types";
 import { Arquivos } from "./pages/Arquivos";
 import { Atividades } from "./pages/Atividades";
 import { Exclusoes } from "./pages/Exclusoes";
-import { Feriados } from "./pages/Feriados";
 import { Login } from "./pages/Login";
 import { ChamadoDetalhe } from "./pages/manutencao/ChamadoDetalhe";
 import { ChamadoNovo } from "./pages/manutencao/ChamadoNovo";
 import { Chamados } from "./pages/manutencao/Chamados";
+import { Avisos } from "./pages/manutencao/Avisos";
 import { Empresas } from "./pages/manutencao/Empresas";
 import { InicioManutencao } from "./pages/manutencao/Inicio";
+import { Preventivas } from "./pages/manutencao/Preventivas";
 import { Quadro } from "./pages/manutencao/Quadro";
 import { Modulos } from "./pages/Modulos";
 import { OficioDetalhe } from "./pages/oficio/OficioDetalhe";
@@ -75,6 +76,8 @@ export function App() {
             <Route path="chamados" element={<Chamados />} />
             <Route path="chamados/novo" element={<ChamadoNovo />} />
             <Route path="chamados/:id" element={<ChamadoDetalhe />} />
+            <Route path="preventivas" element={<Preventivas />} />
+            <Route path="avisos" element={<Avisos />} />
             <Route element={<SoAdminDe modulo="MANUTENCAO" volta="/manutencao" />}>
               <Route path="empresas" element={<Empresas />} />
             </Route>
@@ -92,7 +95,6 @@ export function App() {
             <Route path="exclusoes" element={<Exclusoes />} />
             <Route path="atividades" element={<Atividades />} />
             <Route element={<SoAdmin />}>
-              <Route path="feriados" element={<Feriados />} />
               <Route path="tipos" element={<TiposOficio />} />
               <Route path="arquivos" element={<Arquivos />} />
             </Route>

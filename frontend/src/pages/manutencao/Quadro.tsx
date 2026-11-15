@@ -91,10 +91,10 @@ export function Quadro({ titulo = "Quadro de chamados" }: { titulo?: string }) {
         <Resumo rotulo={`Diagnóstico no prazo (${q.dias} dias)`}
           valor={r.diagnostico_no_prazo_pct === null ? "—" : `${r.diagnostico_no_prazo_pct.toLocaleString("pt-BR")}%`}
           icone={<Clock3 size={20} />}
-          dica={r.media_horas_diagnostico === null ? undefined : `média de ${horas(r.media_horas_diagnostico)} úteis`} />
+          dica={r.media_horas_diagnostico === null ? undefined : `média de ${horas(r.media_horas_diagnostico)}`} />
         <Resumo rotulo={`Tempo médio de solução (${q.dias} dias)`}
           valor={r.media_horas_solucao === null ? "—" : horas(r.media_horas_solucao)} icone={<Timer size={20} />}
-          dica="do diagnóstico à conclusão, em horas úteis" />
+          dica="do diagnóstico à conclusão, em horas corridas" />
       </div>
 
       <div className="quadro">
@@ -150,12 +150,12 @@ function CartaoChamado({ c, coluna }: { c: Chamado; coluna: ColunaQuadro["chave"
           <li>
             <Hourglass size={13} aria-hidden />
             {c.prazo.horas_restantes >= 0
-              ? `faltam ${horas(c.prazo.horas_restantes)} úteis · até ${dataHora(c.prazo_em)}`
-              : `atrasado há ${horas(c.prazo.horas_restantes)} úteis`}
+              ? `faltam ${horas(c.prazo.horas_restantes)} · até ${dataHora(c.prazo_em)}`
+              : `atrasado há ${horas(c.prazo.horas_restantes)}`}
           </li>
         )}
-        {c.execucao_horas_uteis !== null && (
-          <li><Wrench size={13} aria-hidden />em execução há {horas(c.execucao_horas_uteis)} úteis</li>
+        {c.execucao_horas !== null && (
+          <li><Wrench size={13} aria-hidden />em execução há {horas(c.execucao_horas)}</li>
         )}
         {/* Andamento de cada solicitação de peças, como está no Planner */}
         {c.oficios_resumo.map((o) => (
@@ -163,9 +163,9 @@ function CartaoChamado({ c, coluna }: { c: Chamado; coluna: ColunaQuadro["chave"
             <PackageSearch size={13} aria-hidden />Ofício nº {o.numero} · {ROTULO_STATUS[o.status]}
           </li>
         ))}
-        {c.solucao_horas_uteis !== null && (
+        {c.solucao_horas_corridas !== null && (
           <li className="info-solucao"><Timer size={13} aria-hidden />
-            solucionado em {horas(c.solucao_horas_uteis)} úteis após o diagnóstico</li>
+            solucionado em {horas(c.solucao_horas_corridas)} após o diagnóstico</li>
         )}
       </ul>
       <small className="quadro-cartao-rodape texto-suave">

@@ -63,7 +63,8 @@ Cuidados no MySQL:
 - **Auditoria:** toda alteração passa por `services/auditoria.registrar`, com o antes e o depois. Ação nova = item no
   enum `Acao` e nome dos campos em `NOME_CAMPO` (back-end), mais o rótulo em `ROTULO_ACAO`, em `utils/formato.ts`
   (front-end).
-- **Datas:** dias úteis sempre por `services/prazos.py`. Nunca conte dias corridos para o prazo.
+- **Datas:** os prazos dos ofícios são em dias corridos, sempre por `services/prazos.py` (`Calendario`). Os dos
+  chamados são em horas corridas, por `services/manutencao.py` (`prazo_do_chamado`, `horas_entre`).
 - **Painel:** tela, Excel e PDF usam a mesma rotina (`services/analise.py`). Indicador novo entra lá, uma vez só.
 - **Visual:**
   - use as variáveis de `styles/base.css` (`--primaria`, `--superficie`, `--texto-suave`…) e não cores soltas, para

@@ -28,7 +28,7 @@ export function InicioManutencao() {
           <p className="texto-suave">
             {ROTULO_PAPEL_MANUTENCAO[p.papel]}
             {p.empresa_do_tecnico && ` · ${p.empresa_do_tecnico.nome} (você vê os chamados desta empresa)`}
-            {" · "}prazo do diagnóstico contado em horas úteis (expediente {p.expediente}, dias úteis)
+            {" · "}prazo do diagnóstico em horas corridas, contadas da abertura
           </p>
         </div>
         {podeAbrir && (
@@ -112,9 +112,9 @@ export function InicioManutencao() {
                     <td className={`num ${e.atrasados ? "texto-critico" : ""}`}>{e.atrasados}</td>
                     <td className="num">{e.concluidos}</td>
                     <td className="num">{e.no_prazo_pct === null ? "—" : `${e.no_prazo_pct.toLocaleString("pt-BR")}%`}</td>
-                    <td className="num">{e.media_horas_diagnostico === null ? "—" : `${horas(e.media_horas_diagnostico)} úteis`}</td>
+                    <td className="num">{e.media_horas_diagnostico === null ? "—" : horas(e.media_horas_diagnostico)}</td>
                     <td className="num" title="Do diagnóstico à conclusão">
-                      {e.media_horas_solucao === null ? "—" : `${horas(e.media_horas_solucao)} úteis`}
+                      {e.media_horas_solucao === null ? "—" : horas(e.media_horas_solucao)}
                     </td>
                   </tr>
                 ))}

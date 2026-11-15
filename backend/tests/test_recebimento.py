@@ -24,9 +24,9 @@ def anexar(api, quem, oid, tipo, evento):
 def test_oficio_de_itens_fica_pendente_de_recebimento(api, ana, bruno):
     oid = criar(api, ana, "1")
     r = status(api, ana, oid, "CONFIRMADO", data_resposta="2026-09-08").json()
-    # A resposta foi confirmada, mas a entrega não: o prazo do recebimento conta da resposta (30 dias úteis)
+    # A resposta foi confirmada, mas a entrega não: o prazo do recebimento conta da resposta (42 dias corridos)
     assert (r["status"], r["data_resposta"], r["data_recebimento"]) == ("PENDENTE_RECEBIMENTO", "2026-09-08", None)
-    assert (r["dias_uteis_decorridos"], r["nivel_alerta"]) == (30, "CRITICO")
+    assert (r["dias_decorridos"], r["nivel_alerta"]) == (42, "CRITICO")
     evento_resposta = r["historico"][-1]["id"]
     assert anexar(api, ana, oid, "RESPOSTA", evento_resposta).status_code == 201  # evidência da resposta
     assert anexar(api, ana, oid, "RECEBIMENTO", evento_resposta).status_code == 400  # ainda não houve entrega
@@ -101,10 +101,10 @@ def test_trocar_tipo_entra_e_sai_da_etapa_de_recebimento(api, ana, estado):
 
 def test_painel_conta_a_etapa_de_recebimento(api, admin, ana):
     recebido = criar(api, ana, "1", data="2026-08-03")
-    status(api, ana, recebido, "CONFIRMADO", data_resposta="2026-08-10")  # 5 dias úteis
-    status(api, ana, recebido, "RECEBIDO", data_recebimento="2026-08-24")  # 10 dias úteis após a resposta
+    status(api, ana, recebido, "CONFIRMADO", data_resposta="2026-08-10")  # 7 dias corridos
+    status(api, ana, recebido, "RECEBIDO", data_recebimento="2026-08-24")  # 14 dias após a resposta
     aguardando = criar(api, ana, "2", data="2026-09-01")
-    status(api, ana, aguardando, "CONFIRMADO", data_resposta="2026-09-29")  # 15 dias úteis desde a resposta
+    status(api, ana, aguardando, "CONFIRMADO", data_resposta="2026-09-29")  # 21 dias corridos desde a resposta
     servico = criar(api, ana, "3", tipo="COMUNICADOS", data="2026-10-01")
     status(api, ana, servico, "CONFIRMADO", data_resposta="2026-10-06")
 
@@ -113,7 +113,7 @@ def test_painel_conta_a_etapa_de_recebimento(api, admin, ana):
     assert (i["pendentes"], i["pendentes_recebimento"], i["confirmados"], i["recebidos"]) == (0, 1, 1, 1)
     assert (i["recebimento_atencao"], i["recebimento_critico"]) == (1, 0)
     assert i["taxa_confirmacao"] == 1.0
-    assert i["tempo_medio_entrega"] == 10.0
+    assert i["tempo_medio_entrega"] == 14.0
     assert (i["concluidos"], i["entregues_no_prazo"]) == (2, 1.0)  # recebido + comunicado confirmado
     epis = next(g for g in a["por_tipo"] if g["chave"] == "EPIS")
     assert (epis["pendentes_recebimento"], epis["recebidos"], epis["atencao"]) == (1, 1, 1)
@@ -136,7 +136,7 @@ def test_painel_conta_a_etapa_de_recebimento(api, admin, ana):
 def test_alerta_do_recebimento_avanca_com_o_tempo(api, ana, estado):
     oid = criar(api, ana, "1", data="2026-10-01")
     r = status(api, ana, oid, "CONFIRMADO", data_resposta="2026-10-20").json()
-    assert (r["dias_uteis_decorridos"], r["nivel_alerta"]) == (0, "NORMAL")
+    assert (r["dias_decorridos"], r["nivel_alerta"]) == (0, "NORMAL")
     estado["hoje"] = date(2026, 11, 10)
     assert api.get(f"/api/oficios/{oid}", headers=ana).json()["nivel_alerta"] == "ATENCAO"
 
@@ -144,12 +144,12 @@ def test_alerta_do_recebimento_avanca_com_o_tempo(api, ana, estado):
 def test_servicos_e_outros_exigem_entrega_e_prazo_mostra_os_dois_tempos(api, ana):
     for numero, tipo in (("10", "SERVICOS"), ("11", "OUTROS")):
         oid = criar(api, ana, numero, tipo=tipo)
-        r = status(api, ana, oid, "CONFIRMADO", data_resposta="2026-08-10").json()  # 5 dias úteis após 03/08
-        assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("PENDENTE_RECEBIMENTO", 5, None)
-        r = status(api, ana, oid, "RECEBIDO", data_recebimento="2026-08-24").json()  # 10 dias úteis após a resposta
-        assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("RECEBIDO", 5, 10)
+        r = status(api, ana, oid, "CONFIRMADO", data_resposta="2026-08-10").json()  # 7 dias corridos após 03/08
+        assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("PENDENTE_RECEBIMENTO", 7, None)
+        r = status(api, ana, oid, "RECEBIDO", data_recebimento="2026-08-24").json()  # 14 dias após a resposta
+        assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("RECEBIDO", 7, 14)
     comunicado = criar(api, ana, "12", tipo="COMUNICADOS")
     r = status(api, ana, comunicado, "CONFIRMADO", data_resposta="2026-08-10").json()
-    assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("CONFIRMADO", 5, None)
+    assert (r["status"], r["dias_resposta"], r["dias_entrega"]) == ("CONFIRMADO", 7, None)
     pendente = api.get(f"/api/oficios/{criar(api, ana, '13')}", headers=ana).json()
     assert (pendente["dias_resposta"], pendente["dias_entrega"]) == (None, None)

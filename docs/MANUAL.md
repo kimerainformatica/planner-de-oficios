@@ -29,7 +29,6 @@ O menu fica à esquerda. No celular, ele abre pelo botão ☰ no alto.
 | Pedidos de exclusão | Todos | Cliente: os pedidos que fez. Administrador: os pedidos a decidir (com contador) |
 | Atividades | Todos | Tudo o que foi alterado, por quem e quando |
 | Usuários | Administrador e master | Criar e alterar contas |
-| Feriados | Administrador e master | Dias que não contam no prazo |
 | Tipos de ofício | Administrador e master | Os tipos e se exigem entrega |
 | Arquivos | Administrador e master | Verificação dos documentos e lixeira (com contador de problemas) |
 
@@ -44,7 +43,7 @@ No pé do menu ficam o seletor de tema, o seu nome, o seu perfil e o botão **Sa
 - **Pendentes de resposta** e **Pendentes de recebimento:** quantos ofícios estão em cada etapa e quantos estão
   críticos, em atenção ou no prazo. Clique no número ou num dos níveis para abrir a lista já filtrada.
 - **Indicadores:** ofícios no filtro, concluídos, não confirmados, taxa de confirmação e tempos médios de resposta e
-  de entrega, em dias úteis.
+  de entrega, em dias corridos.
 - **Críticos** e **Em atenção:** os mais antigos primeiro. Clique para abrir o ofício.
 
 ### Análise
@@ -99,7 +98,7 @@ Em **Novo ofício**:
   | Não confirmado | **Reabrir** |
 
   Também ficam no cabeçalho **Editar** e **Excluir**. Para clientes, o segundo é **Solicitar exclusão**.
-- **Barra do prazo** (só pendentes): quantos dias úteis se passaram e quanto falta para entrar em atenção ou ficar
+- **Barra do prazo** (só pendentes): quantos dias se passaram e quanto falta para entrar em atenção ou ficar
   crítico. A marca no meio é o limite de atenção, e o fim da barra é o crítico.
 - **Caminho:** Identificação → Resposta → Entrega. Etapa concluída aparece com ✓, a etapa atual pulsa e a futura é
   tracejada. Cada bloco mostra os dados daquela etapa.
@@ -178,12 +177,6 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 - **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
   **Módulos**. Quem tem só um módulo entra direto nele.
 
-### Feriados
-
-- Navegue pelos anos com as setas.
-- **Cadastrar nacionais de {ano}** adiciona os feriados nacionais.
-- **Adicionar feriado** cadastra feriados locais ou pontos facultativos (data e descrição).
-- Lembre de cadastrar os feriados de cada ano novo.
 
 ### Tipos de ofício
 
@@ -216,13 +209,15 @@ Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza
 | Quadro de acompanhamento | Operacional e administrador | Os chamados por etapa |
 | Chamados | Todos | Lista com busca e filtros (o técnico só vê os da empresa dele) |
 | Abrir chamado | Operacional e administrador | Pedir um atendimento |
+| Preventivas | Todos (o técnico só vê as da empresa dele) | Agenda das preventivas, registro, ateste e os planos |
+| Avisos | Todos | As pendências de cada pessoa, com o número no menu |
 | Empresas técnicas | Administrador e master | Empresas e o prazo de cada uma |
 
 ### Abrir um chamado
 
 1. Em **Abrir chamado**, escolha a empresa, escreva o título e a **descrição do problema**.
 2. Informe o local, o equipamento e a data e hora em que o problema aconteceu.
-3. Clique em **Abrir chamado**. O prazo do diagnóstico (24 horas úteis, das 08:00 às 18:00, de segunda a sexta)
+3. Clique em **Abrir chamado**. O prazo do diagnóstico (24 horas corridas, contando noites e fins de semana)
    começa a contar.
 
 ### Tela do chamado
@@ -230,18 +225,50 @@ Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza
 - **Dados:** prazo do diagnóstico, situação do prazo (no prazo, vencendo, atrasado, cumprido), tempo em execução e,
   depois de concluído, o **tempo de solução após o diagnóstico**.
 - **Linha do tempo:** tudo o que aconteceu, com autor, data, arquivos e relatórios.
-- **Botões** (aparecem conforme o papel e a etapa): **Assumir**, **Relatório técnico**, **Concluir**, **Reabrir** e
-  **Cancelar chamado**. Reabrir e cancelar pedem o motivo.
-- **Responder:** escreva um comentário e, se quiser, anexe um arquivo. O técnico marca **É uma resposta técnica**
-  para registrar o diagnóstico. A primeira resposta técnica encerra o prazo.
+- **Botões** (aparecem conforme o papel e a etapa): **Assumir**, **Concluir**, **Reabrir** e **Cancelar chamado**.
+  Reabrir e cancelar pedem o motivo.
+- **Diagnóstico técnico:** a seção que reúne tudo do diagnóstico (veja abaixo).
+- **Comentário:** escreva uma mensagem e, se quiser, anexe um arquivo. Comentários não contam como diagnóstico.
+
+### Diagnóstico técnico
+
+Tudo o que é do diagnóstico fica numa seção só, logo abaixo dos dados do chamado: registrar, ver, editar depois e
+complementar.
+
+**Registrar (técnico da empresa ou administrador).** Escolha como:
+
+- **Relatório externo:** anexe o laudo, a ordem de serviço ou o relatório que a empresa emitiu. Com o arquivo, o
+  diagnóstico fica registrado. O resumo é opcional.
+- **Relatório no modelo do sistema:** preencha o relatório (equipamento, patrimônio, situação, diagnóstico, causa,
+  serviço, peças e recomendações), que gera um PDF. Se a empresa também emitiu um relatório próprio, anexe junto: os
+  dois ficam no mesmo registro.
+
+Nos dois casos, informe a **data e hora do diagnóstico** (no modelo do sistema, a do atendimento): quando foi feito,
+não quando está sendo registrado. É ela que conta para o prazo. O primeiro registro encerra o prazo do chamado.
+
+**Ver.** Depois de registrado, a seção mostra o diagnóstico com a data, o técnico, o relatório externo para baixar e,
+no modelo do sistema, o relatório completo e o PDF.
+
+**Editar depois.** Em **Editar**, no próprio registro:
+
+- data e hora do diagnóstico (o prazo e, se concluído, o tempo de solução são recalculados);
+- o resumo, ou os campos do relatório do sistema (o PDF acompanha);
+- **substituir** o relatório externo, ou anexar um se ainda não houver. O arquivo anterior não é apagado: fica na
+  linha do tempo e pode ser baixado;
+- o motivo, opcional.
+
+Toda edição entra na linha do tempo como *Correção*, com o que mudou e quem mudou. Só o técnico da empresa ou o
+administrador editam; o operacional acompanha.
+
+**Complementos.** Com o chamado em aberto, **Adicionar complemento** registra outro relatório (externo ou no modelo do
+sistema), por exemplo o do conserto. Ele não muda a data do diagnóstico e não pode ser anterior a ela.
 
 ### Para o técnico
 
 1. Em **Meu painel**, acompanhe os chamados da sua empresa por etapa.
 2. Abra o chamado e clique em **Assumir** para ficar como responsável.
-3. Responda com o diagnóstico: uma **resposta técnica** (texto e o relatório externo da empresa, se tiver) ou o
-   **Relatório técnico** do sistema (data do atendimento, situação do equipamento, diagnóstico, causa, serviço,
-   peças e recomendações), que gera um PDF.
+3. Na seção **Diagnóstico técnico**, registre o relatório externo da empresa ou o relatório no modelo do sistema
+   (ou os dois juntos), com a data e a hora em que diagnosticou. Se precisar, edite depois no mesmo lugar.
 4. Quando resolver, clique em **Concluir** e escreva o resumo da solução.
 
 ### Peças e equipamentos
@@ -271,9 +298,64 @@ Os chamados em quatro colunas: **aguardando diagnóstico**, **em execução**, *
 Filtre por "quais chamados", empresa e período dos concluídos. O cartão mostra o prazo e o status de cada ofício de
 peças. O quadro se atualiza sozinho a cada 30 segundos.
 
+### Preventivas
+
+A tela tem duas visões: **Agenda** (as datas) e **Planos** (as rotinas e a periodicidade).
+
+**Criar um plano (administrador).** O contrato prevê a preventiva, mas não fixa os períodos: quem define é o plano.
+
+1. Em **Preventivas**, clique em **Novo plano**.
+2. Escolha a **empresa técnica** e dê um nome à **rotina** (ex.: "Preventiva dos compressores").
+3. Informe o local, o equipamento e **o que deve ser feito** (o escopo combinado com a empresa).
+4. Defina a periodicidade em **Repetir a cada** (dias, semanas ou meses) e a data da **primeira preventiva**.
+5. Ajuste a **tolerância**: quantos dias depois da data a preventiva ainda conta como feita no prazo (padrão: 5).
+
+O sistema cria as datas sozinho, com 90 dias de antecedência, e sempre deixa a próxima à vista. Para mudar o período,
+edite o plano e informe a **próxima data**: só as datas futuras são refeitas. Desmarcar **Ativo** para de gerar datas
+e mantém o histórico.
+
+**Registrar a realização (técnico da empresa, operacional ou administrador).**
+
+1. Na **Agenda**, clique em **Registrar** na linha da preventiva.
+2. Informe a data em que foi feita, quem executou e o que foi feito.
+3. Anexe a **evidência** (checklist, ordem de serviço ou relatório da empresa). É opcional, mas é o que comprova o
+   serviço.
+
+**Atestar (operacional ou administrador).** A preventiva registrada fica como **Aguardando ateste**. Clique em
+**Atestar**, confira o que foi registrado e a evidência, e confirme. Depois do ateste, o registro não pode mais ser
+desfeito. O técnico não atesta.
+
+**Não foi realizada.** Em **Detalhes**, o operacional ou o administrador marca **Não foi realizada** e informa o
+motivo. Ela passa a contar contra o cumprimento da empresa.
+
+**Situações:**
+
+| Situação | Quando |
+|---|---|
+| Programada | Faltam mais de 7 dias para a data prevista |
+| Para realizar agora | Faltam 7 dias ou menos, ou a data já passou mas está dentro da tolerância |
+| Atrasada | Passou da tolerância sem registro |
+| Realizada no prazo / com atraso | Registrada, até o fim da tolerância ou depois dele |
+| Não realizada | Marcada por quem fiscaliza, com o motivo |
+
+**Previsto x realizado.** No topo da Agenda, uma tabela por empresa mostra as previstas, as realizadas, as atrasadas,
+as não realizadas, as que aguardam ateste e o **cumprimento** do período. Use as setas para trocar de mês ou marque
+**Todos os meses**.
+
+### Avisos
+
+O sistema não envia e-mail. As pendências de cada pessoa ficam no item **Avisos** do menu, com um número ao lado:
+
+- **Técnico:** chamados da empresa aguardando diagnóstico (atrasados e vencendo) e preventivas atrasadas ou para
+  realizar agora.
+- **Operacional e administrador:** chamados com o diagnóstico atrasado ou vencendo, preventivas atrasadas ou para
+  realizar agora e preventivas realizadas aguardando ateste.
+
+Clique no aviso para abrir a tela com os itens. Não há "lido": o aviso some quando a pendência é resolvida.
+
 ### Empresas técnicas (administrador)
 
-Cadastre, altere ou desative as empresas e defina o prazo do diagnóstico de cada uma, em horas úteis. Uma empresa
+Cadastre, altere ou desative as empresas e defina o prazo do diagnóstico de cada uma, em horas corridas. Uma empresa
 só pode ser excluída se não tiver chamados nem técnicos.
 
 ## Celular

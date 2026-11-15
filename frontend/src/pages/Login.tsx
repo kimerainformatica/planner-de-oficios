@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import logo from "../assets/acqua-logo.svg";
 import { CHAVE_SESSAO_ENCERRADA, useAuth } from "../auth/AuthContext";
 import { SeletorTema } from "../components/SeletorTema";
+import { useUnidade } from "../components/Unidade";
 
 // Símbolo do Instituto ACQUA (o mesmo de public/favicon.svg), desenhado aqui para poder ser animado:
 // a onda se desenha, a gota cai e solta anéis de água.
@@ -28,6 +29,7 @@ function SimboloAnimado() {
 
 export function Login() {
   const { usuario, entrar } = useAuth();
+  const unidade = useUnidade();
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function Login() {
         {[12, 28, 47, 66, 84].map((x, i) => (
           <span key={x} className="bolha" aria-hidden style={{ left: `${x}%`, animationDelay: `${[0, 2.5, 4.2, 1.3, 6][i]}s` }} />
         ))}
-        <span className="login-kicker">Instituto ACQUA</span>
+        <span className="login-kicker">Instituto ACQUA{unidade?.nome ? ` · ${unidade.nome}` : ""}</span>
         <div className="login-hero-centro">
           <SimboloAnimado />
           <div className="login-hero-texto">
@@ -150,7 +152,10 @@ export function Login() {
             )}
           </button>
         </form>
-        <p className="login-rodape texto-suave">Instituto ACQUA · Planner de Ofícios</p>
+        <p className="login-rodape texto-suave">
+          Instituto ACQUA · {unidade?.nome ?? "Planner de Ofícios"}
+          {unidade?.descricao && <><br />{unidade.descricao}</>}
+        </p>
       </section>
     </div>
   );

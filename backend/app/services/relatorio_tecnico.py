@@ -35,7 +35,7 @@ def _txt(v: str | None) -> str:
     return escape(v or "—").replace("\n", "<br/>")
 
 
-def gerar_pdf(rel: RelatorioTecnico, chamado: Chamado) -> bytes:
+def gerar_pdf(rel: RelatorioTecnico, chamado: Chamado, unidade: str | None = None) -> bytes:
     saida = BytesIO()
     doc = SimpleDocTemplate(
         saida, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=14 * mm,
@@ -74,7 +74,7 @@ def gerar_pdf(rel: RelatorioTecnico, chamado: Chamado) -> bytes:
     tecnico = rel.tecnico.nome if rel.tecnico else "—"
     conteudo = [
         Paragraph(f"Relatório Técnico {rel.codigo}", h1),
-        Paragraph(f"Manutenção Clínica · Instituto ACQUA · Chamado {chamado.codigo}", sub),
+        Paragraph(f"Manutenção Clínica · Instituto ACQUA{f' · {unidade}' if unidade else ''} · Chamado {chamado.codigo}", sub),
         Spacer(1, 5 * mm),
         Paragraph("Identificação do chamado", secao),
         grade_celulas([

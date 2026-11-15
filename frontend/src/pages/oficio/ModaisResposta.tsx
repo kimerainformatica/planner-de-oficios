@@ -208,7 +208,7 @@ export function ModalReabrir({ oficio, aoFechar }: { oficio: Detalhe; aoFechar: 
     <Modal titulo="Reabrir ofício" aoFechar={aoFechar}>
       <form className="formulario" onSubmit={(e) => { e.preventDefault(); salvar.mutate(); }}>
         <p>
-          O ofício volta para <strong>pendente de resposta</strong> e a contagem de dias úteis
+          O ofício volta para <strong>pendente de resposta</strong> e a contagem de dias
           <strong> recomeça do zero hoje</strong>. A resposta anterior e sua evidência continuam no histórico.
         </p>
         <Campo rotulo="Motivo / observação">

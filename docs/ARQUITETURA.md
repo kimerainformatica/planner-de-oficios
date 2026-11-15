@@ -43,7 +43,7 @@ flowchart LR
 
 | Serviço | Responsabilidade |
 |---|---|
-| `prazos.py` | Dias úteis entre datas (sem fins de semana e feriados), nível de alerta e feriados nacionais (inclui a Páscoa móvel) |
+| `prazos.py` | Dias corridos entre datas, data limite de cada nível de alerta, classificação e feriados nacionais (inclui a Páscoa móvel) |
 | `oficios.py` | Transições de status, etapa de recebimento, reabertura, correções, desfazer e ajuste quando o tipo muda |
 | `tipos.py` | Tipos iniciais, validação do tipo de um ofício e `exige_recebimento` |
 | `armazenamento.py` | Gravação dos arquivos (nome aleatório, hash, limite de tamanho e extensões) e envio para a lixeira |
@@ -55,7 +55,6 @@ flowchart LR
 | `auditoria.py` | Registro de atividades (ação, descrição, antes → depois) e os nomes legíveis das ações |
 | `modulos.py` | Catálogo dos módulos e quem administra o quê |
 | `manutencao.py` | Helpdesk: papéis (operacional, técnico, admin), visibilidade por empresa, transições do chamado e situação do prazo |
-| `horas_uteis.py` | Soma e conta horas úteis (expediente em dias úteis, sem feriados) para o prazo do diagnóstico |
 | `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
 
 ## Módulos
@@ -180,7 +179,7 @@ erDiagram
 Decisões importantes:
 
 - **O alerta não fica gravado:** é calculado na hora a partir de `inicio_prazo` (ou `data_resposta`, na etapa de
-  entrega) e dos feriados. Assim, mudar um feriado ou os limites vale na hora para todos os ofícios.
+  entrega). Assim, mudar os limites vale na hora para todos os ofícios.
 - **Unicidade por dono:** `(dono_id, numero, ano)` e `(dono_id, protocolo)`. Clientes diferentes podem repetir
   números.
 - **Um anexo por vaga:** `(oficio_id, tipo, ciclo)` é único. Documento do ofício e de referência usam `ciclo = 0`.
@@ -210,6 +209,8 @@ Decisões importantes:
 | 0012 | Helpdesk da Manutenção Clínica: `empresas_manutencao` (MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO), perfil `TECNICO` com `usuario_modulos.empresa_id`, `chamados`, `chamado_interacoes` e `relatorios_tecnicos` |
 | 0013 | Tempo de solução do chamado (`solucao_horas_uteis`, `solucao_horas_corridas`) e `oficios.chamado_id` (solicitação de peças/equipamentos) |
 | 0014 | Regra: todo operacional da Manutenção (cliente/admin) recebe acesso de cliente ao Planner, se não tinha |
+| 0016 | Prazos corridos: refaz `chamados.prazo_em`, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo `CORRECAO` |
+| 0015 | Manutenção preventiva: `planos_preventiva` (periodicidade por empresa) e `preventivas` (datas, realização, ateste) |
 
 ## Segurança
 
@@ -235,7 +236,7 @@ Decisões importantes:
 | `pages/` | Uma tela por rota: Login, Painel, Ofícios, Novo ofício, Pedidos de exclusão, Atividades, Usuários, Feriados, Tipos de ofício, Arquivos |
 | `pages/oficio/` | A tela do ofício, dividida em dados, anexos, histórico e janelas (resposta, correção, edição e exclusão) |
 | `styles/` | CSS por assunto: `base` (cores e tipografia), `icones`, `layout`, `componentes`, `oficio`, `painel`, `admin`, `login` |
-| `utils/` | Formatação (datas, dias úteis, rótulos), tema, tipos de ofício e download |
+| `utils/` | Formatação (datas, dias, rótulos), tema, tipos de ofício e download |
 
 - **Dados:** TanStack Query, com cache, revalidação ao voltar para a aba e invalidação após cada alteração.
 - **Rotas:** React Router. Os filtros do painel e da lista ficam no endereço, então podem ser compartilhados.

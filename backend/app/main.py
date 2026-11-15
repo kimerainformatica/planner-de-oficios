@@ -4,13 +4,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import BASE_DIR, get_settings
+from app.deps import SettingsDep
 from app.routers import (
-    anexos, auditoria, auth, dashboard, exclusoes, feriados, lixeira, manutencao, modulos, oficios, tipos, usuarios,
+    anexos, auditoria, auth, dashboard, exclusoes, feriados, lixeira, manutencao, modulos, oficios, preventivas, tipos,
+    usuarios,
 )
 
 app = FastAPI(
     title="Planner de Ofícios",
-    description="Controle de ofícios com prazos em dias úteis (atenção e crítico: DIAS_ATENCAO e DIAS_CRITICO).",
+    description="Controle de ofícios com prazos em dias corridos (atenção e crítico: DIAS_ATENCAO e DIAS_CRITICO).",
     version="0.1.0",
 )
 
@@ -25,13 +27,19 @@ app.add_middleware(
 )
 
 for rota in (auth, usuarios, modulos, oficios, anexos, lixeira, exclusoes, auditoria, dashboard, feriados, tipos,
-             manutencao):
+             manutencao, preventivas):
     app.include_router(rota.router)
 
 
 @app.get("/api/saude", tags=["Sistema"])
 def saude():
     return {"status": "ok"}
+
+
+@app.get("/api/unidade", tags=["Sistema"], summary="Unidade atendida por este servidor (aparece no login e nas telas)")
+def unidade(settings: SettingsDep):
+    """Pública: a tela de login mostra o nome da unidade. Vem do .env (UNIDADE_NOME e UNIDADE_DESCRICAO)."""
+    return {"nome": settings.unidade_nome.strip() or None, "descricao": settings.unidade_descricao.strip() or None}
 
 
 # ---------- Front-end (frontend/dist, gerado por `npm run build`) ----------

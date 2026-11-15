@@ -4,6 +4,7 @@ import logo from "../assets/acqua-logo.svg";
 import { useAuth } from "../auth/AuthContext";
 import { ROTULO_PERFIL } from "../utils/formato";
 import { SeletorTema } from "./SeletorTema";
+import { NomeUnidade } from "./Unidade";
 
 /** Estrutura das páginas que ficam acima dos módulos: a escolha do módulo e a gestão de usuários. */
 export function LayoutPortal() {
@@ -13,6 +14,7 @@ export function LayoutPortal() {
       <header className="portal-topo">
         <NavLink to="/modulos" className="portal-marca" aria-label="Instituto ACQUA, ir para os módulos">
           <img src={logo} alt="Instituto ACQUA" />
+          <NomeUnidade className="portal-unidade" />
         </NavLink>
         <nav className="portal-menu" aria-label="Menu principal">
           {modulos.length > 1 && (

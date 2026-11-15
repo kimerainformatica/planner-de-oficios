@@ -1,29 +1,27 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, CheckCircle2, ClipboardList, Download, FileText, Hand, Link2, MessageSquare, PackagePlus, RotateCcw, Search,
-  Stethoscope, Unlink, XCircle,
+  ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Download, FileText, Hand, Link2, MessageSquare, PackagePlus,
+  PencilLine, RotateCcw, Search, Stethoscope, Unlink, XCircle,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  assumirChamado, baixarAnexoOficio, baixarArquivoInteracao, baixarRelatorioPdf, cancelarChamado, concluirChamado, criarRelatorio,
-  desvincularOficio, oficiosDisponiveis, reabrirChamado, responderChamado, solicitarPecas, tiposSolicitacao, verChamado,
-  vincularOficio, type RelatorioForm,
+  assumirChamado, baixarAnexoOficio, cancelarChamado, concluirChamado, desvincularOficio, oficiosDisponiveis,
+  reabrirChamado, responderChamado, solicitarPecas, tiposSolicitacao, verChamado, vincularOficio,
 } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthContext";
 import { SeletorArquivo } from "../../components/SeletorArquivo";
 import { useToast } from "../../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal, StatusBadge } from "../../components/ui";
-import type {
-  AnexoOficio, ChamadoDetalhe as Detalhe, Destinatario, Interacao, OficioVinculado, RelatorioTecnico, SituacaoEquipamento,
-} from "../../types";
+import type { AnexoOficio, ChamadoDetalhe as Detalhe, Destinatario, Interacao, OficioVinculado } from "../../types";
 import { salvarArquivo } from "../../utils/arquivo";
 import { data, dataHora, hojeIso, ROTULO_DESTINATARIO, tamanho } from "../../utils/formato";
-import { agoraLocal, horas, ROTULO_EQUIPAMENTO, ROTULO_INTERACAO, ROTULO_PAPEL_MANUTENCAO } from "../../utils/manutencao";
+import { horas, ROTULO_INTERACAO, ROTULO_PAPEL_MANUTENCAO } from "../../utils/manutencao";
 import { Dado } from "../oficio/Dados";
 import { BadgePrazo, BadgeStatusChamado } from "./comum";
+import { ArquivoExterno, BotaoPdf, SecaoDiagnostico, VisaoRelatorio } from "./Diagnostico";
 
-type Janela = "relatorio" | "concluir" | "reabrir" | "cancelar" | "pecas" | "vincular" | null;
+type Janela = "concluir" | "reabrir" | "cancelar" | "pecas" | "vincular" | null;
 
 export function ChamadoDetalhe() {
   const id = Number(useParams().id);
@@ -70,11 +68,6 @@ export function ChamadoDetalhe() {
               <Hand size={17} /> Assumir
             </Botao>
           )}
-          {c.pode_responder && (
-            <button className="btn btn-secundario" onClick={() => setJanela("relatorio")}>
-              <ClipboardList size={17} /> Relatório técnico
-            </button>
-          )}
           {c.pode_concluir && (
             <button className="btn btn-primario" onClick={() => setJanela("concluir")}>
               <CheckCircle2 size={17} /> Concluir
@@ -103,27 +96,30 @@ export function ChamadoDetalhe() {
           <Dado rotulo="Equipamento" valor={c.equipamento ?? "—"} />
           <Dado rotulo="Problema ocorrido em" valor={dataHora(c.ocorrido_em)} />
           <Dado rotulo="Aberto em" valor={dataHora(c.aberto_em)} />
-          <Dado rotulo={`Prazo do diagnóstico (${c.prazo_horas} h úteis)`} valor={dataHora(c.prazo_em)} />
+          <Dado rotulo={`Prazo do diagnóstico (${c.prazo_horas} h corridas)`} valor={dataHora(c.prazo_em)} />
           <Dado rotulo="Diagnóstico em"
-            valor={c.diagnosticado_em
-              ? `${dataHora(c.diagnosticado_em)}${c.prazo.horas_ate_diagnostico !== null ? ` · ${horas(c.prazo.horas_ate_diagnostico)} úteis` : ""}`
-              : "Aguardando"} />
-          {c.execucao_horas_uteis !== null && (
-            <Dado rotulo="Em execução desde o diagnóstico" valor={`${horas(c.execucao_horas_uteis)} úteis`} />
+            valor={c.diagnosticado_em ? (
+              <span className="dado-diagnostico">
+                {dataHora(c.diagnosticado_em)}
+                {c.prazo.horas_ate_diagnostico !== null && (
+                  <span className="dado-extra"> · {horas(c.prazo.horas_ate_diagnostico)} após a abertura</span>
+                )}
+              </span>
+            ) : <a href="#diagnostico" className="link-forte">Aguardando</a>} />
+          {c.execucao_horas !== null && (
+            <Dado rotulo="Em execução desde o diagnóstico" valor={horas(c.execucao_horas)} />
           )}
           {c.concluido_em && <Dado rotulo="Concluído em" valor={dataHora(c.concluido_em)} />}
-          {c.solucao_horas_uteis !== null && (
-            <Dado rotulo="Tempo de solução após o diagnóstico"
-              valor={<><strong>{horas(c.solucao_horas_uteis)} úteis</strong>
-                {c.solucao_horas_corridas !== null && (
-                  <span className="dado-extra"> · {horas(c.solucao_horas_corridas)} corridas</span>
-                )}</>} />
+          {c.solucao_horas_corridas !== null && (
+            <Dado rotulo="Tempo de solução após o diagnóstico" valor={<strong>{horas(c.solucao_horas_corridas)}</strong>} />
           )}
           {c.cancelado_em && <Dado rotulo="Cancelado em" valor={dataHora(c.cancelado_em)} />}
         </dl>
         <h3 className="titulo-descricao">Descrição do problema</h3>
         <p className="texto-livre">{c.descricao}</p>
       </section>
+
+      <SecaoDiagnostico chamado={c} aoSalvar={atualizar} />
 
       {(c.oficios.length > 0 || c.pode_solicitar_pecas) && (
         <section className="painel-bloco">
@@ -197,7 +193,6 @@ export function ChamadoDetalhe() {
         {c.pode_comentar && <Responder chamado={c} aoSalvar={atualizar} />}
       </section>
 
-      {janela === "relatorio" && <ModalRelatorio chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizar} />}
       {janela === "pecas" && <ModalPecas chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizar} />}
       {janela === "vincular" && <ModalVincular chamado={c} aoFechar={() => setJanela(null)} aoSalvar={atualizarOficios} />}
       {desvincular && (
@@ -228,16 +223,11 @@ const ICONE: Partial<Record<Interacao["tipo"], ReactNode>> = {
   CANCELAMENTO: <XCircle size={16} />,
   ASSUMIDO: <Hand size={16} />,
   OFICIO: <PackagePlus size={16} />,
+  CORRECAO: <PencilLine size={16} />,
 };
 
 function ItemLinhaTempo({ i }: { i: Interacao }) {
-  const avisar = useToast();
   const [abrirRelatorio, setAbrirRelatorio] = useState(false);
-  const baixar = useMutation({
-    mutationFn: () => baixarArquivoInteracao(i),
-    onSuccess: (blob) => salvarArquivo(blob, i.arquivo_nome ?? "arquivo"),
-    onError: (e) => avisar(e.message),
-  });
   return (
     <li className={`evento evento-${i.tipo}`}>
       <span className="evento-icone" aria-hidden>{ICONE[i.tipo] ?? <FileText size={16} />}</span>
@@ -249,14 +239,14 @@ function ItemLinhaTempo({ i }: { i: Interacao }) {
             {i.autor_papel && ` · ${ROTULO_PAPEL_MANUTENCAO[i.autor_papel]}`} · {dataHora(i.criado_em)}
           </small>
         </div>
-        {i.texto && <p className="texto-livre">{i.texto}</p>}
-        {i.arquivo_nome && (
-          <button className="arquivo-escolhido arquivo-baixar" onClick={() => baixar.mutate()} disabled={baixar.isPending}>
-            <Download size={16} />
-            <span className="arquivo-nome">{i.arquivo_nome}</span>
-            {i.arquivo_tamanho !== null && <small className="texto-suave">{tamanho(i.arquivo_tamanho)}</small>}
-          </button>
+        {i.ocorrido_em && Math.abs(new Date(i.ocorrido_em).getTime() - new Date(i.criado_em).getTime()) >= 60_000 && (
+          <small className="evento-ocorrido">
+            <CalendarClock size={13} aria-hidden />
+            {i.tipo === "RELATORIO" ? "Atendimento" : "Diagnóstico"} em {dataHora(i.ocorrido_em)}
+          </small>
         )}
+        {i.texto && <p className="texto-livre">{i.texto}</p>}
+        {i.arquivo_nome && <ArquivoExterno i={i} />}
         {i.relatorio && (
           <div className="relatorio-resumo">
             <div className="grupo">
@@ -301,61 +291,18 @@ function AnexoDoOficio({ chamadoId, anexo }: { chamadoId: number; anexo: AnexoOf
   );
 }
 
-function BotaoPdf({ relatorio }: { relatorio: RelatorioTecnico }) {
-  const avisar = useToast();
-  const pdf = useMutation({
-    mutationFn: () => baixarRelatorioPdf(relatorio.id),
-    onSuccess: (blob) => salvarArquivo(blob, `relatorio-${relatorio.codigo}.pdf`),
-    onError: (e) => avisar(e.message),
-  });
-  return (
-    <Botao className="btn btn-fantasma btn-pequeno" carregando={pdf.isPending} onClick={() => pdf.mutate()}>
-      <Download size={15} /> PDF
-    </Botao>
-  );
-}
-
-function VisaoRelatorio({ r }: { r: RelatorioTecnico }) {
-  const blocos: [string, string | null][] = [
-    ["Diagnóstico", r.diagnostico],
-    ["Causa provável", r.causa],
-    ["Serviço executado", r.servico_executado],
-    ["Peças e materiais", r.pecas],
-    ["Recomendações", r.recomendacoes],
-  ];
-  return (
-    <div className="relatorio-visao">
-      <dl className="dados dados-chamado">
-        <Dado rotulo="Técnico" valor={`${r.tecnico?.nome ?? "—"} · ${r.empresa.nome}`} />
-        <Dado rotulo="Atendido em" valor={dataHora(r.atendido_em)} />
-        <Dado rotulo="Equipamento" valor={r.equipamento ?? "—"} />
-        <Dado rotulo="Patrimônio / nº de série" valor={r.identificacao ?? "—"} />
-        <Dado rotulo="Situação do equipamento" valor={ROTULO_EQUIPAMENTO[r.situacao_equipamento]} />
-      </dl>
-      {blocos.filter(([, v]) => v).map(([t, v]) => (
-        <div key={t}>
-          <h4>{t}</h4>
-          <p className="texto-livre">{v}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Caixa de resposta: comentário (todos) ou resposta técnica (técnico/admin), com arquivo opcional. */
+/** Caixa de comentário (todos), com arquivo opcional. O diagnóstico é registrado na seção Diagnóstico técnico. */
 function Responder({ chamado, aoSalvar }: { chamado: Detalhe; aoSalvar: (c: Detalhe) => void }) {
   const avisar = useToast();
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
-  const [tecnica, setTecnica] = useState(chamado.pode_responder && !chamado.diagnosticado_em);
   const enviar = useMutation({
-    mutationFn: () => responderChamado(chamado.id, { texto: texto.trim(), arquivo, diagnostico: tecnica && chamado.pode_responder }),
+    mutationFn: () => responderChamado(chamado.id, { texto: texto.trim(), arquivo }),
     onSuccess: (c) => {
       setTexto("");
       setArquivo(null);
-      setTecnica(false);
       aoSalvar(c);
-      avisar(tecnica ? "Resposta técnica registrada." : "Comentário enviado.");
+      avisar("Comentário enviado.");
     },
   });
 
@@ -367,26 +314,16 @@ function Responder({ chamado, aoSalvar }: { chamado: Detalhe; aoSalvar: (c: Deta
 
   return (
     <form className="responder formulario" onSubmit={submeter}>
-      <Campo rotulo={tecnica ? "Resposta técnica (diagnóstico)" : "Comentário"}
-        dica={tecnica
-          ? "Descreva o diagnóstico ou anexe o relatório externo da empresa. A primeira resposta técnica encerra o prazo."
-          : undefined}>
+      <Campo rotulo="Comentário"
+        dica={chamado.pode_responder ? "Para registrar o diagnóstico ou o relatório externo, use a seção Diagnóstico técnico." : undefined}>
         {(id) => <textarea id={id} className="input" rows={3} maxLength={10000} value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder={tecnica ? "Ex.: Fonte de alimentação queimada; substituição necessária." : "Escreva uma mensagem"} />}
+          onChange={(e) => setTexto(e.target.value)} placeholder="Escreva uma mensagem" />}
       </Campo>
-      <SeletorArquivo arquivo={arquivo} aoEscolher={setArquivo}
-        rotulo={tecnica ? "Anexar relatório externo (opcional)" : "Anexar arquivo (opcional)"} compacto />
-      {chamado.pode_responder && (
-        <label className="checkbox">
-          <input type="checkbox" checked={tecnica} onChange={(e) => setTecnica(e.target.checked)} />
-          É uma resposta técnica (diagnóstico do problema)
-        </label>
-      )}
+      <SeletorArquivo arquivo={arquivo} aoEscolher={setArquivo} rotulo="Anexar arquivo (opcional)" compacto />
       {enviar.isError && <div className="alerta-erro">{enviar.error.message}</div>}
       <div className="acoes-form">
         <Botao type="submit" carregando={enviar.isPending} disabled={!texto.trim() && !arquivo}>
-          {tecnica ? <><Stethoscope size={16} /> Registrar resposta técnica</> : <><MessageSquare size={16} /> Enviar</>}
+          <MessageSquare size={16} /> Enviar
         </Botao>
       </div>
     </form>
@@ -616,75 +553,3 @@ function ModalDesvincular({ chamado, oficio, aoFechar, aoSalvar }: {
   );
 }
 
-const VAZIO: RelatorioForm = {
-  equipamento: null, identificacao: null, diagnostico: "", causa: null, servico_executado: null, pecas: null,
-  situacao_equipamento: "NAO_SE_APLICA", recomendacoes: null,
-};
-
-/** Relatório técnico no modelo do sistema (vira PDF). */
-function ModalRelatorio({ chamado, aoFechar, aoSalvar }: {
-  chamado: Detalhe; aoFechar: () => void; aoSalvar: (c: Detalhe) => void;
-}) {
-  const avisar = useToast();
-  const [f, setF] = useState<RelatorioForm>({ ...VAZIO, equipamento: chamado.equipamento, atendido_em: agoraLocal() });
-  const campo = (k: keyof RelatorioForm) => (e: { target: { value: string } }) =>
-    setF((v) => ({ ...v, [k]: e.target.value || null }));
-  const salvar = useMutation({
-    mutationFn: () => criarRelatorio(chamado.id, { ...f, diagnostico: f.diagnostico?.trim() ?? "" }),
-    onSuccess: (c) => {
-      aoSalvar(c);
-      avisar("Relatório técnico registrado. Baixe o PDF na linha do tempo.");
-      aoFechar();
-    },
-  });
-  return (
-    <Modal titulo={`Relatório técnico · ${chamado.codigo}`} aoFechar={aoFechar}>
-      <form className="formulario" onSubmit={(e) => { e.preventDefault(); salvar.mutate(); }}>
-        <div className="grade-2">
-          <Campo rotulo="Data e hora do atendimento *">
-            {(id) => <input id={id} className="input" type="datetime-local" required max={agoraLocal()}
-              value={f.atendido_em ?? ""} onChange={campo("atendido_em")} />}
-          </Campo>
-          <Campo rotulo="Situação do equipamento">
-            {(id) => (
-              <select id={id} className="input" value={f.situacao_equipamento}
-                onChange={(e) => setF((v) => ({ ...v, situacao_equipamento: e.target.value as SituacaoEquipamento }))}>
-                {Object.entries(ROTULO_EQUIPAMENTO).map(([k, r]) => <option key={k} value={k}>{r}</option>)}
-              </select>
-            )}
-          </Campo>
-          <Campo rotulo="Equipamento">
-            {(id) => <input id={id} className="input" maxLength={120} value={f.equipamento ?? ""} onChange={campo("equipamento")} />}
-          </Campo>
-          <Campo rotulo="Patrimônio / nº de série">
-            {(id) => <input id={id} className="input" maxLength={120} value={f.identificacao ?? ""} onChange={campo("identificacao")} />}
-          </Campo>
-        </div>
-        <Campo rotulo="Diagnóstico *">
-          {(id) => <textarea id={id} className="input" rows={3} required minLength={5} maxLength={10000}
-            value={f.diagnostico} onChange={(e) => setF((v) => ({ ...v, diagnostico: e.target.value }))} />}
-        </Campo>
-        <Campo rotulo="Causa provável">
-          {(id) => <textarea id={id} className="input" rows={2} maxLength={5000} value={f.causa ?? ""} onChange={campo("causa")} />}
-        </Campo>
-        <Campo rotulo="Serviço executado">
-          {(id) => <textarea id={id} className="input" rows={3} maxLength={10000} value={f.servico_executado ?? ""}
-            onChange={campo("servico_executado")} />}
-        </Campo>
-        <Campo rotulo="Peças e materiais">
-          {(id) => <textarea id={id} className="input" rows={2} maxLength={5000} value={f.pecas ?? ""} onChange={campo("pecas")} />}
-        </Campo>
-        <Campo rotulo="Recomendações">
-          {(id) => <textarea id={id} className="input" rows={2} maxLength={5000} value={f.recomendacoes ?? ""}
-            onChange={campo("recomendacoes")} />}
-        </Campo>
-        <p className="texto-suave">O relatório conta como diagnóstico do chamado e gera um PDF com o modelo do sistema.</p>
-        {salvar.isError && <div className="alerta-erro">{salvar.error.message}</div>}
-        <div className="acoes-form">
-          <button type="button" className="btn btn-secundario" onClick={aoFechar}>Cancelar</button>
-          <Botao type="submit" carregando={salvar.isPending}>Registrar relatório</Botao>
-        </div>
-      </form>
-    </Modal>
-  );
-}
