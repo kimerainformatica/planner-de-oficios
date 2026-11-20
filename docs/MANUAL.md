@@ -165,7 +165,8 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 - **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
   - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
-  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*.
+  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
+  - Controle de Tetos: *Sem acesso*, *Usuário do setor* (escolha também o setor) ou *Administrador*.
 
   Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
 - **Operacional sempre tem o Planner:** ao escolher *Operacional* ou *Administrador* na Manutenção, o Planner vem
@@ -357,6 +358,62 @@ Clique no aviso para abrir a tela com os itens. Não há "lido": o aviso some qu
 
 Cadastre, altere ou desative as empresas e defina o prazo do diagnóstico de cada uma, em horas corridas. Uma empresa
 só pode ser excluída se não tiver chamados nem técnicos.
+
+## Controle de Tetos
+
+O módulo controla quanto cada setor gasta (ou consome) em relação a um teto. O **administrador** cria os setores e
+os tipos de teto e define os valores. O **usuário do setor** lança os gastos do setor dele e acompanha os indicadores;
+ele não vê os outros setores.
+
+### Painel
+
+Cada tipo de teto do setor aparece num cartão com três medidores:
+
+- **Mês:** quanto já foi gasto no mês contra o teto do mês. O traço na barra mostra quanto "deveria" ter sido gasto
+  até hoje. Abaixo, a **projeção**: no ritmo atual, quanto se vai gastar até o fim do mês, em vermelho se passar do
+  teto.
+- **Hoje** e **Ano:** o gasto do dia e o do ano contra os tetos deles.
+
+As cores seguem a situação: verde dentro do teto, amarelo em **atenção** (o gasto chegou ao % de alerta do tipo) e
+vermelho **acima do teto**. O administrador vê todos os setores, com os totais de cada um (somados só entre tipos da
+mesma unidade), e pode filtrar por setor. Em **Consumo até**, escolha outra data para ver como estava o consumo
+naquele dia. O número ao lado de *Painel* no menu é a quantidade de tipos acima do teto no mês.
+
+### Indicadores de um tipo
+
+Em **Ver indicadores**, escolha o ano e o mês:
+
+- **Dia a dia:** o gasto de cada dia do mês com o teto do dia (o traço) e o acumulado do mês contra o teto
+  acumulado.
+- **Mês a mês:** o gasto de cada mês do ano com o teto do mês.
+- **Ano a ano:** o gasto de cada ano com o teto do ano.
+
+Todo gráfico tem **Ver tabela**. Abaixo, o histórico dos **valores do teto**: quem definiu, quando e a partir de
+que data.
+
+### Lançar um gasto
+
+Em **Lançar gasto**, escolha o tipo, a data (não pode ser futura), o valor (na unidade do tipo: R$ ou litros, resmas…),
+a descrição e, se quiser, o nº do documento (nota fiscal, requisição) e o comprovante. Em **Lançamentos**, a lista
+tem filtros por tipo, período e busca, e mostra o total de cada tipo no filtro. Quem é do setor corrige ou exclui os
+lançamentos do setor; tudo fica registrado nas atividades.
+
+### Tipos de teto (administrador)
+
+- **Novo tipo:** setor, nome, unidade (R$ ou outra medida), o **% de alerta** e o teto: escolha o **período** em que
+  ele é definido (diário, mensal ou anual) e o valor. A tela mostra quanto isso dá por dia, por mês e por ano.
+  Exemplo: R$ 12.000 por ano dá R$ 1.000 por mês; o valor por dia é o do mês dividido pelos dias do mês.
+- **Valor do teto:** para mudar o teto, informe o novo valor e a data **a partir da qual** ele vale (e o motivo, se
+  quiser). Os dias anteriores continuam com o valor antigo, então os indicadores do passado não mudam. O primeiro
+  valor vale também para os gastos anteriores à data dele.
+- **Editar:** nome, descrição, unidade, alerta ou desativar. Desativado, o tipo sai do painel e não recebe
+  lançamentos; o histórico fica. Só se exclui um tipo sem lançamentos.
+
+### Setores (administrador)
+
+Cadastre os setores (ex.: Gerência Operacional) e veja quem lança os gastos de cada um. Para ligar uma pessoa a um
+setor, edite o usuário em **Usuários** e escolha *Usuário do setor* e o setor no Controle de Tetos. Um setor só se
+exclui sem tipos e sem usuários; senão, desative.
 
 ## Celular
 

@@ -56,10 +56,13 @@ flowchart LR
 | `modulos.py` | Catálogo dos módulos e quem administra o quê |
 | `manutencao.py` | Helpdesk: papéis (operacional, técnico, admin), visibilidade por empresa, transições do chamado e situação do prazo |
 | `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
+| `preventivas.py` | Datas dos planos de preventiva, situação de cada uma e avisos internos |
+| `tetos.py` | Controle de Tetos: teto de cada dia pelas vigências, teto de um período, consumo, situação, projeção e visibilidade por setor |
 
 ## Módulos
 
-A plataforma é uma base de módulos: **Planner de Ofícios** (`OFICIOS`) e **Manutenção Clínica** (`MANUTENCAO`).
+A plataforma é uma base de módulos: **Planner de Ofícios** (`OFICIOS`), **Manutenção Clínica** (`MANUTENCAO`) e
+**Controle de Tetos** (`TETOS`).
 
 - **Acesso:** `usuario_modulos` guarda o papel (`ADMIN` ou `CLIENTE`) de cada usuário em cada módulo. `usuarios.perfil` é
   global: `MASTER` (acesso total) ou `CLIENTE`. `Usuario.perfil_no(modulo)`, `tem_acesso(modulo)` e `eh_admin_no(modulo)`
@@ -209,8 +212,9 @@ Decisões importantes:
 | 0012 | Helpdesk da Manutenção Clínica: `empresas_manutencao` (MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO), perfil `TECNICO` com `usuario_modulos.empresa_id`, `chamados`, `chamado_interacoes` e `relatorios_tecnicos` |
 | 0013 | Tempo de solução do chamado (`solucao_horas_uteis`, `solucao_horas_corridas`) e `oficios.chamado_id` (solicitação de peças/equipamentos) |
 | 0014 | Regra: todo operacional da Manutenção (cliente/admin) recebe acesso de cliente ao Planner, se não tinha |
-| 0016 | Prazos corridos: refaz `chamados.prazo_em`, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo `CORRECAO` |
 | 0015 | Manutenção preventiva: `planos_preventiva` (periodicidade por empresa) e `preventivas` (datas, realização, ateste) |
+| 0016 | Prazos corridos: refaz `chamados.prazo_em`, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo `CORRECAO` |
+| 0017 | Controle de Tetos: módulo `TETOS`, `setores`, `usuario_modulos.setor_id`, `tipos_teto`, `tetos_vigencias` (valor por período a partir de uma data) e `gastos_teto` |
 
 ## Segurança
 

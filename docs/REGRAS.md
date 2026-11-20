@@ -106,7 +106,7 @@ stateDiagram-v2
 
 ## Módulos e perfis
 
-A plataforma é dividida em **módulos**: **Planner de Ofícios** e **Manutenção Clínica**. Cada pessoa é habilitada
+A plataforma é dividida em **módulos**: **Planner de Ofícios**, **Manutenção Clínica** e **Controle de Tetos**. Cada pessoa é habilitada
 nos módulos no cadastro (feito por um administrador ou pelo master) e tem **um papel em cada módulo**. Quem não foi
 habilitado num módulo não o abre (as rotas dele respondem `403`).
 
@@ -338,6 +338,55 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 
 Cada unidade tem o próprio servidor. O nome da unidade vem do `.env` (`UNIDADE_NOME` e `UNIDADE_DESCRICAO`) e
 aparece no login, no menu e no PDF do relatório técnico. Sem a configuração, nada aparece.
+
+## Controle de Tetos
+
+### Papéis
+
+| Papel | Pode |
+|---|---|
+| Usuário do setor (`CLIENTE`, com `setor_id`) | Ver os tipos e indicadores **do próprio setor**, lançar gastos nele e corrigir ou excluir os lançamentos do setor. Sem setor, o módulo pede para o administrador ligar o usuário a um |
+| Administrador (`ADMIN`) e master | Criar setores e tipos, definir e remover valores de teto, ver todos os setores e lançar em qualquer um |
+
+O setor é escolhido no cadastro do usuário (acesso ao Controle de Tetos). É obrigatório para o usuário do setor.
+
+### Tipo de teto e valor
+
+- O tipo pertence a um setor e tem nome (único no setor), unidade (R$ por padrão, ou litros, resmas, kWh…) e o
+  **% de alerta** (padrão 80%).
+- O valor fica nas **vigências**: período base (diário, mensal ou anual), valor e a data a partir da qual vale.
+  - Um novo valor vale a partir da data dele; os dias anteriores continuam com o valor que valia neles.
+  - Na mesma data de uma vigência existente, o valor dela é substituído.
+  - A **primeira** vigência vale também para os dias anteriores a ela.
+  - O tipo sempre tem pelo menos uma vigência.
+- Tipo com lançamentos não se exclui (desative). Desativado, sai do painel e não recebe lançamentos.
+
+### Teto de cada período (proporção)
+
+O teto de um dia sai da vigência do dia:
+
+- diário: o valor;
+- mensal: valor ÷ dias do mês;
+- anual: (valor ÷ 12) ÷ dias do mês.
+
+O teto de um mês, de um ano ou do 1º dia do mês até hoje é a **soma dos tetos dos dias**. Assim, um teto mensal de
+R$ 3.000 dá R$ 3.000 em qualquer mês, um anual de R$ 12.000 dá R$ 1.000 em qualquer mês e R$ 12.000 no ano, e um
+diário de R$ 50 dá R$ 1.550 num mês de 31 dias.
+
+### Lançamento
+
+- Data não futura, valor maior que zero com até duas casas decimais (na unidade do tipo), descrição obrigatória;
+  documento e comprovante opcionais.
+- Corrigir, trocar o comprovante e excluir ficam nas **Atividades**, com o antes e o depois.
+
+### Situação e projeção
+
+- **Acima do teto:** o gasto passou do teto do período. **Atenção:** chegou ao % de alerta do tipo. **Dentro do
+  teto:** abaixo do alerta.
+- A situação do cartão é a do **mês**. Os medidores do dia e do ano têm a situação deles.
+- **Projeção do mês** (só no mês corrente): gasto até hoje ÷ dias decorridos × dias do mês. Se passar do teto do mês,
+  o tipo conta como atenção no painel, mesmo abaixo do % de alerta.
+- Os totais de um setor somam só tipos da **mesma unidade**.
 
 ## Correções (administrador e master)
 

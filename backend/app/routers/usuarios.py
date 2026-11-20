@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.deps import DbDep, GestorDep
-from app.models import EmpresaManutencao, Modulo, Perfil, Usuario, UsuarioModulo
+from app.models import EmpresaManutencao, Modulo, Perfil, Setor, Usuario, UsuarioModulo
 from app.schemas import UsuarioAtualizar, UsuarioCriar, UsuarioOut
 from app.seguranca import gerar_hash_senha
 from app.services.auditoria import Acao, campos_legiveis, diferencas, registrar
@@ -29,6 +29,8 @@ def _rotulo_acesso(a: UsuarioModulo) -> str:
         return f"técnico · {a.empresa.nome}" if a.empresa else "técnico"
     if a.modulo == Modulo.MANUTENCAO and a.perfil == Perfil.CLIENTE:
         return "operacional"  # na Manutenção Clínica o cliente é quem abre os chamados
+    if a.modulo == Modulo.TETOS and a.setor:
+        return f"{ROTULO[a.perfil]} · setor {a.setor.nome}"
     return ROTULO[a.perfil]
 
 
@@ -71,6 +73,16 @@ def _aplicar_modulos(db, editor: Usuario, alvo: Usuario, pedidos: list) -> None:
             if empresa is None or (not empresa.ativo and not mesma):
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empresa do técnico não encontrada ou inativa")
         empresas[a.modulo] = empresa
+    setores: dict[Modulo, Setor | None] = {}
+    for a in pedidos:
+        setor = None
+        if a.setor_id is not None:
+            setor = db.get(Setor, a.setor_id)
+            atual = alvo.acesso_no(a.modulo)
+            mesmo = atual is not None and atual.setor_id == a.setor_id
+            if setor is None or (not setor.ativo and not mesmo):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Setor não encontrado ou inativo")
+        setores[a.modulo] = setor
 
     fora = [m for m in desejado if m not in escopo]
     if fora:
@@ -90,8 +102,10 @@ def _aplicar_modulos(db, editor: Usuario, alvo: Usuario, pedidos: list) -> None:
             if modulo in atuais:
                 atuais[modulo].perfil = desejado[modulo]
                 atuais[modulo].empresa = empresas[modulo]
+                atuais[modulo].setor = setores[modulo]
             else:
-                alvo.modulos.append(UsuarioModulo(modulo=modulo, perfil=desejado[modulo], empresa=empresas[modulo]))
+                alvo.modulos.append(UsuarioModulo(modulo=modulo, perfil=desejado[modulo], empresa=empresas[modulo],
+                                                  setor=setores[modulo]))
         elif modulo in atuais:
             alvo.modulos.remove(atuais[modulo])  # delete-orphan apaga a linha
     _garantir_planner_do_operacional(alvo, tinha_planner)

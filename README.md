@@ -7,6 +7,9 @@ Sistema web interno organizado em **módulos**, com um login só:
 - **Manutenção Clínica:** helpdesk em que o operacional abre chamados para as empresas técnicas (MSI, Realiza Predial,
   Realiza Climatização…), com diagnóstico em **24 horas corridas**, relatório técnico, quadro de acompanhamento e
   solicitação de peças que vira um ofício no Planner.
+- **Controle de Tetos:** cada setor tem tipos de teto (dinheiro ou outra unidade: litros, resmas, kWh…) definidos pelo
+  administrador. O setor lança os gastos e acompanha o consumo do dia, do mês e do ano, com alerta, projeção do mês e
+  gráficos dia a dia, mês a mês e ano a ano.
 
 O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
 
@@ -15,9 +18,10 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 ## Módulos e perfis
 
 - Depois do login, a tela **Módulos** mostra só os módulos liberados para a pessoa (com um só, ela vai direto).
-- O papel é **por módulo**: administrador ou cliente no Planner; administrador, operacional ou técnico na Manutenção.
+- O papel é **por módulo**: administrador ou cliente no Planner; administrador, operacional ou técnico na Manutenção;
+  administrador ou usuário do setor (com o setor, ex.: joao.dantas · Gerência Operacional) no Controle de Tetos.
   O **master** administra todos.
-- O master cadastra e edita o acesso aos dois módulos. O administrador de um módulo só mexe no acesso a esse módulo.
+- O master cadastra e edita o acesso a todos os módulos. O administrador de um módulo só mexe no acesso a esse módulo.
 - Todo **operacional** da Manutenção também usa o Planner (como cliente, ou o papel que tiver lá). O **técnico** só
   vê a Manutenção, e só os chamados da própria empresa.
 
@@ -122,12 +126,13 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Ramo | Versão | Módulos | Visual | Situação |
 |---|---|---|---|---|
+| `feature/2.3-controle-de-tetos` | 2.3 | Planner de Ofícios + Manutenção Clínica + Controle de Tetos | "Correnteza" | Em homologação; parte da 2.2 |
 | `feature/2.2-preventivas-prazos-diagnostico` | 2.2 | Planner de Ofícios + Manutenção Clínica, com preventivas | "Correnteza" | Em homologação; parte da 2.0 |
 | `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
 | `main` | 1.1 | Planner de Ofícios | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Estável, para computadores com folga de processamento |
 | `visual-classico` | 1.1 | Planner de Ofícios | Clássico, **sem nenhuma animação** nem transição, fontes do sistema | Estável, para computadores mais simples; é o que está no ar hoje |
 
-### Versões 2.0 a 2.2 (2.0 em `feature/modulos-manutencao-clinica`; 2.1 e 2.2 em `feature/2.2-preventivas-prazos-diagnostico`)
+### Versões 2.0 a 2.3 (2.0 em `feature/modulos-manutencao-clinica`; 2.1 e 2.2 em `feature/2.2-preventivas-prazos-diagnostico`; 2.3 em `feature/2.3-controle-de-tetos`)
 
 - **Módulos com um login só:** Planner de Ofícios e Manutenção Clínica, com o papel definido por módulo. Todo
   operacional da Manutenção também usa o Planner.
@@ -138,8 +143,10 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
   Planner, e o chamado acompanha cada passo.
 - **Prazos em dias corridos e data do diagnóstico editável (2.2).**
 - **Preventivas e avisos (2.1):** planos com periodicidade, registro com evidência, ateste e avisos internos.
-- **Banco:** migrações 0011 a 0016.
-- **Testes:** 117 testes da API.
+- **Controle de Tetos (2.3):** setores ligados aos usuários, tipos de teto com valor por período e vigência,
+  lançamentos com comprovante e indicadores diários, mensais e anuais.
+- **Banco:** migrações 0011 a 0017.
+- **Testes:** 127 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
 aplicar no servidor está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
@@ -172,7 +179,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0016)
+  alembic/            migrações do banco (0001 … 0017)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -187,7 +194,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 117 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 127 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

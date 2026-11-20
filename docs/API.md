@@ -150,6 +150,30 @@ da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REG
 | POST | `/api/manutencao/chamados/{id}/oficios` | operacional, admin | Solicita peças/equipamentos: cadastra um ofício no Planner ligado ao chamado (`tipo`, `numero`, `data_oficio`, `protocolo`, `destinatario_tipo`, `destinatario_setor`, `itens`) |
 | POST | `/api/manutencao/chamados/{id}/reabrir` · `/cancelar` | operacional, admin | Reabre um concluído ou cancela um em aberto, com `motivo` |
 
+## Controle de Tetos
+
+Todas as rotas exigem acesso ao módulo. O usuário do setor só enxerga o próprio setor (o resto responde `404`); as
+rotas de setores, tipos e valores, exceto as de leitura, são do administrador do módulo (`403` para os outros).
+Valores saem como número, já arredondados no centavo.
+
+| Método | Rota | Quem | O que faz |
+|---|---|---|---|
+| GET | `/api/tetos/resumo` | todos | Se quem consulta é administrador do módulo e o setor dele |
+| GET | `/api/tetos/setores` | todos | Setores (o usuário do setor recebe só o dele), com quem lança e quantos tipos têm |
+| POST · PATCH · DELETE | `/api/tetos/setores[/{id}]` | admin | Cria, altera (`nome`, `descricao`, `ativo`) ou exclui (só sem tipos e sem usuários) |
+| GET | `/api/tetos/tipos` | todos | Tipos visíveis, com o teto atual e os equivalentes por dia, mês e ano (`setor_id`, `incluir_inativos`) |
+| GET | `/api/tetos/tipos/{id}` | todos | O tipo com o histórico dos valores (`vigencias`) |
+| POST | `/api/tetos/tipos` | admin | Cria o tipo já com o valor: `setor_id`, `nome`, `descricao`, `unidade`, `alerta_pct`, `periodo` (`DIARIO`, `MENSAL`, `ANUAL`), `valor`, `inicio` (padrão: 1º dia do mês) |
+| PATCH · DELETE | `/api/tetos/tipos/{id}` | admin | Altera nome, descrição, unidade, alerta ou `ativo`; exclui um tipo sem lançamentos |
+| POST | `/api/tetos/tipos/{id}/vigencias` | admin | Novo valor a partir de `inicio` (`periodo`, `valor`, `motivo`). Na mesma data, substitui |
+| DELETE | `/api/tetos/vigencias/{id}` | admin | Remove um valor (o tipo fica com pelo menos um) |
+| GET | `/api/tetos/gastos` | todos | Lançamentos (`setor_id`, `tipo_id`, `de`, `ate`, `busca`, paginação) e o total de cada tipo no filtro |
+| POST | `/api/tetos/gastos` | todos | Lança um gasto (formulário: `tipo_id`, `data`, `valor` como `1234.56` ou `1.234,56`, `descricao`, `documento`, `arquivo`) |
+| PATCH · DELETE | `/api/tetos/gastos/{id}` | setor, admin | Corrige (`tipo_id`, `data`, `valor`, `descricao`, `documento`) ou exclui o lançamento |
+| PUT · GET | `/api/tetos/gastos/{id}/arquivo` | setor, admin | Anexa/substitui ou baixa o comprovante |
+| GET | `/api/tetos/painel` | todos | Consumo de cada tipo no dia, no mês (com o esperado até a data e a projeção) e no ano, por setor (`setor_id`, `data`) |
+| GET | `/api/tetos/tipos/{id}/indicadores` | todos | Séries dia a dia (`mes`), mês a mês (`ano`) e ano a ano, e o resumo |
+
 ## Outros
 
 | Método | Rota | O que faz |

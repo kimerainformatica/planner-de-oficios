@@ -1,0 +1,358 @@
+/* ================= Controle de Tetos ================= */
+
+.filtros-tetos {
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.filtros-tetos select.input,
+.filtros-tetos input[type="date"].input {
+  width: auto;
+}
+.campo-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.busca-tetos {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.busca-tetos svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-suave);
+}
+.busca-tetos .input {
+  padding-left: 36px;
+}
+
+/* selos de situação (reaproveitam as cores de prazo) */
+.selo-teto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.selo-teto-NORMAL {
+  color: var(--normal);
+  background: var(--normal-fundo);
+  border-color: var(--normal-borda);
+}
+.selo-teto-ATENCAO {
+  color: var(--atencao);
+  background: var(--atencao-fundo);
+  border-color: var(--atencao-borda);
+}
+.selo-teto-CRITICO {
+  color: var(--critico);
+  background: var(--critico-fundo);
+  border-color: var(--critico-borda);
+}
+.selo-teto-NEUTRO {
+  color: var(--texto-suave);
+  background: var(--superficie-2);
+  border-color: var(--borda);
+}
+.resumo-tetos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.resumo-tetos .selo-teto {
+  font-size: 0.86rem;
+  padding: 6px 12px;
+}
+.texto-alerta {
+  color: var(--critico);
+  font-weight: 600;
+}
+
+/* setores e cartões do painel */
+.setor-tetos {
+  margin-bottom: 26px;
+}
+.setor-tetos-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 18px;
+  margin-bottom: 12px;
+}
+.setor-tetos-topo h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.totais-tetos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+.grade-tetos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 16px;
+}
+.cartao-teto {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cartao-teto-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cartao-teto-topo h3 {
+  margin: 0 0 2px;
+  font-size: 1.02rem;
+}
+.cartao-teto-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-weight: 600;
+}
+.medidores-menores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* medidor de consumo */
+.medidor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  --cor-medidor: var(--normal-forte);
+}
+.medidor-ATENCAO {
+  --cor-medidor: var(--atencao-forte);
+}
+.medidor-CRITICO {
+  --cor-medidor: var(--critico-forte);
+}
+.medidor-NEUTRO {
+  --cor-medidor: var(--borda-forte);
+}
+.medidor-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.medidor-titulo {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.medidor-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-medidor);
+}
+.medidor-trilho {
+  position: relative;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  overflow: visible;
+}
+.medidor-barra {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: var(--cor-medidor);
+  transition: width 0.6s var(--mola);
+}
+.medidor-ritmo {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--texto);
+  opacity: 0.55;
+}
+.medidor-valores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.medidor-rodape {
+  font-size: 0.82rem;
+}
+.medidores-menores .medidor-valores {
+  font-size: 0.8rem;
+}
+
+/* indicadores de um tipo */
+.medidores-detalhe {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.medidores-detalhe .cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.abas.abas-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+.abas.abas-3::before {
+  width: calc((100% - 10px) / 3);
+}
+
+/* gráfico de barras com o traço do teto */
+.grafico-caixa {
+  position: relative;
+  width: 100%;
+}
+.grafico-caixa svg {
+  display: block;
+  overflow: visible;
+}
+.grafico-caixa .grade {
+  stroke: var(--grade-grafico);
+  stroke-width: 1;
+}
+.grafico-caixa .eixo {
+  fill: var(--texto-suave);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.grafico-caixa .alvo-dica {
+  fill: transparent;
+}
+.grafico-caixa g:hover .alvo-dica,
+.grafico-caixa g:focus .alvo-dica {
+  fill: var(--superficie-2);
+}
+.grafico-caixa g:focus {
+  outline: none;
+}
+.barra-teto {
+  fill: var(--serie-1);
+}
+.barra-teto-acima {
+  fill: var(--critico-forte);
+}
+.traco-teto {
+  stroke: var(--texto);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+/* histórico dos valores do teto */
+.vigencias {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.vigencias li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--borda);
+}
+.vigencias li:first-child {
+  border-top: 0;
+}
+.vigencias li small {
+  flex-basis: 100%;
+}
+.vigencias li:has(.btn) {
+  position: relative;
+  padding-right: 48px;
+}
+.vigencias li .btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.titulo-secao {
+  margin: 22px 0 6px;
+  font-size: 1rem;
+}
+.previa-teto {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--raio-p);
+  background: var(--primaria-suave);
+  font-size: 0.88rem;
+}
+
+/* lançamentos */
+.totais-lancamentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.total-tipo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  min-width: 180px;
+}
+.total-tipo strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .grade-tetos {
+    grid-template-columns: 1fr;
+  }
+  .totais-tetos {
+    align-items: flex-start;
+  }
+  .medidores-menores {
+    grid-template-columns: 1fr;
+  }
+}
+
+.equivalentes {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+}
+/* nas tabelas do módulo o texto quebra; valores, datas e botões ficam numa linha */
+.tabela-tetos td {
+  white-space: normal;
+  min-width: 90px;
+}
+.tabela-tetos td.num,
+.tabela-tetos td:first-child {
+  white-space: nowrap;
+  min-width: 0;
+}

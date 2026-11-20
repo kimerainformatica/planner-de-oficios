@@ -4,11 +4,51 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 
 | Versão | Data | Ramo | Resumo |
 |---|---|---|---|
+| 2.3 | 19/11/2026 | `feature/2.3-controle-de-tetos` | Módulo Controle de Tetos: tetos por setor, lançamentos e indicadores diários, mensais e anuais |
 | 2.2 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Prazos em dias e horas corridas; seção Diagnóstico técnico, com relatório externo e do sistema interligados e editáveis |
 | 2.1 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Manutenção preventiva com ateste, avisos internos e nome da unidade |
 | 2.0 | 13/11/2026 | `feature/modulos-manutencao-clinica` | Módulos, Manutenção Clínica (helpdesk) e solicitação de peças integrada ao Planner |
 | 1.1 | 04/11/2026 | `main` | Documentação dos recursos de servidor e do custo de cada visual |
 | 1.0 | 26/10/2026 | `main` | Planner de Ofícios: sistema, testes e documentação |
+
+## 2.3 · Controle de Tetos
+
+### O módulo
+
+- **Setores ligados ao login:** o administrador cadastra os setores (ex.: Gerência Operacional) e, em Usuários, liga
+  cada pessoa ao setor dela como *Usuário do setor* no Controle de Tetos.
+- **Tipos de teto gerenciáveis:** o administrador cria, para cada setor, o que quer medir, em R$ ou noutra unidade
+  (litros, resmas, kWh…), com o % de alerta. O teto é definido num período (diário, mensal ou anual) e os outros
+  saem por proporção. Mudar o valor vale a partir de uma data, sem mudar os indicadores do passado.
+- **Lançamentos:** o setor lança os gastos (data, valor, descrição, documento e comprovante), corrige e exclui. Tudo
+  fica nas atividades.
+- **Indicadores:** painel com o consumo do dia, do mês (com o esperado até hoje e a projeção do mês) e do ano de cada
+  tipo; e, por tipo, os gráficos dia a dia, mês a mês e ano a ano, com tabela.
+
+### Banco de dados
+
+| Migração | O que faz |
+|---|---|
+| `0017_controle_de_tetos` | Acrescenta o módulo `TETOS`, as tabelas `setores`, `tipos_teto`, `tetos_vigencias` e `gastos_teto` e a coluna `usuario_modulos.setor_id` |
+
+Nada do que existe muda. Voltar a 0016 apaga os dados do módulo; a volta segura é o backup.
+
+### Como aplicar no servidor
+
+1. Faça o **backup do banco**.
+2. Troque para o ramo (`git fetch` e `git checkout feature/2.3-controle-de-tetos`) e rode `alembic upgrade head` em `backend`. Confira com
+   `alembic current`: deve mostrar `0017 (head)`.
+3. Gere as telas (`npm run build` em `frontend`) e reinicie o sistema.
+4. Entre como master: em **Controle de Tetos → Setores**, cadastre os setores; em **Tipos de teto**, os tetos de cada
+   um; e, em **Usuários**, ligue cada pessoa ao setor dela.
+
+### Testes
+
+- **API:** 127 testes passando. Os 10 novos cobrem as proporções entre os períodos, a mudança de valor no meio do mês,
+  o setor obrigatório no cadastro, quem pode o quê, a separação entre setores, os lançamentos com comprovante, o painel
+  (situação e projeção) e as séries dos indicadores.
+- **Front-end:** checagem de tipos e `npm run build` sem erros. Telas conferidas no navegador com dados de
+  demonstração (painel, indicadores, tipos, valores, setores, usuários e lançamentos).
 
 ## 2.2 · Prazos corridos e data do diagnóstico
 

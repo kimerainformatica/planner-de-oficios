@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     JSON,
     Integer,
+    Numeric,
     SmallInteger,
     String,
     Text,
@@ -42,6 +43,7 @@ class Modulo(str, enum.Enum):
 
     OFICIOS = "OFICIOS"  # Planner de Ofícios
     MANUTENCAO = "MANUTENCAO"  # Manutenção Clínica
+    TETOS = "TETOS"  # Controle de Tetos (gastos por setor)
 
 
 class StatusSolicitacao(str, enum.Enum):
@@ -151,7 +153,8 @@ class Usuario(Base):
 
 class UsuarioModulo(Base):
     """Acesso de um usuário a um módulo, com o papel dele ali (ADMIN, CLIENTE ou, na Manutenção, TECNICO).
-    Um admin de um módulo não é admin dos outros. O técnico pertence a uma empresa (`empresa_id`)."""
+    Um admin de um módulo não é admin dos outros. O técnico pertence a uma empresa (`empresa_id`); no Controle de
+    Tetos, o usuário do setor (CLIENTE) pertence a um setor (`setor_id`)."""
 
     __tablename__ = "usuario_modulos"
     __table_args__ = (UniqueConstraint("usuario_id", "modulo", name="uk_usuario_modulo"),)
@@ -161,9 +164,11 @@ class UsuarioModulo(Base):
     modulo: Mapped[Modulo] = mapped_column(Enum(Modulo, name="modulo"))
     perfil: Mapped[Perfil] = mapped_column(Enum(Perfil, name="perfil"), default=Perfil.CLIENTE)
     empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas_manutencao.id", ondelete="RESTRICT"))
+    setor_id: Mapped[int | None] = mapped_column(ForeignKey("setores.id", ondelete="RESTRICT"))
 
     usuario: Mapped[Usuario] = relationship(back_populates="modulos")
     empresa: Mapped["EmpresaManutencao | None"] = relationship(lazy="selectin")
+    setor: Mapped["Setor | None"] = relationship(lazy="selectin")
 
 
 # ================= Manutenção Clínica (helpdesk) =================
@@ -596,3 +601,104 @@ class Auditoria(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     usuario: Mapped[Usuario | None] = relationship()
+
+
+# ================= Controle de Tetos (gastos por setor) =================
+
+
+class Setor(Base):
+    """Setor da unidade (ex.: Gerência Operacional). Os usuários do setor lançam os gastos dos tetos dele."""
+
+    __tablename__ = "setores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nome: Mapped[str] = mapped_column(String(120), unique=True)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class PeriodoTeto(str, enum.Enum):
+    """Período em que o valor do teto foi definido. Os outros períodos saem por proporção."""
+
+    DIARIO = "DIARIO"
+    MENSAL = "MENSAL"
+    ANUAL = "ANUAL"
+
+
+class TipoTeto(Base):
+    """O que um setor mede (ex.: Material de escritório em R$, Combustível em litros). Definido pelo administrador.
+    O valor do teto fica nas vigências: mudar o teto não reescreve o passado."""
+
+    __tablename__ = "tipos_teto"
+    __table_args__ = (UniqueConstraint("setor_id", "nome", name="uk_tipo_teto_setor_nome"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    setor_id: Mapped[int] = mapped_column(ForeignKey("setores.id", ondelete="RESTRICT"), index=True)
+    nome: Mapped[str] = mapped_column(String(120))
+    descricao: Mapped[str | None] = mapped_column(Text)
+    unidade: Mapped[str] = mapped_column(String(20), default="R$")  # R$, litros, resmas, kWh…
+    alerta_pct: Mapped[int] = mapped_column(SmallInteger, default=80)  # % do teto que acende a atenção
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    setor: Mapped[Setor] = relationship(lazy="joined")
+    vigencias: Mapped[list["TetoVigencia"]] = relationship(
+        back_populates="tipo", cascade="all, delete-orphan", order_by="TetoVigencia.inicio", lazy="selectin"
+    )
+
+    @property
+    def vigente(self) -> "TetoVigencia | None":
+        """A vigência mais recente (o teto atual)."""
+        return self.vigencias[-1] if self.vigencias else None
+
+
+class TetoVigencia(Base):
+    """Valor do teto a partir de uma data. A primeira vigência vale também para os dias anteriores a ela."""
+
+    __tablename__ = "tetos_vigencias"
+    __table_args__ = (UniqueConstraint("tipo_id", "inicio", name="uk_teto_vigencia_inicio"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tipo_id: Mapped[int] = mapped_column(ForeignKey("tipos_teto.id", ondelete="CASCADE"), index=True)
+    inicio: Mapped[date] = mapped_column(Date)
+    periodo: Mapped[PeriodoTeto] = mapped_column(Enum(PeriodoTeto, name="periodo_teto"))
+    valor: Mapped[float] = mapped_column(Numeric(14, 2))
+    motivo: Mapped[str | None] = mapped_column(String(500))
+    criado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    tipo: Mapped[TipoTeto] = relationship(back_populates="vigencias")
+    criado_por: Mapped[Usuario | None] = relationship()
+
+
+class GastoTeto(Base):
+    """Um gasto (ou consumo) lançado pelo setor num tipo de teto."""
+
+    __tablename__ = "gastos_teto"
+    __table_args__ = (
+        Index("idx_gasto_tipo_data", "tipo_id", "data"),
+        Index("idx_gasto_setor_data", "setor_id", "data"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tipo_id: Mapped[int] = mapped_column(ForeignKey("tipos_teto.id", ondelete="RESTRICT"))
+    setor_id: Mapped[int] = mapped_column(ForeignKey("setores.id", ondelete="RESTRICT"))  # o do tipo
+    data: Mapped[date] = mapped_column(Date)
+    valor: Mapped[float] = mapped_column(Numeric(14, 2))  # na unidade do tipo
+    descricao: Mapped[str] = mapped_column(String(300))
+    documento: Mapped[str | None] = mapped_column(String(60))  # nº da nota, requisição, pedido…
+    arquivo_nome: Mapped[str | None] = mapped_column(String(255))
+    arquivo_caminho: Mapped[str | None] = mapped_column(String(500))
+    arquivo_mime: Mapped[str | None] = mapped_column(String(100))
+    arquivo_tamanho: Mapped[int | None] = mapped_column(Integer)
+    arquivo_sha256: Mapped[str | None] = mapped_column(String(64))
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    registrado_em: Mapped[datetime] = mapped_column(DateTime)
+    atualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    atualizado_em: Mapped[datetime | None] = mapped_column(DateTime)
+
+    tipo: Mapped[TipoTeto] = relationship(lazy="joined")
+    registrado_por: Mapped[Usuario | None] = relationship(foreign_keys=[registrado_por_id])
+    atualizado_por: Mapped[Usuario | None] = relationship(foreign_keys=[atualizado_por_id])

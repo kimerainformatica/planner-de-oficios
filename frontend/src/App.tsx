@@ -3,6 +3,7 @@ import { useAuth } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import { LayoutManutencao } from "./components/LayoutManutencao";
 import { LayoutPortal } from "./components/LayoutPortal";
+import { LayoutTetos } from "./components/LayoutTetos";
 import { Carregando } from "./components/ui";
 import type { Modulo } from "./types";
 import { Arquivos } from "./pages/Arquivos";
@@ -22,6 +23,11 @@ import { OficioDetalhe } from "./pages/oficio/OficioDetalhe";
 import { OficioNovo } from "./pages/OficioNovo";
 import { Oficios } from "./pages/Oficios";
 import { Painel } from "./pages/Painel";
+import { Lancamentos } from "./pages/tetos/Lancamentos";
+import { PainelTetos } from "./pages/tetos/Painel";
+import { SetoresTetos } from "./pages/tetos/Setores";
+import { TipoTetoDetalhe } from "./pages/tetos/TipoDetalhe";
+import { TiposTeto } from "./pages/tetos/Tipos";
 import { TiposOficio } from "./pages/TiposOficio";
 import { Usuarios } from "./pages/Usuarios";
 
@@ -82,6 +88,20 @@ export function App() {
               <Route path="empresas" element={<Empresas />} />
             </Route>
             <Route path="*" element={<Navigate to="/manutencao" replace />} />
+          </Route>
+        </Route>
+
+        {/* Módulo Controle de Tetos */}
+        <Route element={<ComAcesso modulo="TETOS" />}>
+          <Route path="tetos" element={<LayoutTetos />}>
+            <Route index element={<PainelTetos />} />
+            <Route path="lancamentos" element={<Lancamentos />} />
+            <Route path="tipo/:id" element={<TipoTetoDetalhe />} />
+            <Route element={<SoAdminDe modulo="TETOS" volta="/tetos" />}>
+              <Route path="tipos" element={<TiposTeto />} />
+              <Route path="setores" element={<SetoresTetos />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/tetos" replace />} />
           </Route>
         </Route>
 

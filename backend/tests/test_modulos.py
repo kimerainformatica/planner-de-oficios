@@ -26,14 +26,14 @@ def test_cada_usuario_ve_so_os_modulos_habilitados(api, master, admin, ana, mart
     def lista(quem):
         return {m["modulo"]: m["perfil"] for m in api.get("/api/modulos", headers=quem).json()}
 
-    assert lista(master) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER"}
+    assert lista(master) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER", "TETOS": "MASTER"}
     assert lista(admin) == {"OFICIOS": "ADMIN"}
     assert lista(ana) == {"OFICIOS": "CLIENTE"}
     # Operacionais da Manutenção também usam o Planner (regra), com papéis independentes
     assert lista(marta) == {"MANUTENCAO": "ADMIN", "OFICIOS": "CLIENTE"}
     assert lista(paulo) == {"MANUTENCAO": "CLIENTE", "OFICIOS": "CLIENTE"}
     assert papeis(eu(api, marta)) == {"MANUTENCAO": "ADMIN", "OFICIOS": "CLIENTE"}
-    assert papeis(eu(api, master)) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER"}
+    assert papeis(eu(api, master)) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER", "TETOS": "MASTER"}
 
 
 def test_sem_login_nao_lista_modulos(api):
@@ -99,7 +99,7 @@ def test_so_o_master_cria_administradores_e_masters(api, master, admin, marta):
     r = criar_usuario(api, master, "user_x3", [OFICIOS_ADMIN, MANUT_CLIENTE])
     assert r.status_code == 201 and papeis(r.json()) == {"OFICIOS": "ADMIN", "MANUTENCAO": "CLIENTE"}
     m = criar_usuario(api, master, "user_x4", [OFICIOS_CLIENTE], master=True)  # master ignora a lista de módulos
-    assert m.json()["perfil"] == "MASTER" and papeis(m.json()) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER"}
+    assert m.json()["perfil"] == "MASTER" and papeis(m.json()) == {"OFICIOS": "MASTER", "MANUTENCAO": "MASTER", "TETOS": "MASTER"}
 
 
 def test_modulo_repetido_ou_master_na_lista_e_recusado(api, master):

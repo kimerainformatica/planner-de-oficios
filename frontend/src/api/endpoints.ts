@@ -41,6 +41,9 @@ import type {
 import type {
   Avisos, FiltrosPreventiva, PaginaPreventivas, PlanoPreventiva, Preventiva, Unidade,
 } from "../types";
+import type {
+  GastoTeto, IndicadoresTipo, PaginaGastos, PainelTetos, PeriodoTeto, ResumoTetos, Setor, TipoTeto,
+} from "../types";
 import { api, requisicao } from "./client";
 
 const json = (corpo: unknown) => JSON.stringify(corpo);
@@ -437,3 +440,68 @@ export async function baixarEvidenciaPreventiva(p: Preventiva): Promise<Blob> {
   const resposta = await requisicao(`/manutencao/preventivas/${p.id}/arquivo`, { params: { bruto: true } });
   return new Blob([await resposta.arrayBuffer()], { type: p.arquivo_mime ?? "application/octet-stream" });
 }
+
+// ================= Controle de Tetos =================
+
+export const resumoTetos = () => api<ResumoTetos>("/tetos/resumo");
+
+export const listarSetores = () => api<Setor[]>("/tetos/setores");
+export const criarSetor = (dados: { nome: string; descricao?: string | null }) =>
+  api<Setor>("/tetos/setores", { method: "POST", body: json(dados) });
+export const atualizarSetor = (id: number, dados: Partial<{ nome: string; descricao: string | null; ativo: boolean }>) =>
+  api<Setor>(`/tetos/setores/${id}`, { method: "PATCH", body: json(dados) });
+export const excluirSetor = (id: number) => api<void>(`/tetos/setores/${id}`, { method: "DELETE" });
+
+export const listarTiposTeto = (params: { setor_id?: number; incluir_inativos?: boolean } = {}) =>
+  api<TipoTeto[]>("/tetos/tipos", { params });
+export const obterTipoTeto = (id: number) => api<TipoTeto>(`/tetos/tipos/${id}`);
+export const criarTipoTeto = (dados: {
+  setor_id: number; nome: string; descricao?: string | null; unidade: string; alerta_pct: number;
+  periodo: PeriodoTeto; valor: string; inicio?: string | null;
+}) => api<TipoTeto>("/tetos/tipos", { method: "POST", body: json(dados) });
+export const atualizarTipoTeto = (
+  id: number,
+  dados: Partial<{ nome: string; descricao: string | null; unidade: string; alerta_pct: number; ativo: boolean }>,
+) => api<TipoTeto>(`/tetos/tipos/${id}`, { method: "PATCH", body: json(dados) });
+export const excluirTipoTeto = (id: number) => api<void>(`/tetos/tipos/${id}`, { method: "DELETE" });
+export const definirValorTeto = (
+  id: number,
+  dados: { periodo: PeriodoTeto; valor: string; inicio: string; motivo?: string | null },
+) => api<TipoTeto>(`/tetos/tipos/${id}/vigencias`, { method: "POST", body: json(dados) });
+export const excluirValorTeto = (vigenciaId: number) =>
+  api<TipoTeto>(`/tetos/vigencias/${vigenciaId}`, { method: "DELETE" });
+
+export const listarGastos = (params: {
+  setor_id?: number; tipo_id?: number; de?: string; ate?: string; busca?: string; pagina?: number; por_pagina?: number;
+}) => api<PaginaGastos>("/tetos/gastos", { params });
+export function lancarGasto(dados: {
+  tipo_id: number; data: string; valor: string; descricao: string; documento?: string; arquivo?: File | null;
+}) {
+  const corpo = new FormData();
+  corpo.append("tipo_id", String(dados.tipo_id));
+  corpo.append("data", dados.data);
+  corpo.append("valor", dados.valor);
+  corpo.append("descricao", dados.descricao);
+  if (dados.documento) corpo.append("documento", dados.documento);
+  if (dados.arquivo) corpo.append("arquivo", dados.arquivo);
+  return api<GastoTeto>("/tetos/gastos", { method: "POST", body: corpo });
+}
+export const corrigirGasto = (
+  id: number,
+  dados: Partial<{ tipo_id: number; data: string; valor: string; descricao: string; documento: string | null }>,
+) => api<GastoTeto>(`/tetos/gastos/${id}`, { method: "PATCH", body: json(dados) });
+export function anexarComprovante(id: number, arquivo: File) {
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo);
+  return api<GastoTeto>(`/tetos/gastos/${id}/arquivo`, { method: "PUT", body: corpo });
+}
+export const excluirGasto = (id: number) => api<void>(`/tetos/gastos/${id}`, { method: "DELETE" });
+export async function baixarComprovante(g: GastoTeto): Promise<Blob> {
+  const resposta = await requisicao(`/tetos/gastos/${g.id}/arquivo`);
+  return new Blob([await resposta.arrayBuffer()], { type: resposta.headers.get("Content-Type") ?? "application/octet-stream" });
+}
+
+export const painelTetos = (params: { setor_id?: number; data?: string } = {}) =>
+  api<PainelTetos>("/tetos/painel", { params });
+export const indicadoresTeto = (id: number, params: { ano?: number; mes?: number } = {}) =>
+  api<IndicadoresTipo>(`/tetos/tipos/${id}/indicadores`, { params });
