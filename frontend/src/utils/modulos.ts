@@ -5,12 +5,14 @@ export const MODULOS: { modulo: Modulo; nome: string; rota: string }[] = [
   { modulo: "OFICIOS", nome: "Planner de Ofícios", rota: "/" },
   { modulo: "MANUTENCAO", nome: "Manutenção Clínica", rota: "/manutencao" },
   { modulo: "TETOS", nome: "Controle de Tetos", rota: "/tetos" },
+  { modulo: "DOCUMENTOS", nome: "Documentos", rota: "/documentos" },
 ];
 
 export const NOME_MODULO: Record<Modulo, string> = {
   OFICIOS: "Planner de Ofícios",
   MANUTENCAO: "Manutenção Clínica",
   TETOS: "Controle de Tetos",
+  DOCUMENTOS: "Documentos",
 };
 
 export function papelNo(usuario: Usuario | null | undefined, modulo: Modulo): Perfil | null {

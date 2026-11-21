@@ -36,7 +36,7 @@ flowchart LR
 | `schemas.py` | Entrada e saída da API (Pydantic v2) |
 | `seguranca.py` | Hash de senha (PBKDF2-SHA256, 600 mil iterações) e JWT (HS256) |
 | `deps.py` | Dependências: sessão do banco, usuário atual (valida o token e a `sessao_versao`), exigência de admin ou master |
-| `routers/` | Uma rota por assunto: `auth`, `usuarios`, `oficios`, `anexos`, `lixeira` (com a verificação), `tipos`, `dashboard`, `feriados`, `exclusoes`, `auditoria` |
+| `routers/` | Uma rota por assunto: `auth`, `usuarios`, `oficios`, `anexos`, `lixeira` (com a verificação), `tipos`, `dashboard`, `feriados`, `exclusoes`, `auditoria`, `manutencao`, `preventivas`, `tetos`, `documentos` (com a verificação pública em `/api/publico`) |
 | `services/` | Regras de negócio, sem HTTP (veja abaixo) |
 
 ### Serviços
@@ -58,6 +58,7 @@ flowchart LR
 | `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
 | `preventivas.py` | Datas dos planos de preventiva, situação de cada uma e avisos internos |
 | `tetos.py` | Controle de Tetos: teto de cada dia pelas vigências, teto de um período, consumo, situação, projeção e visibilidade por setor |
+| `documentos.py` | Documentos: numeração (continua a do Planner no ofício), hash do conteúdo, código de verificação, permissões e o PDF no modelo da unidade (ReportLab, com timbrado, Arial/Times New Roman e QR code) |
 
 ## Módulos
 
@@ -215,6 +216,8 @@ Decisões importantes:
 | 0015 | Manutenção preventiva: `planos_preventiva` (periodicidade por empresa) e `preventivas` (datas, realização, ateste) |
 | 0016 | Prazos corridos: refaz `chamados.prazo_em`, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo `CORRECAO` |
 | 0017 | Controle de Tetos: módulo `TETOS`, `setores`, `usuario_modulos.setor_id`, `tipos_teto`, `tetos_vigencias` (valor por período a partir de uma data) e `gastos_teto` |
+| 0018 | Documentos: `documentos` (ofícios e memorandos redigidos no app) e `documento_assinaturas`; `usuarios.cargo` e `usuarios.matricula` |
+| 0019 | Módulo `DOCUMENTOS` (acesso próprio) e `documentos.registrar_no_planner` (integração com o Planner) |
 
 ## Segurança
 

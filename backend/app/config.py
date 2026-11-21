@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # Chamado sem diagnóstico com até N horas restantes aparece como "vencendo"
     manutencao_alerta_horas: float = 4
 
+    # Documentos (ofícios e memorandos gerados no app): cidade e UF da linha de data ("São Luís, 20 de novembro
+    # de 2026.") e o endereço que vai no QR code de verificação (vazio: o endereço por onde o app foi aberto)
+    documentos_cidade: str = ""
+    documentos_uf: str = ""
+    documentos_url_publica: str = ""
+
     cors_origins: list[str] = ["http://localhost:5173"]
     # Libera o front aberto por qualquer endereço da rede interna (10.x, 172.16–31.x, 192.168.x)
     cors_origin_regex: str | None = (

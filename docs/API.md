@@ -150,6 +150,29 @@ da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REG
 | POST | `/api/manutencao/chamados/{id}/oficios` | operacional, admin | Solicita peças/equipamentos: cadastra um ofício no Planner ligado ao chamado (`tipo`, `numero`, `data_oficio`, `protocolo`, `destinatario_tipo`, `destinatario_setor`, `itens`) |
 | POST | `/api/manutencao/chamados/{id}/reabrir` · `/cancelar` | operacional, admin | Reabre um concluído ou cancela um em aberto, com `motivo` |
 
+## Documentos
+
+Módulo Documentos: ofícios e memorandos redigidos no app. Todas as rotas exigem acesso ao módulo; cada um vê o que
+elaborou ou em que dá o De acordo (o administrador do módulo vê todos). O campo `registrar_no_planner` liga o ofício
+ao Planner na emissão (só para quem usa o Planner).
+
+| Método | Rota | Quem | O que faz |
+|---|---|---|---|
+| GET | `/api/documentos` | todos | Lista (`escopo` = `todos`, `meus` ou `assinar`; `tipo`, `status`, `busca`, `pagina`) |
+| GET | `/api/documentos/resumo` | todos | Quantos documentos aguardam a assinatura de quem consulta |
+| GET | `/api/documentos/assinantes` | todos | Usuários que podem dar o De acordo (com cargo e matrícula) |
+| POST | `/api/documentos` | todos | Começa um rascunho (`tipo` = `OFICIO` ou `MEMORANDO`) |
+| GET · PATCH · DELETE | `/api/documentos/{id}` | quem vê · quem elaborou | Detalhe; salva o rascunho; descarta o rascunho |
+| GET | `/api/documentos/{id}/pdf` | quem vê | PDF no modelo da unidade (`bruto=true`: octet-stream) |
+| POST | `/api/documentos/{id}/emitir` | quem elaborou | Número, data, código e hash; o ofício é cadastrado no Planner (`422` com o que falta) |
+| POST | `/api/documentos/{id}/assinar` | quem elaborou · De acordo | Assinatura eletrônica (`senha`); `400` senha incorreta, `409` nada a assinar |
+| POST | `/api/documentos/{id}/cancelar` | quem elaborou · admin | Cancela o emitido (`motivo`) |
+| POST | `/api/documentos/{id}/duplicar` | quem vê | Novo rascunho com o mesmo texto |
+| GET | `/api/documentos/timbrado` | todos | Se há cabeçalho e marca-d'água, e a cidade/UF da data |
+| GET · PUT · DELETE | `/api/documentos/timbrado/{cabecalho\|fundo}` | todos · admin · admin | Imagem; envia (PNG/JPG, até 5 MB, campo `arquivo`); remove |
+| GET | `/api/oficios/{id}/documento/pdf` | quem vê o ofício no Planner | PDF do documento que gerou o ofício (não exige o módulo Documentos) |
+| GET | `/api/publico/verificar/{codigo}` | **sem login** | Verificação: situação, dados de identificação, assinaturas e se o conteúdo é o da emissão (`integro`) |
+
 ## Controle de Tetos
 
 Todas as rotas exigem acesso ao módulo. O usuário do setor só enxerga o próprio setor (o resto responde `404`); as

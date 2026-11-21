@@ -166,18 +166,27 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 - **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
   - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
   - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
-  - Controle de Tetos: *Sem acesso*, *Usuário do setor* (escolha também o setor) ou *Administrador*.
+  - Controle de Tetos: *Sem acesso*, *Usuário do setor* (escolha também o setor) ou *Administrador*;
+  - Documentos: *Sem acesso*, *Redator* ou *Administrador*.
 
   Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
 - **Operacional sempre tem o Planner:** ao escolher *Operacional* ou *Administrador* na Manutenção, o Planner vem
   como *Cliente* (ou mantém o papel que a pessoa já tinha) e a opção *Sem acesso* some. O técnico fica só na
   Manutenção.
+- **Cargo e matrícula/ID:** saem no bloco de assinatura dos documentos (ofícios e memorandos).
 - **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
   para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
   altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
 - **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
   **Módulos**. Quem tem só um módulo entra direto nele.
 
+
+### Timbrado (módulo Documentos)
+
+Em **Documentos → Timbrado** (administrador do módulo): o cabeçalho (logotipos, endereço e telefones) e a marca-d'água
+de todos os ofícios e memorandos. Envie as imagens em
+PNG ou JPG; para mudar o endereço ou o telefone, basta trocar o cabeçalho. A cidade da linha de data vem do servidor
+(`DOCUMENTOS_CIDADE` e `DOCUMENTOS_UF`).
 
 ### Tipos de ofício
 
@@ -198,6 +207,38 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
   **Apagar de vez**.
 
 Se um arquivo sumir ou for alterado, recupere-o do backup da pasta `backend/storage` ou envie de novo no ofício.
+
+## Documentos (ofícios e memorandos)
+
+O módulo **Documentos** redige ofícios e memorandos que saem em PDF no modelo da unidade: timbrado, margens, Arial no
+cabeçalho e **Times New Roman 12** no corpo, com o recuo do modelo (1,75 cm no ofício, 1,25 cm no memorando). O
+acesso é próprio: *Redator* (redige e assina) ou *Administrador* (vê todos, cancela e cuida do timbrado). O menu tem
+**Documentos**, **Para assinar**, **Novo ofício**, **Novo memorando** e, para o administrador, **Timbrado**.
+
+- **Novo ofício / Novo memorando:** abre um rascunho com o vocativo, o fecho e o seu nome, cargo e matrícula já
+  preenchidos. O rascunho é salvo sozinho, e a **prévia** do PDF fica ao lado (*Atualizar prévia*).
+  - Ofício: destinatário (tratamento, nome, cargo e endereço) e a **integração com o Planner de Ofícios**: com
+    *Registrar no Planner de Ofícios ao emitir* marcado (o padrão para quem usa o Planner), informe o tipo de ofício e,
+    se quiser, o destinatário (SES, ACQUA ou outro). Desmarcado, o ofício sai só como documento.
+  - Memorando: **De** e **Para** (setores).
+  - Texto: assunto, vocativo, corpo (cada linha é um parágrafo) e fecho. Linguagem direta, sem negrito.
+  - Assinaturas: seu cargo e ID, e quem dá o **De acordo** (um usuário do sistema, que poderá assinar no app, ou
+    outra pessoa, só com assinatura à mão).
+- **Emitir:** o documento recebe o próximo número da sua sequência e a data de hoje, e o texto fica travado. Com a
+  integração, o ofício entra no Planner como pendente de resposta, e os prazos começam a contar. No rodapé saem o
+  código de verificação e o QR code.
+- **No Planner:** o ofício redigido aqui tem o botão *Documento gerado* (ou *PDF do documento*, para quem acompanha o
+  ofício sem ter o módulo). No menu do Planner, quem tem o módulo vê o atalho *Redigir ofício*.
+- **Assinar:** o PDF sempre tem o espaço para assinar à mão. Quem elaborou e quem dá o De acordo também podem
+  **assinar no app** (botão *Assinar no app* e a senha): o carimbo da assinatura eletrônica aparece no PDF no lugar da
+  assinatura à mão. O menu mostra quantos documentos esperam a sua assinatura; a aba **Para assinar** lista quais.
+- **Baixar e imprimir:** *Baixar PDF* ou *Abrir para imprimir*.
+- **Corrigir depois de emitido:** *Cancelar* (com o motivo) e *Fazer um novo a partir deste*. O cancelado continua
+  na lista e a verificação mostra o cancelamento. O ofício cancelado não some do Planner: se ele não vale mais, peça
+  a exclusão por lá.
+- **Conferir um documento:** qualquer pessoa, mesmo sem login, lê o QR code ou abre `/verificar` e digita o código.
+  A página diz se o documento é autêntico, se foi cancelado e quem assinou no app.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
 ## Manutenção Clínica
 

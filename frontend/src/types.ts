@@ -25,7 +25,7 @@ export interface TipoInfo {
 }
 export type Destinatario = "SES" | "ACQUA" | "OUTROS";
 
-export type Modulo = "OFICIOS" | "MANUTENCAO" | "TETOS";
+export type Modulo = "OFICIOS" | "MANUTENCAO" | "TETOS" | "DOCUMENTOS";
 
 /** Papel do usuário em um módulo (o MASTER aparece como MASTER em todos). */
 export interface AcessoModulo {
@@ -46,6 +46,9 @@ export interface Usuario {
   /** Global: MASTER (acesso total) ou CLIENTE. O papel em cada módulo está em `modulos`. */
   perfil: Perfil;
   ativo: boolean;
+  /** Bloco de assinatura dos documentos gerados (ofícios e memorandos) */
+  cargo: string | null;
+  matricula: string | null;
   modulos: AcessoModulo[];
 }
 
@@ -370,6 +373,8 @@ export interface SolicitacaoExclusao {
 export interface OficioDetalhe extends Oficio {
   historico: Historico[];
   exclusao_pendente: SolicitacaoExclusao | null;
+  /** Ofício redigido e emitido no app (Documentos) */
+  documento_id: number | null;
 }
 
 export interface Atividade {
@@ -751,4 +756,125 @@ export interface IndicadoresTipo {
 export interface ResumoTetos {
   eh_gestor: boolean;
   setor: SetorRef | null;
+}
+
+// ---------- Documentos (ofícios e memorandos redigidos no app) ----------
+
+export type TipoDocumento = "OFICIO" | "MEMORANDO";
+export type StatusDocumento = "RASCUNHO" | "EMITIDO" | "CANCELADO";
+export type PapelAssinatura = "ELABORADOR" | "VALIDADOR";
+
+export interface Assinante {
+  id: number;
+  nome: string;
+  cargo: string | null;
+  matricula: string | null;
+}
+
+export interface AssinaturaDocumento {
+  papel: PapelAssinatura;
+  nome: string;
+  cargo: string | null;
+  assinado_em: string;
+}
+
+export interface DocumentoResumo {
+  id: number;
+  tipo: TipoDocumento;
+  status: StatusDocumento;
+  titulo: string;
+  numero_formatado: string | null;
+  assunto: string;
+  destino: string | null;
+  elaborador_nome: string;
+  validador_nome: string | null;
+  data_documento: string | null;
+  atualizado_em: string;
+  assinaturas: number;
+  assinaturas_previstas: number;
+  minha_assinatura_pendente: boolean;
+}
+
+export interface PaginaDocumentos {
+  itens: DocumentoResumo[];
+  total: number;
+  pagina: number;
+  por_pagina: number;
+}
+
+/** Campos que o rascunho edita */
+export interface CamposDocumento {
+  assunto: string;
+  vocativo: string;
+  corpo: string;
+  fecho: string;
+  dest_tratamento: string | null;
+  dest_nome: string | null;
+  dest_cargo: string | null;
+  dest_endereco: string | null;
+  de: string | null;
+  para: string | null;
+  /** Ofício: cadastrar no Planner de Ofícios ao emitir */
+  registrar_no_planner: boolean;
+  oficio_tipo: string | null;
+  destinatario_tipo: Destinatario | null;
+  destinatario_setor: string | null;
+  elaborador_cargo: string | null;
+  elaborador_ident: string | null;
+  validador_id: number | null;
+  validador_nome: string | null;
+  validador_cargo: string | null;
+  validador_ident: string | null;
+}
+
+export interface Documento extends CamposDocumento {
+  id: number;
+  tipo: TipoDocumento;
+  status: StatusDocumento;
+  titulo: string;
+  numero_formatado: string | null;
+  data_documento: string | null;
+  autor_id: number;
+  oficio_id: number | null;
+  /** Quem elaborou usa o Planner (pode registrar o ofício lá) */
+  usa_planner: boolean;
+  elaborador_nome: string;
+  codigo: string | null;
+  hash_conteudo: string | null;
+  emitido_em: string | null;
+  cancelado_em: string | null;
+  cancelado_por_nome: string | null;
+  motivo_cancelamento: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  assinaturas: AssinaturaDocumento[];
+  pode_editar: boolean;
+  pode_cancelar: boolean;
+  assinar_como: PapelAssinatura | null;
+  pendencias: string[];
+}
+
+export interface Timbrado {
+  cabecalho: boolean;
+  fundo: boolean;
+  cidade: string;
+  uf: string;
+}
+
+export interface VerificacaoDocumento {
+  codigo: string;
+  tipo: TipoDocumento;
+  titulo: string;
+  status: StatusDocumento;
+  data_documento: string | null;
+  assunto: string;
+  elaborador_nome: string;
+  validador_nome: string | null;
+  emitido_em: string | null;
+  assinaturas: AssinaturaDocumento[];
+  integro: boolean;
+  hash_conteudo: string | null;
+  cancelado_em: string | null;
+  motivo_cancelamento: string | null;
+  unidade: string | null;
 }

@@ -66,7 +66,9 @@ def verificar(db: Session, settings: Settings) -> VerificacaoArquivos:
         ):
             usados.add(caminho_absoluto(caminho_gasto, settings))
         pasta = settings.storage_dir.resolve()
-        sobras = sum(1 for c in pasta.rglob("*") if c.is_file() and c.resolve() not in usados) if pasta.is_dir() else 0
+        timbrado = (pasta / "timbrado").resolve()  # imagens do timbrado dos documentos (Documentos)
+        sobras = sum(1 for c in pasta.rglob("*") if c.is_file() and c.resolve() not in usados
+                     and not c.resolve().is_relative_to(timbrado)) if pasta.is_dir() else 0
         _ultima = VerificacaoArquivos(verificado_em=datetime.now(), arquivos=total, problemas=problemas,
                                       sem_registro=sobras)
         if problemas:

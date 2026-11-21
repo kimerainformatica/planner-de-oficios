@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { atualizarUsuario, criarUsuario, listarEmpresas, listarSetores, listarUsuarios } from "../api/endpoints";
 import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
 import { ROTULO_PAPEL_TETOS } from "../utils/tetos";
+import { ROTULO_PAPEL_DOCUMENTOS } from "./documentos/comum";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal } from "../components/ui";
@@ -21,6 +22,7 @@ type Escolha = "NENHUM" | "CLIENTE" | "ADMIN" | "TECNICO";
 function rotuloPapel(modulo: Modulo, perfil: Perfil): string {
   if (modulo === "MANUTENCAO") return ROTULO_PAPEL_MANUTENCAO[perfil];
   if (modulo === "TETOS") return ROTULO_PAPEL_TETOS[perfil];
+  if (modulo === "DOCUMENTOS") return ROTULO_PAPEL_DOCUMENTOS[perfil];
   return ROTULO_PERFIL[perfil];
 }
 
@@ -127,6 +129,8 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
 
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [login, setLogin] = useState(usuario?.login ?? "");
+  const [cargo, setCargo] = useState(usuario?.cargo ?? "");
+  const [matricula, setMatricula] = useState(usuario?.matricula ?? "");
   const [senha, setSenha] = useState("");
   const [ativo, setAtivo] = useState(usuario?.ativo ?? true);
   const [master, setMaster] = useState(usuario?.perfil === "MASTER");
@@ -174,11 +178,16 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
           ...(m.modulo === "TETOS" && setorTetos !== "" && acesso.TETOS !== "NENHUM" ? { setor_id: setorTetos } : {}),
         }),
       );
-      if (!usuario) return criarUsuario({ nome: nome.trim(), login: login.trim(), senha, master, modulos });
+      if (!usuario) {
+        return criarUsuario({ nome: nome.trim(), login: login.trim(), senha, master, modulos,
+          cargo: cargo.trim(), matricula: matricula.trim() });
+      }
       return atualizarUsuario(usuario.id, {
         ...(contaLiberada
           ? {
               nome: nome.trim(),
+              ...(cargo.trim() !== (usuario.cargo ?? "") ? { cargo: cargo.trim() } : {}),
+              ...(matricula.trim() !== (usuario.matricula ?? "") ? { matricula: matricula.trim() } : {}),
               ...(login.trim() !== usuario.login ? { login: login.trim() } : {}),
               ...(senha ? { senha } : {}),
               ...(ehEu ? {} : { ativo }),
@@ -220,6 +229,16 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
           {(id) => <input id={id} className="input" required maxLength={120} value={nome} autoFocus disabled={!contaLiberada}
             onChange={(e) => setNome(e.target.value)} />}
         </Campo>
+        <div className="grade-2">
+          <Campo rotulo="Cargo" dica="Sai no bloco de assinatura dos ofícios e memorandos.">
+            {(id) => <input id={id} className="input" maxLength={120} value={cargo} disabled={!contaLiberada}
+              onChange={(e) => setCargo(e.target.value)} />}
+          </Campo>
+          <Campo rotulo="Matrícula / ID">
+            {(id) => <input id={id} className="input" maxLength={30} value={matricula} disabled={!contaLiberada}
+              onChange={(e) => setMatricula(e.target.value)} />}
+          </Campo>
+        </div>
         <Campo rotulo="Login *"
           dica={usuario ? "Usado para entrar no sistema. Se mudar, avise o usuário (a senha continua a mesma)." : "Letras, números, ponto, hífen ou _"}>
           {(id) => <input id={id} className="input" required minLength={3} maxLength={60} pattern="[A-Za-z0-9._\-]+"
@@ -268,6 +287,8 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
                         </>
                       ) : m.modulo === "TETOS" ? (
                         <option value="CLIENTE">Usuário do setor (lança os gastos do setor)</option>
+                      ) : m.modulo === "DOCUMENTOS" ? (
+                        <option value="CLIENTE">Redator (redige e assina ofícios e memorandos)</option>
                       ) : (
                         <option value="CLIENTE">Cliente</option>
                       )}

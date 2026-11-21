@@ -3,11 +3,16 @@ import { useAuth } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import { LayoutManutencao } from "./components/LayoutManutencao";
 import { LayoutPortal } from "./components/LayoutPortal";
+import { LayoutDocumentos } from "./components/LayoutDocumentos";
 import { LayoutTetos } from "./components/LayoutTetos";
 import { Carregando } from "./components/ui";
 import type { Modulo } from "./types";
 import { Arquivos } from "./pages/Arquivos";
 import { Atividades } from "./pages/Atividades";
+import { Documento } from "./pages/documentos/Documento";
+import { Documentos } from "./pages/documentos/Documentos";
+import { Timbrado } from "./pages/documentos/Timbrado";
+import { Verificar } from "./pages/documentos/Verificar";
 import { Exclusoes } from "./pages/Exclusoes";
 import { Login } from "./pages/Login";
 import { ChamadoDetalhe } from "./pages/manutencao/ChamadoDetalhe";
@@ -65,6 +70,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Pública: conferência de um documento pelo código impresso no rodapé (QR code) */}
+      <Route path="/verificar/:codigo?" element={<Verificar />} />
       <Route element={<Protegido />}>
         {/* Acima dos módulos: escolha do módulo e gestão de usuários */}
         <Route element={<LayoutPortal />}>
@@ -88,6 +95,18 @@ export function App() {
               <Route path="empresas" element={<Empresas />} />
             </Route>
             <Route path="*" element={<Navigate to="/manutencao" replace />} />
+          </Route>
+        </Route>
+
+        {/* Módulo Documentos (ofícios e memorandos no modelo da unidade; integrado ao Planner) */}
+        <Route element={<ComAcesso modulo="DOCUMENTOS" />}>
+          <Route path="documentos" element={<LayoutDocumentos />}>
+            <Route index element={<Documentos />} />
+            <Route path=":id" element={<Documento />} />
+            <Route element={<SoAdminDe modulo="DOCUMENTOS" volta="/documentos" />}>
+              <Route path="timbrado" element={<Timbrado />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/documentos" replace />} />
           </Route>
         </Route>
 

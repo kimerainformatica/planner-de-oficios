@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, FileText, Gauge, Users, Wrench } from "lucide-react";
+import { ArrowRight, FileSignature, FileText, Gauge, Users, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { listarModulos } from "../api/endpoints";
@@ -9,11 +9,13 @@ import type { Modulo } from "../types";
 import { ROTULO_PERFIL } from "../utils/formato";
 import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
 import { ROTULO_PAPEL_TETOS } from "../utils/tetos";
+import { ROTULO_PAPEL_DOCUMENTOS } from "./documentos/comum";
 
 const ICONE: Record<Modulo, ReactNode> = {
   OFICIOS: <FileText size={30} aria-hidden />,
   MANUTENCAO: <Wrench size={30} aria-hidden />,
   TETOS: <Gauge size={30} aria-hidden />,
+  DOCUMENTOS: <FileSignature size={30} aria-hidden />,
 };
 
 /** Tela inicial depois do login: os módulos que o usuário pode abrir. Com um só módulo, entra direto nele. */
@@ -54,7 +56,8 @@ export function Modulos() {
               <span className="modulo-rodape">
                 <span className={`badge ${m.perfil === "MASTER" ? "badge-master" : m.perfil === "ADMIN" ? "badge-admin" : m.perfil === "TECNICO" ? "badge-tecnico" : "badge-neutro"}`}>
                   {m.modulo === "MANUTENCAO" ? ROTULO_PAPEL_MANUTENCAO[m.perfil]
-                    : m.modulo === "TETOS" ? ROTULO_PAPEL_TETOS[m.perfil] : ROTULO_PERFIL[m.perfil]}
+                    : m.modulo === "TETOS" ? ROTULO_PAPEL_TETOS[m.perfil]
+                    : m.modulo === "DOCUMENTOS" ? ROTULO_PAPEL_DOCUMENTOS[m.perfil] : ROTULO_PERFIL[m.perfil]}
                   {m.modulo === "TETOS" && usuario?.modulos.find((a) => a.modulo === "TETOS")?.setor_nome &&
                     ` · ${usuario.modulos.find((a) => a.modulo === "TETOS")!.setor_nome}`}
                 </span>

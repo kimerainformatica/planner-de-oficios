@@ -106,7 +106,7 @@ stateDiagram-v2
 
 ## Módulos e perfis
 
-A plataforma é dividida em **módulos**: **Planner de Ofícios**, **Manutenção Clínica** e **Controle de Tetos**. Cada pessoa é habilitada
+A plataforma é dividida em **módulos**: **Planner de Ofícios**, **Manutenção Clínica**, **Controle de Tetos** e **Documentos**. Cada pessoa é habilitada
 nos módulos no cadastro (feito por um administrador ou pelo master) e tem **um papel em cada módulo**. Quem não foi
 habilitado num módulo não o abre (as rotas dele respondem `403`).
 
@@ -405,6 +405,33 @@ padrão, e um botão mostra todos.
   no menu dos administradores, que aprovam (o ofício é excluído) ou recusam (o ofício continua). O cliente pode
   cancelar o pedido enquanto ele estiver pendente.
 - Excluir apaga o ofício, os documentos e as versões da lixeira. O registro da exclusão continua em **Atividades**.
+
+## Documentos gerados (ofícios e memorandos)
+
+- **Modelo:** o PDF segue os modelos da unidade. Cabeçalho do documento e assinaturas em Arial 12; corpo em Times New
+  Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha de 1,75 cm (ofício) ou 1,25 cm (memorando); margens de
+  3 cm nas laterais e 2,5 cm em cima e embaixo; páginas numeradas a partir da 2ª.
+- **Situações:** *rascunho* (só quem elaborou edita; sem número; o PDF sai marcado "RASCUNHO") → *emitido* (número,
+  data, código e hash; nada mais muda) → *cancelado* (com motivo; o PDF sai marcado "CANCELADO").
+- **Numeração:** sequencial por pessoa, tipo e ano, dada só na emissão (rascunho descartado não abre buraco). O
+  ofício continua a numeração que a pessoa já usa no Planner (o maior número do ano + 1, no formato `012/2026`); o
+  memorando tem a sua (`07/2026`).
+- **Para emitir:** assunto e texto; no ofício, o nome do destinatário (e o tipo de ofício, se for registrado no
+  Planner); no memorando, De e Para;
+  o cargo de quem elaborou e, havendo De acordo, o cargo de quem valida.
+- **Módulo e papéis:** *Redator* redige, emite e assina os seus; *Administrador* também vê todos, cancela e cuida do
+  timbrado. O De acordo só pode ser dado por quem tem o módulo.
+- **Integração com o Planner:** com *registrar no Planner* (padrão para quem usa o Planner; impossível para quem não
+  usa), a emissão cadastra o ofício em nome de quem elaborou, como pendente de resposta, na data de hoje, com o tipo
+  (obrigatório) e o destinatário informados. Cancelar o documento não exclui o ofício do Planner. Quem acompanha o
+  ofício no Planner baixa o PDF do documento por lá, mesmo sem o módulo.
+- **Assinaturas:** o espaço para assinar à mão sempre sai. A assinatura eletrônica é feita no app por quem elaborou e
+  por quem dá o De acordo (se for usuário do sistema), confirmando a senha (as regras de bloqueio do login valem aqui).
+  Fica registrado quem, quando e de qual computador. Um administrador vê, mas não assina por ninguém.
+- **Verificação:** o código (8 caracteres, sem letras e números que se confundem) e o QR code levam à página pública
+  `/verificar`, que mostra só os dados de identificação, nunca o texto. O hash SHA-256 do conteúdo, gravado na
+  emissão, é recalculado a cada consulta: se o registro foi mexido, a página avisa.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
 ## Login e sessão
 

@@ -31,6 +31,8 @@ def _rotulo_acesso(a: UsuarioModulo) -> str:
         return "operacional"  # na Manutenção Clínica o cliente é quem abre os chamados
     if a.modulo == Modulo.TETOS and a.setor:
         return f"{ROTULO[a.perfil]} · setor {a.setor.nome}"
+    if a.modulo == Modulo.DOCUMENTOS and a.perfil == Perfil.CLIENTE:
+        return "redator"  # em Documentos o cliente redige e assina
     return ROTULO[a.perfil]
 
 
@@ -158,6 +160,7 @@ def criar(dados: UsuarioCriar, db: DbDep, quem: GestorDep):
     usuario = Usuario(
         nome=dados.nome, login=dados.login, senha_hash=gerar_hash_senha(dados.senha),
         perfil=Perfil.MASTER if dados.master else Perfil.CLIENTE,
+        cargo=dados.cargo or None, matricula=dados.matricula or None,
     )
     if not dados.master:
         _aplicar_modulos(db, quem, usuario, dados.modulos)
@@ -177,7 +180,8 @@ def atualizar(usuario_id: int, dados: UsuarioAtualizar, db: DbDep, quem: GestorD
     if usuario is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado")
     proprio = usuario.id == quem.id
-    mexe_na_conta = any(v is not None for v in (dados.nome, dados.login, dados.senha, dados.ativo)) or (
+    mexe_na_conta = any(v is not None for v in (dados.nome, dados.login, dados.senha, dados.ativo, dados.cargo,
+                                                 dados.matricula)) or (
         dados.modulos is not None and usuario.eh_master  # o acesso de um master só o MASTER muda
     )
     if mexe_na_conta and not _pode_gerir_conta(quem, usuario):
@@ -214,6 +218,9 @@ def atualizar(usuario_id: int, dados: UsuarioAtualizar, db: DbDep, quem: GestorD
 
     acessos_antes = _texto_acessos(usuario)
     novos = dados.model_dump(exclude_unset=True, exclude_none=True, exclude={"senha", "master", "modulos"})
+    for campo in ("cargo", "matricula"):  # texto vazio apaga
+        if campo in novos and not novos[campo]:
+            novos[campo] = None
     mudancas = diferencas({c: getattr(usuario, c) for c in novos}, novos)
     for campo, valor in novos.items():
         setattr(usuario, campo, valor)

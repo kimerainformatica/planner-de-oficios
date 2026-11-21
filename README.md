@@ -60,6 +60,8 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 - **Segurança dos arquivos:**
   - **lixeira:** um documento substituído ou removido pode ser restaurado;
   - **verificação diária:** confere se cada arquivo existe e não foi alterado, pelo hash SHA-256 guardado no envio.
+- **Integração com o módulo Documentos:** o ofício redigido lá pode entrar no Planner na emissão, com o PDF ligado a
+  ele; quem tem o módulo vê o atalho *Redigir ofício* no menu.
 - **Atividades:** toda alteração fica registrada com quem fez, quando e o valor antigo → novo.
 - **Visual:**
   - identidade do Instituto ACQUA, com tema claro, escuro ou automático;
@@ -126,7 +128,7 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Ramo | Versão | Módulos | Visual | Situação |
 |---|---|---|---|---|
-| `feature/2.3-controle-de-tetos` | 2.3 | Planner de Ofícios + Manutenção Clínica + Controle de Tetos | "Correnteza" | Em homologação; parte da 2.2 |
+| `feature/2.3-controle-de-tetos` | 2.3 | Planner de Ofícios + Manutenção Clínica + Controle de Tetos + Documentos | "Correnteza" | Em homologação; parte da 2.2 |
 | `feature/2.2-preventivas-prazos-diagnostico` | 2.2 | Planner de Ofícios + Manutenção Clínica, com preventivas | "Correnteza" | Em homologação; parte da 2.0 |
 | `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
 | `main` | 1.1 | Planner de Ofícios | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Estável, para computadores com folga de processamento |
@@ -145,8 +147,11 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 - **Preventivas e avisos (2.1):** planos com periodicidade, registro com evidência, ateste e avisos internos.
 - **Controle de Tetos (2.3):** setores ligados aos usuários, tipos de teto com valor por período e vigência,
   lançamentos com comprovante e indicadores diários, mensais e anuais.
-- **Banco:** migrações 0011 a 0017.
-- **Testes:** 127 testes da API.
+- **Módulo Documentos (2.3):** ofícios e memorandos redigidos no app, no modelo da unidade (timbrado, Times New Roman
+  12 no corpo, recuos do modelo), com número automático, código de verificação com QR code, assinatura à mão e/ou
+  eletrônica no app e verificação pública. Integrado ao Planner: o ofício emitido pode entrar lá com os prazos.
+- **Banco:** migrações 0011 a 0019.
+- **Testes:** 138 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
 aplicar no servidor está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
@@ -179,7 +184,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0017)
+  alembic/            migrações do banco (0001 … 0019)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -194,7 +199,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 127 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 138 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 
