@@ -15,12 +15,15 @@ class Esquema(BaseModel):
 
 class AcessoModulo(Esquema):
     """Papel do usuário em um módulo: ADMIN ou CLIENTE e, na Manutenção Clínica, também TECNICO (com a empresa).
-    Na saída o MASTER aparece como MASTER em todos os módulos."""
+    No Controle de Tetos, o CLIENTE é o usuário de um setor (com o setor). Na saída o MASTER aparece como MASTER em
+    todos os módulos."""
 
     modulo: Modulo
     perfil: Perfil
     empresa_id: int | None = None  # obrigatório para TECNICO
     empresa_nome: str | None = None  # só na saída
+    setor_id: int | None = None  # obrigatório para o CLIENTE do Controle de Tetos
+    setor_nome: str | None = None  # só na saída
 
 
 class UsuarioOut(Esquema):
@@ -29,6 +32,8 @@ class UsuarioOut(Esquema):
     login: str
     perfil: Perfil  # global: MASTER ou CLIENTE (o papel em cada módulo está em `modulos`)
     ativo: bool
+    cargo: str | None = None  # vai no bloco de assinatura dos documentos gerados
+    matricula: str | None = None
     modulos: list[AcessoModulo] = []
 
     @model_validator(mode="before")
@@ -38,9 +43,11 @@ class UsuarioOut(Esquema):
         if hasattr(v, "modulos_efetivos"):
             return {
                 "id": v.id, "nome": v.nome, "login": v.login, "perfil": v.perfil, "ativo": v.ativo,
+                "cargo": v.cargo, "matricula": v.matricula,
                 "modulos": [
                     {"modulo": a.modulo, "perfil": a.perfil, "empresa_id": a.empresa_id,
-                     "empresa_nome": a.empresa.nome if a.empresa else None}
+                     "empresa_nome": a.empresa.nome if a.empresa else None, "setor_id": a.setor_id,
+                     "setor_nome": a.setor.nome if a.setor else None}
                     for a in v.modulos_efetivos
                 ],
             }
@@ -62,6 +69,11 @@ def _validar_acessos(modulos: list[AcessoModulo] | None) -> list[AcessoModulo] |
                 raise ValueError("Informe a empresa do técnico")
         elif a.empresa_id is not None:
             raise ValueError("Só o técnico é vinculado a uma empresa")
+        if a.modulo == Modulo.TETOS:
+            if a.perfil == Perfil.CLIENTE and a.setor_id is None:
+                raise ValueError("Informe o setor do usuário no Controle de Tetos")
+        elif a.setor_id is not None:
+            raise ValueError("O setor só existe no Controle de Tetos")
     return modulos
 
 
@@ -70,6 +82,8 @@ class UsuarioCriar(Esquema):
     login: str = Field(min_length=3, max_length=60, pattern=r"^[A-Za-z0-9._-]+$")
     senha: str = Field(min_length=8, max_length=128)
     master: bool = False  # acesso total a todos os módulos (só o MASTER concede)
+    cargo: str | None = Field(default=None, max_length=120)
+    matricula: str | None = Field(default=None, max_length=30)
     modulos: list[AcessoModulo] = []  # módulos habilitados e o papel em cada um
 
     validar_modulos = field_validator("modulos")(_validar_acessos)
@@ -80,6 +94,8 @@ class UsuarioAtualizar(Esquema):
     login: str | None = Field(default=None, min_length=3, max_length=60, pattern=r"^[A-Za-z0-9._-]+$")
     senha: str | None = Field(default=None, min_length=8, max_length=128)
     master: bool | None = None
+    cargo: str | None = Field(default=None, max_length=120, description="Texto vazio apaga")
+    matricula: str | None = Field(default=None, max_length=30, description="Texto vazio apaga")
     # Se vier, define o acesso nos módulos informados e remove o dos módulos que o editor administra e
     # que não vieram na lista. Os módulos que o editor não administra nunca são tocados.
     modulos: list[AcessoModulo] | None = None
@@ -291,6 +307,7 @@ class SolicitacaoDecidir(Esquema):
 class OficioDetalhe(OficioOut):
     historico: list[HistoricoOut]
     exclusao_pendente: SolicitacaoOut | None = None
+    documento_id: int | None = None  # ofício redigido e emitido no app (Documentos)
 
 
 class AuditoriaOut(Esquema):

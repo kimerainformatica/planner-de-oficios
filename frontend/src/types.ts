@@ -25,7 +25,7 @@ export interface TipoInfo {
 }
 export type Destinatario = "SES" | "ACQUA" | "OUTROS";
 
-export type Modulo = "OFICIOS" | "MANUTENCAO";
+export type Modulo = "OFICIOS" | "MANUTENCAO" | "TETOS" | "DOCUMENTOS";
 
 /** Papel do usuário em um módulo (o MASTER aparece como MASTER em todos). */
 export interface AcessoModulo {
@@ -34,6 +34,9 @@ export interface AcessoModulo {
   /** Empresa do técnico (só TECNICO). */
   empresa_id?: number | null;
   empresa_nome?: string | null;
+  /** Setor do usuário no Controle de Tetos (obrigatório para o usuário do setor). */
+  setor_id?: number | null;
+  setor_nome?: string | null;
 }
 
 export interface Usuario {
@@ -43,6 +46,9 @@ export interface Usuario {
   /** Global: MASTER (acesso total) ou CLIENTE. O papel em cada módulo está em `modulos`. */
   perfil: Perfil;
   ativo: boolean;
+  /** Bloco de assinatura dos documentos gerados (ofícios e memorandos) */
+  cargo: string | null;
+  matricula: string | null;
   modulos: AcessoModulo[];
 }
 
@@ -367,6 +373,8 @@ export interface SolicitacaoExclusao {
 export interface OficioDetalhe extends Oficio {
   historico: Historico[];
   exclusao_pendente: SolicitacaoExclusao | null;
+  /** Ofício redigido e emitido no app (Documentos) */
+  documento_id: number | null;
 }
 
 export interface Atividade {
@@ -627,4 +635,246 @@ export interface Avisos {
 export interface Unidade {
   nome: string | null;
   descricao: string | null;
+}
+
+// ================= Controle de Tetos =================
+
+export type PeriodoTeto = "DIARIO" | "MENSAL" | "ANUAL";
+export type SituacaoTeto = "NORMAL" | "ATENCAO" | "ESTOURADO" | "SEM_TETO";
+
+export interface SetorRef {
+  id: number;
+  nome: string;
+}
+
+export interface Setor extends SetorRef {
+  descricao: string | null;
+  ativo: boolean;
+  usuarios: Referencia[];
+  tipos: number;
+}
+
+export interface Equivalentes {
+  diario: number;
+  mensal: number;
+  anual: number;
+}
+
+export interface VigenciaTeto {
+  id: number;
+  inicio: string;
+  periodo: PeriodoTeto;
+  valor: number;
+  motivo: string | null;
+  criado_por: Referencia | null;
+  criado_em: string;
+  equivalentes: Equivalentes;
+}
+
+export interface TipoTetoRef {
+  id: number;
+  nome: string;
+  unidade: string;
+}
+
+export interface TipoTeto extends TipoTetoRef {
+  setor: SetorRef;
+  descricao: string | null;
+  alerta_pct: number;
+  ativo: boolean;
+  periodo: PeriodoTeto | null;
+  valor: number | null;
+  vigente_desde: string | null;
+  equivalentes: Equivalentes | null;
+  lancamentos: number;
+  vigencias: VigenciaTeto[];
+}
+
+export interface GastoTeto {
+  id: number;
+  tipo: TipoTetoRef;
+  setor: SetorRef;
+  data: string;
+  valor: number;
+  descricao: string;
+  documento: string | null;
+  arquivo_nome: string | null;
+  arquivo_tamanho: number | null;
+  registrado_por: Referencia | null;
+  registrado_em: string;
+  atualizado_por: Referencia | null;
+  atualizado_em: string | null;
+  pode_editar: boolean;
+}
+
+export interface PaginaGastos {
+  itens: GastoTeto[];
+  total: number;
+  pagina: number;
+  por_pagina: number;
+  totais: { tipo: TipoTetoRef; total: number; quantidade: number }[];
+}
+
+export interface ConsumoTeto {
+  gasto: number;
+  teto: number;
+  percentual: number | null;
+  restante: number;
+  situacao: SituacaoTeto;
+}
+
+export interface ConsumoMes extends ConsumoTeto {
+  teto_ate_hoje: number;
+  projecao: number;
+  projecao_estoura: boolean;
+}
+
+export interface IndicadorTipo {
+  tipo: TipoTeto;
+  dia: ConsumoTeto;
+  mes: ConsumoMes;
+  ano: ConsumoTeto;
+}
+
+export interface PainelTetos {
+  referencia: string;
+  setores: { setor: SetorRef; tipos: IndicadorTipo[]; totais: { unidade: string; mes: ConsumoTeto; ano: ConsumoTeto }[] }[];
+  estourados: number;
+  em_atencao: number;
+}
+
+export interface IndicadoresTipo {
+  referencia: string;
+  ano: number;
+  mes: number;
+  resumo: IndicadorTipo;
+  diario: { data: string; gasto: number; teto: number; acumulado: number; teto_acumulado: number }[];
+  mensal: { mes: number; gasto: number; teto: number }[];
+  anual: { ano: number; gasto: number; teto: number }[];
+}
+
+export interface ResumoTetos {
+  eh_gestor: boolean;
+  setor: SetorRef | null;
+}
+
+// ---------- Documentos (ofícios e memorandos redigidos no app) ----------
+
+export type TipoDocumento = "OFICIO" | "MEMORANDO";
+export type StatusDocumento = "RASCUNHO" | "EMITIDO" | "CANCELADO";
+export type PapelAssinatura = "ELABORADOR" | "VALIDADOR";
+
+export interface Assinante {
+  id: number;
+  nome: string;
+  cargo: string | null;
+  matricula: string | null;
+}
+
+export interface AssinaturaDocumento {
+  papel: PapelAssinatura;
+  nome: string;
+  cargo: string | null;
+  assinado_em: string;
+}
+
+export interface DocumentoResumo {
+  id: number;
+  tipo: TipoDocumento;
+  status: StatusDocumento;
+  titulo: string;
+  numero_formatado: string | null;
+  assunto: string;
+  destino: string | null;
+  elaborador_nome: string;
+  validador_nome: string | null;
+  data_documento: string | null;
+  atualizado_em: string;
+  assinaturas: number;
+  assinaturas_previstas: number;
+  minha_assinatura_pendente: boolean;
+}
+
+export interface PaginaDocumentos {
+  itens: DocumentoResumo[];
+  total: number;
+  pagina: number;
+  por_pagina: number;
+}
+
+/** Campos que o rascunho edita */
+export interface CamposDocumento {
+  assunto: string;
+  vocativo: string;
+  corpo: string;
+  fecho: string;
+  dest_tratamento: string | null;
+  dest_nome: string | null;
+  dest_cargo: string | null;
+  dest_endereco: string | null;
+  de: string | null;
+  para: string | null;
+  /** Ofício: cadastrar no Planner de Ofícios ao emitir */
+  registrar_no_planner: boolean;
+  oficio_tipo: string | null;
+  destinatario_tipo: Destinatario | null;
+  destinatario_setor: string | null;
+  elaborador_cargo: string | null;
+  elaborador_ident: string | null;
+  validador_id: number | null;
+  validador_nome: string | null;
+  validador_cargo: string | null;
+  validador_ident: string | null;
+}
+
+export interface Documento extends CamposDocumento {
+  id: number;
+  tipo: TipoDocumento;
+  status: StatusDocumento;
+  titulo: string;
+  numero_formatado: string | null;
+  data_documento: string | null;
+  autor_id: number;
+  oficio_id: number | null;
+  /** Quem elaborou usa o Planner (pode registrar o ofício lá) */
+  usa_planner: boolean;
+  elaborador_nome: string;
+  codigo: string | null;
+  hash_conteudo: string | null;
+  emitido_em: string | null;
+  cancelado_em: string | null;
+  cancelado_por_nome: string | null;
+  motivo_cancelamento: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  assinaturas: AssinaturaDocumento[];
+  pode_editar: boolean;
+  pode_cancelar: boolean;
+  assinar_como: PapelAssinatura | null;
+  pendencias: string[];
+}
+
+export interface Timbrado {
+  cabecalho: boolean;
+  fundo: boolean;
+  cidade: string;
+  uf: string;
+}
+
+export interface VerificacaoDocumento {
+  codigo: string;
+  tipo: TipoDocumento;
+  titulo: string;
+  status: StatusDocumento;
+  data_documento: string | null;
+  assunto: string;
+  elaborador_nome: string;
+  validador_nome: string | null;
+  emitido_em: string | null;
+  assinaturas: AssinaturaDocumento[];
+  integro: boolean;
+  hash_conteudo: string | null;
+  cancelado_em: string | null;
+  motivo_cancelamento: string | null;
+  unidade: string | null;
 }

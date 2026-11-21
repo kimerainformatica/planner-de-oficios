@@ -165,18 +165,28 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 - **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
   - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
-  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*.
+  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
+  - Controle de Tetos: *Sem acesso*, *Usuário do setor* (escolha também o setor) ou *Administrador*;
+  - Documentos: *Sem acesso*, *Redator* ou *Administrador*.
 
   Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
 - **Operacional sempre tem o Planner:** ao escolher *Operacional* ou *Administrador* na Manutenção, o Planner vem
   como *Cliente* (ou mantém o papel que a pessoa já tinha) e a opção *Sem acesso* some. O técnico fica só na
   Manutenção.
+- **Cargo e matrícula/ID:** saem no bloco de assinatura dos documentos (ofícios e memorandos).
 - **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
   para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
   altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
 - **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
   **Módulos**. Quem tem só um módulo entra direto nele.
 
+
+### Timbrado (módulo Documentos)
+
+Em **Documentos → Timbrado** (administrador do módulo): o cabeçalho (logotipos, endereço e telefones) e a marca-d'água
+de todos os ofícios e memorandos. Envie as imagens em
+PNG ou JPG; para mudar o endereço ou o telefone, basta trocar o cabeçalho. A cidade da linha de data vem do servidor
+(`DOCUMENTOS_CIDADE` e `DOCUMENTOS_UF`).
 
 ### Tipos de ofício
 
@@ -197,6 +207,38 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
   **Apagar de vez**.
 
 Se um arquivo sumir ou for alterado, recupere-o do backup da pasta `backend/storage` ou envie de novo no ofício.
+
+## Documentos (ofícios e memorandos)
+
+O módulo **Documentos** redige ofícios e memorandos que saem em PDF no modelo da unidade: timbrado, margens, Arial no
+cabeçalho e **Times New Roman 12** no corpo, com o recuo do modelo (1,75 cm no ofício, 1,25 cm no memorando). O
+acesso é próprio: *Redator* (redige e assina) ou *Administrador* (vê todos, cancela e cuida do timbrado). O menu tem
+**Documentos**, **Para assinar**, **Novo ofício**, **Novo memorando** e, para o administrador, **Timbrado**.
+
+- **Novo ofício / Novo memorando:** abre um rascunho com o vocativo, o fecho e o seu nome, cargo e matrícula já
+  preenchidos. O rascunho é salvo sozinho, e a **prévia** do PDF fica ao lado (*Atualizar prévia*).
+  - Ofício: destinatário (tratamento, nome, cargo e endereço) e a **integração com o Planner de Ofícios**: com
+    *Registrar no Planner de Ofícios ao emitir* marcado (o padrão para quem usa o Planner), informe o tipo de ofício e,
+    se quiser, o destinatário (SES, ACQUA ou outro). Desmarcado, o ofício sai só como documento.
+  - Memorando: **De** e **Para** (setores).
+  - Texto: assunto, vocativo, corpo (cada linha é um parágrafo) e fecho. Linguagem direta, sem negrito.
+  - Assinaturas: seu cargo e ID, e quem dá o **De acordo** (um usuário do sistema, que poderá assinar no app, ou
+    outra pessoa, só com assinatura à mão).
+- **Emitir:** o documento recebe o próximo número da sua sequência e a data de hoje, e o texto fica travado. Com a
+  integração, o ofício entra no Planner como pendente de resposta, e os prazos começam a contar. No rodapé saem o
+  código de verificação e o QR code.
+- **No Planner:** o ofício redigido aqui tem o botão *Documento gerado* (ou *PDF do documento*, para quem acompanha o
+  ofício sem ter o módulo). No menu do Planner, quem tem o módulo vê o atalho *Redigir ofício*.
+- **Assinar:** o PDF sempre tem o espaço para assinar à mão. Quem elaborou e quem dá o De acordo também podem
+  **assinar no app** (botão *Assinar no app* e a senha): o carimbo da assinatura eletrônica aparece no PDF no lugar da
+  assinatura à mão. O menu mostra quantos documentos esperam a sua assinatura; a aba **Para assinar** lista quais.
+- **Baixar e imprimir:** *Baixar PDF* ou *Abrir para imprimir*.
+- **Corrigir depois de emitido:** *Cancelar* (com o motivo) e *Fazer um novo a partir deste*. O cancelado continua
+  na lista e a verificação mostra o cancelamento. O ofício cancelado não some do Planner: se ele não vale mais, peça
+  a exclusão por lá.
+- **Conferir um documento:** qualquer pessoa, mesmo sem login, lê o QR code ou abre `/verificar` e digita o código.
+  A página diz se o documento é autêntico, se foi cancelado e quem assinou no app.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
 ## Manutenção Clínica
 
@@ -357,6 +399,62 @@ Clique no aviso para abrir a tela com os itens. Não há "lido": o aviso some qu
 
 Cadastre, altere ou desative as empresas e defina o prazo do diagnóstico de cada uma, em horas corridas. Uma empresa
 só pode ser excluída se não tiver chamados nem técnicos.
+
+## Controle de Tetos
+
+O módulo controla quanto cada setor gasta (ou consome) em relação a um teto. O **administrador** cria os setores e
+os tipos de teto e define os valores. O **usuário do setor** lança os gastos do setor dele e acompanha os indicadores;
+ele não vê os outros setores.
+
+### Painel
+
+Cada tipo de teto do setor aparece num cartão com três medidores:
+
+- **Mês:** quanto já foi gasto no mês contra o teto do mês. O traço na barra mostra quanto "deveria" ter sido gasto
+  até hoje. Abaixo, a **projeção**: no ritmo atual, quanto se vai gastar até o fim do mês, em vermelho se passar do
+  teto.
+- **Hoje** e **Ano:** o gasto do dia e o do ano contra os tetos deles.
+
+As cores seguem a situação: verde dentro do teto, amarelo em **atenção** (o gasto chegou ao % de alerta do tipo) e
+vermelho **acima do teto**. O administrador vê todos os setores, com os totais de cada um (somados só entre tipos da
+mesma unidade), e pode filtrar por setor. Em **Consumo até**, escolha outra data para ver como estava o consumo
+naquele dia. O número ao lado de *Painel* no menu é a quantidade de tipos acima do teto no mês.
+
+### Indicadores de um tipo
+
+Em **Ver indicadores**, escolha o ano e o mês:
+
+- **Dia a dia:** o gasto de cada dia do mês com o teto do dia (o traço) e o acumulado do mês contra o teto
+  acumulado.
+- **Mês a mês:** o gasto de cada mês do ano com o teto do mês.
+- **Ano a ano:** o gasto de cada ano com o teto do ano.
+
+Todo gráfico tem **Ver tabela**. Abaixo, o histórico dos **valores do teto**: quem definiu, quando e a partir de
+que data.
+
+### Lançar um gasto
+
+Em **Lançar gasto**, escolha o tipo, a data (não pode ser futura), o valor (na unidade do tipo: R$ ou litros, resmas…),
+a descrição e, se quiser, o nº do documento (nota fiscal, requisição) e o comprovante. Em **Lançamentos**, a lista
+tem filtros por tipo, período e busca, e mostra o total de cada tipo no filtro. Quem é do setor corrige ou exclui os
+lançamentos do setor; tudo fica registrado nas atividades.
+
+### Tipos de teto (administrador)
+
+- **Novo tipo:** setor, nome, unidade (R$ ou outra medida), o **% de alerta** e o teto: escolha o **período** em que
+  ele é definido (diário, mensal ou anual) e o valor. A tela mostra quanto isso dá por dia, por mês e por ano.
+  Exemplo: R$ 12.000 por ano dá R$ 1.000 por mês; o valor por dia é o do mês dividido pelos dias do mês.
+- **Valor do teto:** para mudar o teto, informe o novo valor e a data **a partir da qual** ele vale (e o motivo, se
+  quiser). Os dias anteriores continuam com o valor antigo, então os indicadores do passado não mudam. O primeiro
+  valor vale também para os gastos anteriores à data dele.
+- **Editar:** nome, descrição, unidade, alerta ou desativar. Desativado, o tipo sai do painel e não recebe
+  lançamentos; o histórico fica. Só se exclui um tipo sem lançamentos.
+
+### Setores (administrador)
+
+Cadastre os setores (ex.: Gerência Operacional) e veja quem lança os gastos de cada um. Para ligar uma pessoa a um
+setor, edite o usuário em **Usuários** e escolha *Usuário do setor* e o setor no Controle de Tetos. Um setor só se
+exclui sem tipos e sem usuários; senão, desative.
 
 ## Celular
 

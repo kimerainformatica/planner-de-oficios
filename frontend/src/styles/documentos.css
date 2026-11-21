@@ -1,0 +1,217 @@
+/* ================= Documentos (ofícios e memorandos redigidos no app) ================= */
+
+.abas-documentos {
+  margin-bottom: 14px;
+}
+.selo-assinar {
+  margin-left: 8px;
+}
+
+/* formulário à esquerda, prévia do PDF à direita */
+.documento-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+.documento-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.documento-form .cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.titulo-secao {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.subtitulo-secao {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.texto-documento {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.documento-previa {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.documento-previa-topo {
+  justify-content: space-between;
+}
+.previa-pdf {
+  width: 100%;
+  height: min(82vh, 1000px);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: #fff;
+}
+.lista-explicacao {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+/* dados e assinaturas do documento emitido */
+.dados-documento {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+.dados-documento dt {
+  color: var(--texto-suave);
+  font-size: 0.88rem;
+}
+.dados-documento dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.dados-documento .bloco {
+  display: block;
+}
+.dados-documento .hash {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+.codigo-verificacao {
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.06em;
+}
+.lista-assinaturas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.lista-assinaturas li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.assinatura-icone {
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--texto-suave);
+}
+.lista-assinaturas li:has(.lucide-badge-check) .assinatura-icone {
+  color: var(--normal);
+}
+
+/* timbrado */
+.timbrado-quadro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 10px;
+  border: 1px dashed var(--borda);
+  border-radius: 10px;
+  background: #fff;
+}
+.timbrado-quadro.vazio {
+  background: var(--fundo);
+}
+.timbrado-img {
+  max-width: 100%;
+}
+.timbrado-fundo {
+  max-height: 260px;
+  border: 1px solid var(--borda);
+}
+.nota-timbrado {
+  margin-top: 14px;
+}
+
+/* página pública de verificação */
+.verificar-pagina {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+  background: var(--fundo);
+}
+.verificar-caixa {
+  width: min(680px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+.verificar-topo {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.verificar-topo img {
+  width: 120px;
+}
+.verificar-topo h1 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+.verificar-form .input {
+  flex: 1;
+  text-transform: uppercase;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.verificar-resultado {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+.verificar-resultado p {
+  margin: 4px 0 0;
+}
+.verificar-resultado.bom {
+  color: var(--normal);
+  background: var(--normal-fundo);
+  border-color: var(--normal-borda);
+}
+.verificar-resultado.ruim {
+  color: var(--critico);
+  background: var(--critico-fundo);
+  border-color: var(--critico-borda);
+}
+
+@media (max-width: 1100px) {
+  .documento-grade {
+    grid-template-columns: 1fr;
+  }
+  .documento-previa {
+    position: static;
+  }
+}
+@media (max-width: 560px) {
+  .dados-documento {
+    grid-template-columns: 1fr;
+  }
+  .verificar-topo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

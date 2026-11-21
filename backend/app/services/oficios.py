@@ -157,6 +157,8 @@ def montar_oficio(
     ]  # a evidência de cada resposta vem junto (relationship HistoricoStatus.evidencia)
     if oficio.exclusao_pendente is not None:
         dados["exclusao_pendente"] = montar_solicitacao(oficio.exclusao_pendente)
+    if oficio.documento_gerado is not None:
+        dados["documento_id"] = oficio.documento_gerado.id
     return OficioDetalhe.model_validate(dados)
 
 

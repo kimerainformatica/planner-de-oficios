@@ -106,7 +106,7 @@ stateDiagram-v2
 
 ## Módulos e perfis
 
-A plataforma é dividida em **módulos**: **Planner de Ofícios** e **Manutenção Clínica**. Cada pessoa é habilitada
+A plataforma é dividida em **módulos**: **Planner de Ofícios**, **Manutenção Clínica**, **Controle de Tetos** e **Documentos**. Cada pessoa é habilitada
 nos módulos no cadastro (feito por um administrador ou pelo master) e tem **um papel em cada módulo**. Quem não foi
 habilitado num módulo não o abre (as rotas dele respondem `403`).
 
@@ -339,6 +339,55 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 Cada unidade tem o próprio servidor. O nome da unidade vem do `.env` (`UNIDADE_NOME` e `UNIDADE_DESCRICAO`) e
 aparece no login, no menu e no PDF do relatório técnico. Sem a configuração, nada aparece.
 
+## Controle de Tetos
+
+### Papéis
+
+| Papel | Pode |
+|---|---|
+| Usuário do setor (`CLIENTE`, com `setor_id`) | Ver os tipos e indicadores **do próprio setor**, lançar gastos nele e corrigir ou excluir os lançamentos do setor. Sem setor, o módulo pede para o administrador ligar o usuário a um |
+| Administrador (`ADMIN`) e master | Criar setores e tipos, definir e remover valores de teto, ver todos os setores e lançar em qualquer um |
+
+O setor é escolhido no cadastro do usuário (acesso ao Controle de Tetos). É obrigatório para o usuário do setor.
+
+### Tipo de teto e valor
+
+- O tipo pertence a um setor e tem nome (único no setor), unidade (R$ por padrão, ou litros, resmas, kWh…) e o
+  **% de alerta** (padrão 80%).
+- O valor fica nas **vigências**: período base (diário, mensal ou anual), valor e a data a partir da qual vale.
+  - Um novo valor vale a partir da data dele; os dias anteriores continuam com o valor que valia neles.
+  - Na mesma data de uma vigência existente, o valor dela é substituído.
+  - A **primeira** vigência vale também para os dias anteriores a ela.
+  - O tipo sempre tem pelo menos uma vigência.
+- Tipo com lançamentos não se exclui (desative). Desativado, sai do painel e não recebe lançamentos.
+
+### Teto de cada período (proporção)
+
+O teto de um dia sai da vigência do dia:
+
+- diário: o valor;
+- mensal: valor ÷ dias do mês;
+- anual: (valor ÷ 12) ÷ dias do mês.
+
+O teto de um mês, de um ano ou do 1º dia do mês até hoje é a **soma dos tetos dos dias**. Assim, um teto mensal de
+R$ 3.000 dá R$ 3.000 em qualquer mês, um anual de R$ 12.000 dá R$ 1.000 em qualquer mês e R$ 12.000 no ano, e um
+diário de R$ 50 dá R$ 1.550 num mês de 31 dias.
+
+### Lançamento
+
+- Data não futura, valor maior que zero com até duas casas decimais (na unidade do tipo), descrição obrigatória;
+  documento e comprovante opcionais.
+- Corrigir, trocar o comprovante e excluir ficam nas **Atividades**, com o antes e o depois.
+
+### Situação e projeção
+
+- **Acima do teto:** o gasto passou do teto do período. **Atenção:** chegou ao % de alerta do tipo. **Dentro do
+  teto:** abaixo do alerta.
+- A situação do cartão é a do **mês**. Os medidores do dia e do ano têm a situação deles.
+- **Projeção do mês** (só no mês corrente): gasto até hoje ÷ dias decorridos × dias do mês. Se passar do teto do mês,
+  o tipo conta como atenção no painel, mesmo abaixo do % de alerta.
+- Os totais de um setor somam só tipos da **mesma unidade**.
+
 ## Correções (administrador e master)
 
 - Corrigir o resultado, a data e a observação da resposta atual.
@@ -356,6 +405,33 @@ padrão, e um botão mostra todos.
   no menu dos administradores, que aprovam (o ofício é excluído) ou recusam (o ofício continua). O cliente pode
   cancelar o pedido enquanto ele estiver pendente.
 - Excluir apaga o ofício, os documentos e as versões da lixeira. O registro da exclusão continua em **Atividades**.
+
+## Documentos gerados (ofícios e memorandos)
+
+- **Modelo:** o PDF segue os modelos da unidade. Cabeçalho do documento e assinaturas em Arial 12; corpo em Times New
+  Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha de 1,75 cm (ofício) ou 1,25 cm (memorando); margens de
+  3 cm nas laterais e 2,5 cm em cima e embaixo; páginas numeradas a partir da 2ª.
+- **Situações:** *rascunho* (só quem elaborou edita; sem número; o PDF sai marcado "RASCUNHO") → *emitido* (número,
+  data, código e hash; nada mais muda) → *cancelado* (com motivo; o PDF sai marcado "CANCELADO").
+- **Numeração:** sequencial por pessoa, tipo e ano, dada só na emissão (rascunho descartado não abre buraco). O
+  ofício continua a numeração que a pessoa já usa no Planner (o maior número do ano + 1, no formato `012/2026`); o
+  memorando tem a sua (`07/2026`).
+- **Para emitir:** assunto e texto; no ofício, o nome do destinatário (e o tipo de ofício, se for registrado no
+  Planner); no memorando, De e Para;
+  o cargo de quem elaborou e, havendo De acordo, o cargo de quem valida.
+- **Módulo e papéis:** *Redator* redige, emite e assina os seus; *Administrador* também vê todos, cancela e cuida do
+  timbrado. O De acordo só pode ser dado por quem tem o módulo.
+- **Integração com o Planner:** com *registrar no Planner* (padrão para quem usa o Planner; impossível para quem não
+  usa), a emissão cadastra o ofício em nome de quem elaborou, como pendente de resposta, na data de hoje, com o tipo
+  (obrigatório) e o destinatário informados. Cancelar o documento não exclui o ofício do Planner. Quem acompanha o
+  ofício no Planner baixa o PDF do documento por lá, mesmo sem o módulo.
+- **Assinaturas:** o espaço para assinar à mão sempre sai. A assinatura eletrônica é feita no app por quem elaborou e
+  por quem dá o De acordo (se for usuário do sistema), confirmando a senha (as regras de bloqueio do login valem aqui).
+  Fica registrado quem, quando e de qual computador. Um administrador vê, mas não assina por ninguém.
+- **Verificação:** o código (8 caracteres, sem letras e números que se confundem) e o QR code levam à página pública
+  `/verificar`, que mostra só os dados de identificação, nunca o texto. O hash SHA-256 do conteúdo, gravado na
+  emissão, é recalculado a cada consulta: se o registro foi mexido, a página avisa.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
 ## Login e sessão
 
