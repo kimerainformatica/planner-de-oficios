@@ -15,7 +15,7 @@ const CLASSE_STATUS_DOC: Record<StatusDocumento, string> = {
 };
 
 export function SeloDocumento({ status }: { status: StatusDocumento }) {
-  return <span className={`selo-teto selo-teto-${CLASSE_STATUS_DOC[status]}`}>{ROTULO_STATUS_DOC[status]}</span>;
+  return <span className={`selo-doc selo-doc-${CLASSE_STATUS_DOC[status]}`}>{ROTULO_STATUS_DOC[status]}</span>;
 }
 
 /** Abre o blob numa aba nova (a aba é aberta já no clique, para o navegador não bloquear). */

@@ -90,8 +90,8 @@ export function Documentos() {
         ))}
       </div>
 
-      <div className="grupo filtros-tetos">
-        <div className="busca-tetos">
+      <div className="grupo filtros-documentos">
+        <div className="busca-documentos">
           <Search size={16} aria-hidden />
           <input className="input" type="search" placeholder="Assunto, destinatário, setor ou código" value={busca}
             aria-label="Buscar documentos" onChange={(e) => setBusca(e.target.value)} />
@@ -114,7 +114,7 @@ export function Documentos() {
       ) : (
         <>
           <div className="tabela-box">
-            <table className="tabela tabela-tetos">
+            <table className="tabela tabela-documentos">
               <thead>
                 <tr>
                   <th>Documento</th>
@@ -140,7 +140,7 @@ export function Documentos() {
                     <td className="sem-quebra">{d.data_documento ? data(d.data_documento) : <span className="texto-suave">—</span>}</td>
                     <td className="num">
                       {d.status === "RASCUNHO" ? <span className="texto-suave">—</span> : `${d.assinaturas} de ${d.assinaturas_previstas}`}
-                      {d.minha_assinatura_pendente && <span className="selo-teto selo-teto-ATENCAO selo-assinar">Falta a sua</span>}
+                      {d.minha_assinatura_pendente && <span className="selo-doc selo-doc-ATENCAO selo-assinar">Falta a sua</span>}
                     </td>
                     <td><SeloDocumento status={d.status} /></td>
                   </tr>

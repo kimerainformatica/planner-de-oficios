@@ -267,11 +267,10 @@ def pdf(documento_id: int, request: Request, db: DbDep, usuario: UsuarioDep, set
              summary="Começa um rascunho (com os dados de quem elabora já preenchidos)")
 def criar(dados: DocumentoCriar, db: DbDep, usuario: UsuarioDep):
     oficio = dados.tipo == TipoDocumento.OFICIO
-    setor = next((a.setor.nome for a in usuario.modulos if a.setor is not None), None)
     doc = Documento(
         tipo=dados.tipo, status=StatusDocumento.RASCUNHO, autor_id=usuario.id, assunto="", corpo="",
         vocativo="Prezado (a) Senhor (a)," if oficio else "Prezado(a),", fecho="Atenciosamente,",
-        dest_tratamento="A/C sr. (sra.)" if oficio else None, de=None if oficio else setor,
+        dest_tratamento="A/C sr. (sra.)" if oficio else None,
         registrar_no_planner=oficio and usuario.tem_acesso(Modulo.OFICIOS),
         elaborador_nome=usuario.nome, elaborador_cargo=usuario.cargo, elaborador_ident=usuario.matricula,
     )

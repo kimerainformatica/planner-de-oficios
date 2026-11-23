@@ -227,11 +227,10 @@ export function LinhasTempo({
   if (n === 0 || dados.every((s) => s.every((v) => v === 0))) {
     return <p className="texto-suave grafico-vazio">Sem dados para os filtros escolhidos.</p>;
   }
-  const { max, passo } = escala(Math.max(...dados.flat()));
-  // A margem esquerda cresce com o maior rótulo do eixo (ex.: "12.000" não é cortado)
-  const m = { esq: Math.max(36, numero(max).length * 7 + 14), dir: 16, topo: 12, base: 28 };
+  const m = { esq: 36, dir: 16, topo: 12, base: 28 };
   const w = largura - m.esq - m.dir;
   const h = altura - m.topo - m.base;
+  const { max, passo } = escala(Math.max(...dados.flat()));
   const x = (i: number) => m.esq + (n === 1 ? w / 2 : (i / (n - 1)) * w);
   const y = (v: number) => m.topo + h - (v / max) * h;
   const ticks = Array.from({ length: max / passo + 1 }, (_, i) => i * passo);

@@ -15,15 +15,12 @@ class Esquema(BaseModel):
 
 class AcessoModulo(Esquema):
     """Papel do usuário em um módulo: ADMIN ou CLIENTE e, na Manutenção Clínica, também TECNICO (com a empresa).
-    No Controle de Tetos, o CLIENTE é o usuário de um setor (com o setor). Na saída o MASTER aparece como MASTER em
-    todos os módulos."""
+    Na saída o MASTER aparece como MASTER em todos os módulos."""
 
     modulo: Modulo
     perfil: Perfil
     empresa_id: int | None = None  # obrigatório para TECNICO
     empresa_nome: str | None = None  # só na saída
-    setor_id: int | None = None  # obrigatório para o CLIENTE do Controle de Tetos
-    setor_nome: str | None = None  # só na saída
 
 
 class UsuarioOut(Esquema):
@@ -46,8 +43,7 @@ class UsuarioOut(Esquema):
                 "cargo": v.cargo, "matricula": v.matricula,
                 "modulos": [
                     {"modulo": a.modulo, "perfil": a.perfil, "empresa_id": a.empresa_id,
-                     "empresa_nome": a.empresa.nome if a.empresa else None, "setor_id": a.setor_id,
-                     "setor_nome": a.setor.nome if a.setor else None}
+                     "empresa_nome": a.empresa.nome if a.empresa else None}
                     for a in v.modulos_efetivos
                 ],
             }
@@ -69,11 +65,6 @@ def _validar_acessos(modulos: list[AcessoModulo] | None) -> list[AcessoModulo] |
                 raise ValueError("Informe a empresa do técnico")
         elif a.empresa_id is not None:
             raise ValueError("Só o técnico é vinculado a uma empresa")
-        if a.modulo == Modulo.TETOS:
-            if a.perfil == Perfil.CLIENTE and a.setor_id is None:
-                raise ValueError("Informe o setor do usuário no Controle de Tetos")
-        elif a.setor_id is not None:
-            raise ValueError("O setor só existe no Controle de Tetos")
     return modulos
 
 

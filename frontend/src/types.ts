@@ -25,7 +25,7 @@ export interface TipoInfo {
 }
 export type Destinatario = "SES" | "ACQUA" | "OUTROS";
 
-export type Modulo = "OFICIOS" | "MANUTENCAO" | "TETOS" | "DOCUMENTOS";
+export type Modulo = "OFICIOS" | "MANUTENCAO" | "DOCUMENTOS";
 
 /** Papel do usuário em um módulo (o MASTER aparece como MASTER em todos). */
 export interface AcessoModulo {
@@ -34,9 +34,6 @@ export interface AcessoModulo {
   /** Empresa do técnico (só TECNICO). */
   empresa_id?: number | null;
   empresa_nome?: string | null;
-  /** Setor do usuário no Controle de Tetos (obrigatório para o usuário do setor). */
-  setor_id?: number | null;
-  setor_nome?: string | null;
 }
 
 export interface Usuario {
@@ -635,127 +632,6 @@ export interface Avisos {
 export interface Unidade {
   nome: string | null;
   descricao: string | null;
-}
-
-// ================= Controle de Tetos =================
-
-export type PeriodoTeto = "DIARIO" | "MENSAL" | "ANUAL";
-export type SituacaoTeto = "NORMAL" | "ATENCAO" | "ESTOURADO" | "SEM_TETO";
-
-export interface SetorRef {
-  id: number;
-  nome: string;
-}
-
-export interface Setor extends SetorRef {
-  descricao: string | null;
-  ativo: boolean;
-  usuarios: Referencia[];
-  tipos: number;
-}
-
-export interface Equivalentes {
-  diario: number;
-  mensal: number;
-  anual: number;
-}
-
-export interface VigenciaTeto {
-  id: number;
-  inicio: string;
-  periodo: PeriodoTeto;
-  valor: number;
-  motivo: string | null;
-  criado_por: Referencia | null;
-  criado_em: string;
-  equivalentes: Equivalentes;
-}
-
-export interface TipoTetoRef {
-  id: number;
-  nome: string;
-  unidade: string;
-}
-
-export interface TipoTeto extends TipoTetoRef {
-  setor: SetorRef;
-  descricao: string | null;
-  alerta_pct: number;
-  ativo: boolean;
-  periodo: PeriodoTeto | null;
-  valor: number | null;
-  vigente_desde: string | null;
-  equivalentes: Equivalentes | null;
-  lancamentos: number;
-  vigencias: VigenciaTeto[];
-}
-
-export interface GastoTeto {
-  id: number;
-  tipo: TipoTetoRef;
-  setor: SetorRef;
-  data: string;
-  valor: number;
-  descricao: string;
-  documento: string | null;
-  arquivo_nome: string | null;
-  arquivo_tamanho: number | null;
-  registrado_por: Referencia | null;
-  registrado_em: string;
-  atualizado_por: Referencia | null;
-  atualizado_em: string | null;
-  pode_editar: boolean;
-}
-
-export interface PaginaGastos {
-  itens: GastoTeto[];
-  total: number;
-  pagina: number;
-  por_pagina: number;
-  totais: { tipo: TipoTetoRef; total: number; quantidade: number }[];
-}
-
-export interface ConsumoTeto {
-  gasto: number;
-  teto: number;
-  percentual: number | null;
-  restante: number;
-  situacao: SituacaoTeto;
-}
-
-export interface ConsumoMes extends ConsumoTeto {
-  teto_ate_hoje: number;
-  projecao: number;
-  projecao_estoura: boolean;
-}
-
-export interface IndicadorTipo {
-  tipo: TipoTeto;
-  dia: ConsumoTeto;
-  mes: ConsumoMes;
-  ano: ConsumoTeto;
-}
-
-export interface PainelTetos {
-  referencia: string;
-  setores: { setor: SetorRef; tipos: IndicadorTipo[]; totais: { unidade: string; mes: ConsumoTeto; ano: ConsumoTeto }[] }[];
-  estourados: number;
-  em_atencao: number;
-}
-
-export interface IndicadoresTipo {
-  referencia: string;
-  ano: number;
-  mes: number;
-  resumo: IndicadorTipo;
-  diario: { data: string; gasto: number; teto: number; acumulado: number; teto_acumulado: number }[];
-  mensal: { mes: number; gasto: number; teto: number }[];
-  anual: { ano: number; gasto: number; teto: number }[];
-}
-
-export interface ResumoTetos {
-  eh_gestor: boolean;
-  setor: SetorRef | null;
 }
 
 // ---------- Documentos (ofícios e memorandos redigidos no app) ----------

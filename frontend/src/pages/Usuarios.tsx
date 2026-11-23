@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { atualizarUsuario, criarUsuario, listarEmpresas, listarSetores, listarUsuarios } from "../api/endpoints";
+import { atualizarUsuario, criarUsuario, listarEmpresas, listarUsuarios } from "../api/endpoints";
 import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
-import { ROTULO_PAPEL_TETOS } from "../utils/tetos";
 import { ROTULO_PAPEL_DOCUMENTOS } from "./documentos/comum";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
@@ -18,10 +17,9 @@ const CLASSE_PERFIL: Record<Perfil, string> = {
 
 type Escolha = "NENHUM" | "CLIENTE" | "ADMIN" | "TECNICO";
 
-/** Nome do papel no módulo: na Manutenção Clínica o cliente é o "operacional"; nos Tetos, o "usuário do setor". */
+/** Nome do papel no módulo: na Manutenção Clínica o cliente é o "operacional". */
 function rotuloPapel(modulo: Modulo, perfil: Perfil): string {
   if (modulo === "MANUTENCAO") return ROTULO_PAPEL_MANUTENCAO[perfil];
-  if (modulo === "TETOS") return ROTULO_PAPEL_TETOS[perfil];
   if (modulo === "DOCUMENTOS") return ROTULO_PAPEL_DOCUMENTOS[perfil];
   return ROTULO_PERFIL[perfil];
 }
@@ -38,7 +36,7 @@ export function Usuarios() {
           <h1>Usuários</h1>
           <p className="texto-suave">
             {ehMaster
-              ? "Como MASTER, você gerencia todas as contas e o acesso a todos os módulos, inclusive o dos administradores."
+              ? "Como MASTER, você gerencia todas as contas e o acesso aos dois módulos, inclusive o dos administradores."
               : "Você habilita pessoas nos módulos que administra. Administradores e masters são geridos pelo MASTER."}
           </p>
         </div>
@@ -84,7 +82,6 @@ export function Usuarios() {
                             <span key={m.modulo} className={`badge ${CLASSE_PERFIL[a.perfil]}`}>
                               {m.nome} · {rotuloPapel(m.modulo, a.perfil)}
                               {a.empresa_nome && ` · ${a.empresa_nome}`}
-                              {a.setor_nome && ` · ${a.setor_nome}`}
                             </span>
                           );
                         })
@@ -159,11 +156,6 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
     queryFn: () => listarEmpresas(),
     enabled: meus.includes("MANUTENCAO"),
   });
-  // Setor do usuário no Controle de Tetos (obrigatório para o usuário do setor)
-  const [setorTetos, setSetorTetos] = useState<number | "">(
-    usuario?.modulos.find((a) => a.modulo === "TETOS")?.setor_id ?? "",
-  );
-  const setores = useQuery({ queryKey: ["setores-tetos"], queryFn: listarSetores, enabled: meus.includes("TETOS") });
 
   // Só os módulos que o editor administra podem ser alterados; o administrador de um módulo só o MASTER troca
   const editavel = (m: Modulo) => acessoLiberado && !ehEu && !master && meus.includes(m) && (ehMaster || escolhaAtual(usuario, m) !== "ADMIN");
@@ -175,7 +167,6 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
           modulo: m.modulo,
           perfil: acesso[m.modulo] as Perfil,
           ...(acesso[m.modulo] === "TECNICO" ? { empresa_id: empresaTecnico === "" ? null : empresaTecnico } : {}),
-          ...(m.modulo === "TETOS" && setorTetos !== "" && acesso.TETOS !== "NENHUM" ? { setor_id: setorTetos } : {}),
         }),
       );
       if (!usuario) {
@@ -285,8 +276,6 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
                           <option value="CLIENTE">Operacional (abre e acompanha os chamados)</option>
                           <option value="TECNICO">Técnico (atende os chamados de uma empresa)</option>
                         </>
-                      ) : m.modulo === "TETOS" ? (
-                        <option value="CLIENTE">Usuário do setor (lança os gastos do setor)</option>
                       ) : m.modulo === "DOCUMENTOS" ? (
                         <option value="CLIENTE">Redator (redige e assina ofícios e memorandos)</option>
                       ) : (
@@ -304,21 +293,6 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
                         {!empresas.data && empresaTecnico !== "" && (
                           <option value={empresaTecnico}>
                             {usuario?.modulos.find((a) => a.modulo === "MANUTENCAO")?.empresa_nome ?? "Empresa atual"}
-                          </option>
-                        )}
-                      </select>
-                    )}
-                    {m.modulo === "TETOS" && acesso.TETOS !== "NENHUM" && (
-                      <select className="input" aria-label="Setor no Controle de Tetos" required={acesso.TETOS === "CLIENTE"}
-                        disabled={!editavel(m.modulo)}
-                        value={setorTetos} onChange={(e) => setSetorTetos(e.target.value ? Number(e.target.value) : "")}>
-                        <option value="">{acesso.TETOS === "CLIENTE" ? "Setor do usuário…" : "Setor (opcional)"}</option>
-                        {(setores.data ?? [])
-                          .filter((s) => s.ativo || s.id === setorTetos)
-                          .map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                        {!setores.data && setorTetos !== "" && (
-                          <option value={setorTetos}>
-                            {usuario?.modulos.find((a) => a.modulo === "TETOS")?.setor_nome ?? "Setor atual"}
                           </option>
                         )}
                       </select>

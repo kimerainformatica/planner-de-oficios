@@ -19,7 +19,7 @@ def _usuario_id(api, master, login):
 def _liberar(api, master, login, perfil):
     """Acrescenta o módulo Documentos ao acesso que a pessoa já tem."""
     u = next(u for u in api.get("/api/usuarios", headers=master).json() if u["login"] == login)
-    modulos = [{k: a[k] for k in ("modulo", "perfil", "empresa_id", "setor_id")} for a in u["modulos"]]
+    modulos = [{k: a[k] for k in ("modulo", "perfil", "empresa_id")} for a in u["modulos"]]
     r = api.patch(f"/api/usuarios/{u['id']}", json={"modulos": [*modulos, {"modulo": "DOCUMENTOS", "perfil": perfil}]},
                   headers=master)
     assert r.status_code == 200, r.text

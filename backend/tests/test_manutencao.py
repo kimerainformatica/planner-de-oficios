@@ -351,8 +351,7 @@ def test_admin_do_modulo_cadastra_tecnico_com_empresa(api, marta, admin):
     r = api.post("/api/usuarios", json={**base, "modulos": [tecnico]}, headers=marta)
     assert r.status_code == 201
     assert r.json()["modulos"] == [{"modulo": "MANUTENCAO", "perfil": "TECNICO", "empresa_id": ids["REALIZA PREDIAL"],
-                                    "empresa_nome": "REALIZA PREDIAL",
-                                    "setor_id": None, "setor_nome": None}]
+                                    "empresa_nome": "REALIZA PREDIAL"}]
     rui = {"Authorization": "Bearer " + api.post(
         "/api/auth/login", data={"username": "rui", "password": "12345678"}).json()["access_token"]}
     resumo = api.get("/api/manutencao/resumo", headers=rui).json()

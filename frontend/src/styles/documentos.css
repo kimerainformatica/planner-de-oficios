@@ -215,3 +215,70 @@
     align-items: flex-start;
   }
 }
+
+/* filtros e busca da lista */
+.filtros-documentos {
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.filtros-documentos select.input {
+  width: auto;
+}
+.busca-documentos {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.busca-documentos svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-suave);
+}
+.busca-documentos .input {
+  padding-left: 36px;
+}
+/* na lista o texto quebra; o título, as datas e os números ficam numa linha */
+.tabela-documentos td {
+  white-space: normal;
+  min-width: 90px;
+}
+.tabela-documentos td.num,
+.tabela-documentos td:first-child {
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* selos de situação (reaproveitam as cores de prazo) */
+.selo-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.selo-doc-NORMAL {
+  color: var(--normal);
+  background: var(--normal-fundo);
+  border-color: var(--normal-borda);
+}
+.selo-doc-ATENCAO {
+  color: var(--atencao);
+  background: var(--atencao-fundo);
+  border-color: var(--atencao-borda);
+}
+.selo-doc-CRITICO {
+  color: var(--critico);
+  background: var(--critico-fundo);
+  border-color: var(--critico-borda);
+}
+.selo-doc-NEUTRO {
+  color: var(--texto-suave);
+  background: var(--superficie-2);
+  border-color: var(--borda);
+}

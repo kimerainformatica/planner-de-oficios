@@ -1,20 +1,20 @@
 """Documentos vira módulo próprio (DOCUMENTOS) e o ofício escolhe se é registrado no Planner
 
-Revision ID: 0019
-Revises: 0018
+Revision ID: 0018
+Revises: 0017
 Create Date: 2026-11-20
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0019"
-down_revision = "0018"
+revision = "0018"
+down_revision = "0017"
 branch_labels = None
 depends_on = None
 
-MODULOS_ANTES = ("OFICIOS", "MANUTENCAO", "TETOS")
-MODULOS_DEPOIS = ("OFICIOS", "MANUTENCAO", "TETOS", "DOCUMENTOS")
+MODULOS_ANTES = ("OFICIOS", "MANUTENCAO")
+MODULOS_DEPOIS = ("OFICIOS", "MANUTENCAO", "DOCUMENTOS")
 
 
 def upgrade() -> None:

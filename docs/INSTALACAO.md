@@ -70,7 +70,7 @@ copy .env.example .env
 Edite o `.env`, no mínimo `DATABASE_URL` e `JWT_SECRET`, e crie as tabelas:
 
 ```powershell
-alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0019)
+alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0018)
 python -m scripts.inicializar   # cria o 1º administrador (pede a senha) e os feriados nacionais
 ```
 

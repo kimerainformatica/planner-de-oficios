@@ -20,10 +20,6 @@ CATALOGO: dict[Modulo, InfoModulo] = {
     Modulo.MANUTENCAO: InfoModulo(
         Modulo.MANUTENCAO, "Manutenção Clínica", "Gestão da manutenção de equipamentos clínicos.", "/manutencao"
     ),
-    Modulo.TETOS: InfoModulo(
-        Modulo.TETOS, "Controle de Tetos", "Tetos de gastos por setor, com indicadores diários, mensais e anuais.",
-        "/tetos"
-    ),
     Modulo.DOCUMENTOS: InfoModulo(
         Modulo.DOCUMENTOS, "Documentos",
         "Ofícios e memorandos no modelo da unidade, com assinatura e verificação; integrado ao Planner.", "/documentos"

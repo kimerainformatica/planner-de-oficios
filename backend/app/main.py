@@ -7,7 +7,7 @@ from app.config import BASE_DIR, get_settings
 from app.deps import SettingsDep
 from app.routers import (
     anexos, auditoria, auth, dashboard, documentos, exclusoes, feriados, lixeira, manutencao, modulos, oficios,
-    preventivas, tetos, tipos, usuarios,
+    preventivas, tipos, usuarios,
 )
 
 app = FastAPI(
@@ -27,7 +27,7 @@ app.add_middleware(
 )
 
 for rota in (auth, usuarios, modulos, oficios, anexos, lixeira, exclusoes, auditoria, dashboard, feriados, tipos,
-             manutencao, preventivas, tetos, documentos):
+             manutencao, preventivas, documentos):
     app.include_router(rota.router)
 app.include_router(documentos.publico)
 
