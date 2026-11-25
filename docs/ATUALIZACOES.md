@@ -4,7 +4,7 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 
 | Versão | Data | Ramo | Resumo |
 |---|---|---|---|
-| 2.3 | 20/11/2026 | `feature/2.3-controle-de-tetos` | Módulo Documentos: ofícios e memorandos no modelo da unidade, com assinatura eletrônica, verificação e integração ao Planner |
+| 2.3 | 20/11/2026 | `feature/2.3-controle-de-tetos` | Módulo Documentos: ofícios e memorandos no modelo da unidade, com assinatura no app (memorandos) e pelo GOV.BR (ofícios), verificação e integração ao Planner |
 | 2.2 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Prazos em dias e horas corridas; seção Diagnóstico técnico, com relatório externo e do sistema interligados e editáveis |
 | 2.1 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Manutenção preventiva com ateste, avisos internos e nome da unidade |
 | 2.0 | 13/11/2026 | `feature/modulos-manutencao-clinica` | Módulos, Manutenção Clínica (helpdesk) e solicitação de peças integrada ao Planner |
@@ -32,9 +32,13 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
   escolhidos, e os prazos começam a contar. No Planner, o ofício tem o botão *Documento gerado* (ou *PDF do
   documento*, para quem acompanha o ofício sem ter o módulo), e o menu do Planner ganha o atalho *Redigir ofício*
   para quem tem o módulo.
-- **Assinaturas:** o PDF sai com o espaço para assinar à mão (quem elaborou e o *De acordo*). Depois da emissão, cada
-  um também pode **assinar no app**, confirmando a senha; o carimbo da assinatura eletrônica aparece no PDF no lugar
-  da assinatura à mão. O menu mostra quantos documentos esperam a sua assinatura.
+- **Assinaturas:** o PDF sai com o espaço para assinar à mão (quem elaborou e o *De acordo*). No **memorando** (interno),
+  depois da emissão, cada um também pode **assinar no app**, confirmando a senha; o carimbo aparece no PDF no lugar da
+  assinatura à mão. O menu mostra quantos documentos esperam a sua assinatura.
+- **Assinatura pelo GOV.BR nos ofícios** (externos): a pessoa baixa o PDF, assina no portal com a conta prata ou ouro e
+  envia o arquivo de volta. O sistema confere se é o mesmo documento, se a assinatura está íntegra, se o certificado é
+  do GOV.BR e se é da pessoa certa. Quem recebe confere em validar.iti.gov.br. Os ofícios já emitidos não mudam.
+- **CPF no cadastro** (opcional): só para conferir quem assinou pelo GOV.BR; aparece sempre mascarado.
 - **Verificação pública** (`/verificar/<código>`, sem login): mostra se o documento é autêntico, se foi cancelado e
   se o registro foi alterado depois da emissão (o hash do conteúdo é gravado na emissão).
 - **Cancelar e refazer:** o emitido pode ser cancelado com o motivo (continua consultável, marcado como cancelado);
@@ -42,6 +46,8 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 - **Timbrado:** o administrador do módulo envia o cabeçalho e a marca-d'água em **Timbrado**. Valem para todos os
   documentos.
 - **Usuários:** cadastro com **cargo** e **matrícula/ID**, que já vêm preenchidos no bloco de assinatura.
+- **Novo nome:** o módulo Manutenção Clínica passa a se chamar **Manutenções Integradas** (menu, telas, mensagens e
+  relatório técnico em PDF). Nada muda nos dados nem nos acessos.
 
 ### Banco de dados
 
@@ -49,27 +55,31 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 |---|---|
 | `0017_documentos` | Cria `documentos` e `documento_assinaturas` e acrescenta `usuarios.cargo` e `usuarios.matricula` |
 | `0018_modulo_documentos` | Acrescenta o módulo `DOCUMENTOS` e a coluna `documentos.registrar_no_planner` |
+| `0019_assinatura_govbr` | Forma de assinatura e arquivos guardados em `documentos`, dados do certificado em `documento_assinaturas` e `usuarios.cpf`. Os ofícios em rascunho passam para o GOV.BR |
 
 Nada do que existe muda. Ninguém recebe o módulo sozinho: o master libera quem vai usar. Voltar a 0016 apaga os
 documentos; a volta segura é o backup.
 
 ### Como aplicar no servidor
 
-1. Faça o **backup do banco**.
-2. Troque para o ramo (`git fetch` e `git checkout feature/2.3-controle-de-tetos`) e rode `alembic upgrade head` em `backend`. Confira com
-   `alembic current`: deve mostrar `0018 (head)`.
-3. No `backend/.env`, informe `DOCUMENTOS_CIDADE` e `DOCUMENTOS_UF` (ex.: `São Luís` e `MA`) e, se o QR code deve
-   levar a um endereço fixo da rede, `DOCUMENTOS_URL_PUBLICA` (ex.: `http://192.168.0.10:3112`).
+1. Faça o **backup do banco** e da pasta `storage`.
+2. Troque para o ramo (`git fetch` e `git checkout feature/2.3-controle-de-tetos`), instale as bibliotecas (`pip install -r requirements.txt`: a nova é o pyHanko) e rode `alembic upgrade head` em `backend`. Confira com
+   `alembic current`: deve mostrar `0019 (head)`.
+3. No `backend/.env`, informe `DOCUMENTOS_CIDADE` e `DOCUMENTOS_UF` (ex.: `São Luís` e `MA`) e
+   `DOCUMENTOS_URL_PUBLICA` (ex.: `http://192.168.0.10:3112`): o PDF do ofício fica guardado com esse endereço no QR code.
 4. Gere as telas (`npm run build` em `frontend`) e reinicie o sistema.
 5. Entre como master: em **Usuários**, libere o módulo **Documentos** (Redator ou Administrador) e preencha o cargo
    e a matrícula de quem assina; em **Documentos → Timbrado**, confira o cabeçalho e a marca-d'água.
 
 ### Testes
 
-- **API:** 128 testes passando. Os 11 novos cobrem o rascunho e a emissão com o cadastro no Planner, a numeração que
+- **API:** 140 testes passando. Os 23 novos cobrem o rascunho e a emissão com o cadastro no Planner, a numeração que
   continua a do Planner (por pessoa e por tipo), o *De acordo* e a assinatura com a senha, quem vê o quê, o acesso ao
   módulo, o ofício sem registro no Planner, o redator sem o Planner, o PDF pelo ofício do Planner, a verificação
-  pública (inclusive a alteração do registro), o cancelamento, a duplicação e o timbrado.
+  pública (inclusive a alteração do registro), o cancelamento, a duplicação e o timbrado. A
+  assinatura GOV.BR é testada com uma cadeia de certificados de mentira: uma e duas assinaturas e a recusa de certificado
+  de fora, vencido ou de outra pessoa, de outro documento, de conteúdo alterado antes ou depois de assinar e de cópia
+  antiga.
 - **Front-end:** checagem de tipos e `npm run build` sem erros. Telas conferidas no navegador com dados de
   demonstração (lista, rascunho com prévia, emissão, assinaturas, verificação no computador e no celular, timbrado,
   usuários e o ofício no Planner).

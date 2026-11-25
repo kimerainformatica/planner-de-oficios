@@ -202,7 +202,7 @@ def registrar_historico(
 
 
 def cadastrar_oficio(db: Session, dados, dono_id: int, autor: Usuario, chamado_id: int | None = None) -> Oficio:
-    """Cadastra um ofício (sem commit). Usado pelo Planner e pela Manutenção Clínica (solicitação de peças e
+    """Cadastra um ofício (sem commit). Usado pelo Planner e pelas Manutenções Integradas (solicitação de peças e
     equipamentos a partir de um chamado). Todo ofício novo entra como PENDENTE_RESPOSTA, sem exceção."""
     from app.services.auditoria import Acao, diferencas, registrar  # evita importação circular
     from app.services.tipos import validar_para_oficio

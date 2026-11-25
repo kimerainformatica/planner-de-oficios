@@ -192,7 +192,7 @@ def test_alterar_acesso_vale_na_hora_e_fica_na_auditoria(api, master, ana):
     ultima = api.get("/api/auditoria", headers=master).json()["itens"][0]
     assert ultima["descricao"] == "Alterou o usuário Ana (acesso aos módulos)"
     assert ultima["detalhes"]["modulos"] == {
-        "de": "Planner de Ofícios (cliente)", "para": "Manutenção Clínica (técnico · MSI)"}
+        "de": "Planner de Ofícios (cliente)", "para": "Manutenções Integradas (técnico · MSI)"}
 
 
 def test_todo_operacional_tem_o_planner(api, master, marta):

@@ -18,6 +18,10 @@ export function SeloDocumento({ status }: { status: StatusDocumento }) {
   return <span className={`selo-doc selo-doc-${CLASSE_STATUS_DOC[status]}`}>{ROTULO_STATUS_DOC[status]}</span>;
 }
 
+/** Portais oficiais: onde se assina com a conta GOV.BR e onde qualquer pessoa confere o PDF assinado. */
+export const URL_ASSINADOR = "https://assinador.iti.br";
+export const URL_VALIDADOR = "https://validar.iti.gov.br";
+
 /** Abre o blob numa aba nova (a aba é aberta já no clique, para o navegador não bloquear). */
 export async function abrirEmNovaAba(obter: () => Promise<Blob>) {
   const janela = window.open("", "_blank");

@@ -28,7 +28,7 @@ A resposta traz `{"access_token": "...", "token_type": "bearer"}`. Nas demais ch
 **admin** = `ADMIN` do módulo ou `MASTER`. Nas rotas `/api/oficios`, `/api/anexos`, `/api/dashboard`, `/api/feriados`,
 `/api/tipos`, `/api/exclusoes`, `/api/auditoria` e da lixeira, "admin" é o administrador do **Planner de Ofícios**
 e é preciso ter acesso a esse módulo (senão, `403`). As rotas `/api/manutencao/*` exigem acesso ao módulo
-**Manutenção Clínica**. O `MASTER` tem acesso e poder de administrador em todos os módulos.
+**Manutenções Integradas**. O `MASTER` tem acesso e poder de administrador em todos os módulos.
 
 ## Autenticação, módulos e usuários
 
@@ -108,7 +108,7 @@ módulo, e só altera nome, login, senha e situação de quem usa apenas módulo
 | POST | `/api/exclusoes/{id}/recusar` | admin | Recusa (o ofício continua) |
 | GET | `/api/auditoria` | todos | Registro de atividades, com filtros `acao`, `usuario_id`, `oficio_id`, `data_inicio`, `data_fim` e paginação. O cliente vê o que fez e o que aconteceu nos próprios ofícios |
 
-## Manutenção Clínica (helpdesk)
+## Manutenções Integradas (helpdesk)
 
 Todas exigem acesso ao módulo. **operacional** = `CLIENTE` do módulo; **técnico** = `TECNICO` (vê só os chamados
 da própria empresa); **admin** = `ADMIN` do módulo ou `MASTER`. Regras em `REGRAS.md`.
@@ -163,9 +163,10 @@ ao Planner na emissão (só para quem usa o Planner).
 | GET | `/api/documentos/assinantes` | todos | Usuários que podem dar o De acordo (com cargo e matrícula) |
 | POST | `/api/documentos` | todos | Começa um rascunho (`tipo` = `OFICIO` ou `MEMORANDO`) |
 | GET · PATCH · DELETE | `/api/documentos/{id}` | quem vê · quem elaborou | Detalhe; salva o rascunho; descarta o rascunho |
-| GET | `/api/documentos/{id}/pdf` | quem vê | PDF no modelo da unidade (`bruto=true`: octet-stream) |
+| GET | `/api/documentos/{id}/pdf` | quem vê | PDF no modelo da unidade; no ofício emitido, o arquivo guardado, com as assinaturas GOV.BR (`bruto=true`: octet-stream; `assinado=true`: o assinado, mesmo cancelado) |
 | POST | `/api/documentos/{id}/emitir` | quem elaborou | Número, data, código e hash; o ofício é cadastrado no Planner (`422` com o que falta) |
-| POST | `/api/documentos/{id}/assinar` | quem elaborou · De acordo | Assinatura eletrônica (`senha`); `400` senha incorreta, `409` nada a assinar |
+| POST | `/api/documentos/{id}/assinar` | quem elaborou · De acordo | Assinatura no app (`senha`), só no memorando; `400` senha incorreta, `409` nada a assinar |
+| POST | `/api/documentos/{id}/assinado` | quem elaborou · De acordo · admin | Ofício: PDF assinado no GOV.BR (campo `arquivo`). Confere o documento, o certificado e a pessoa; `422` com o motivo da recusa |
 | POST | `/api/documentos/{id}/cancelar` | quem elaborou · admin | Cancela o emitido (`motivo`) |
 | POST | `/api/documentos/{id}/duplicar` | quem vê | Novo rascunho com o mesmo texto |
 | GET | `/api/documentos/timbrado` | todos | Se há cabeçalho e marca-d'água, e a cidade/UF da data |

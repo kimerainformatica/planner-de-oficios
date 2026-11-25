@@ -1,6 +1,6 @@
 # Manual do usuário
 
-Como usar o sistema no dia a dia: o Planner de Ofícios e, no fim, a [Manutenção Clínica](#manutenção-clínica). As
+Como usar o sistema no dia a dia: o Planner de Ofícios e, no fim, a [Manutenções Integradas](#manutenção-clínica). As
 regras por trás de cada tela estão em [REGRAS.md](REGRAS.md).
 
 ## Entrar
@@ -165,7 +165,7 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 - **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
   - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
-  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
+  - Manutenções Integradas: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
   - Documentos: *Sem acesso*, *Redator* ou *Administrador*.
 
   Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
@@ -173,6 +173,7 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
   como *Cliente* (ou mantém o papel que a pessoa já tinha) e a opção *Sem acesso* some. O técnico fica só na
   Manutenção.
 - **Cargo e matrícula/ID:** saem no bloco de assinatura dos documentos (ofícios e memorandos).
+- **CPF:** opcional; serve só para conferir quem assinou os ofícios pelo GOV.BR. Depois de salvo aparece mascarado.
 - **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
   para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
   altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
@@ -221,28 +222,38 @@ acesso é próprio: *Redator* (redige e assina) ou *Administrador* (vê todos, c
     se quiser, o destinatário (SES, ACQUA ou outro). Desmarcado, o ofício sai só como documento.
   - Memorando: **De** e **Para** (setores).
   - Texto: assunto, vocativo, corpo (cada linha é um parágrafo) e fecho. Linguagem direta, sem negrito.
-  - Assinaturas: seu cargo e ID, e quem dá o **De acordo** (um usuário do sistema, que poderá assinar no app, ou
-    outra pessoa, só com assinatura à mão).
+  - Assinaturas: seu cargo e ID, e quem dá o **De acordo** (um usuário do sistema ou outra pessoa). Outra
+    pessoa assina o memorando só à mão; o ofício, à mão ou pelo GOV.BR.
 - **Emitir:** o documento recebe o próximo número da sua sequência e a data de hoje, e o texto fica travado. Com a
   integração, o ofício entra no Planner como pendente de resposta, e os prazos começam a contar. No rodapé saem o
   código de verificação e o QR code.
 - **No Planner:** o ofício redigido aqui tem o botão *Documento gerado* (ou *PDF do documento*, para quem acompanha o
   ofício sem ter o módulo). No menu do Planner, quem tem o módulo vê o atalho *Redigir ofício*.
-- **Assinar:** o PDF sempre tem o espaço para assinar à mão. Quem elaborou e quem dá o De acordo também podem
-  **assinar no app** (botão *Assinar no app* e a senha): o carimbo da assinatura eletrônica aparece no PDF no lugar da
-  assinatura à mão. O menu mostra quantos documentos esperam a sua assinatura; a aba **Para assinar** lista quais.
+- **Assinar o memorando (interno):** o PDF tem o espaço para assinar à mão. Quem elaborou e quem dá o De acordo também
+  podem **assinar no app** (botão *Assinar no app* e a senha): o carimbo da assinatura eletrônica aparece no PDF no
+  lugar da assinatura à mão.
+- **Assinar o ofício (externo):** à mão no papel **ou** pelo GOV.BR, nunca das duas formas. Pelo GOV.BR, no quadro
+  *Assinar pelo GOV.BR*:
+  1. **Baixar o PDF** (sem imprimir, converter ou salvar em outro programa);
+  2. **Abrir o portal** (assinador.iti.br), assinar com a conta GOV.BR **prata ou ouro** e baixar o arquivo assinado;
+  3. **Enviar o PDF assinado**: o sistema confere a assinatura, a pessoa e se é o mesmo documento.
+
+  Quem dá o De acordo faz o mesmo depois, baixando a versão que já traz a primeira assinatura. O original é o arquivo
+  PDF; quem recebe confere em validar.iti.gov.br. Se o nome do certificado for diferente do cadastro, o administrador
+  informa o CPF da pessoa em **Usuários**.
+- **O que falta assinar:** o menu mostra quantos documentos esperam a sua assinatura; a aba **Para assinar** lista quais.
 - **Baixar e imprimir:** *Baixar PDF* ou *Abrir para imprimir*.
 - **Corrigir depois de emitido:** *Cancelar* (com o motivo) e *Fazer um novo a partir deste*. O cancelado continua
   na lista e a verificação mostra o cancelamento. O ofício cancelado não some do Planner: se ele não vale mais, peça
   a exclusão por lá.
 - **Conferir um documento:** qualquer pessoa, mesmo sem login, lê o QR code ou abre `/verificar` e digita o código.
-  A página diz se o documento é autêntico, se foi cancelado e quem assinou no app.
+  A página diz se o documento é autêntico, se foi cancelado e quem assinou.
 - **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
-## Manutenção Clínica
+## Manutenções Integradas
 
 Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza Climatização…). Abra pelo cartão
-**Manutenção Clínica** na tela **Módulos**.
+**Manutenções Integradas** na tela **Módulos**.
 
 | Item do menu | Quem vê | Para quê |
 |---|---|---|

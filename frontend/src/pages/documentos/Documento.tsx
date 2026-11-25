@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, BadgeCheck, Ban, Copy, Download, ExternalLink, FileCheck2, Hourglass, RefreshCw, Signature, Trash2,
+  ArrowLeft, BadgeCheck, Ban, Copy, Download, ExternalLink, FileCheck2, Hourglass, RefreshCw, Signature, Trash2, Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  assinarDocumento, cancelarDocumento, descartarDocumento, duplicarDocumento, emitirDocumento, listarAssinantes,
-  listarTipos, obterDocumento, pdfDocumento, salvarDocumento,
+  assinarDocumento, cancelarDocumento, descartarDocumento, duplicarDocumento, emitirDocumento, enviarAssinado,
+  listarAssinantes, listarTipos, obterDocumento, pdfAssinado, pdfDocumento, salvarDocumento,
 } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthContext";
 import { useToast } from "../../components/Toast";
@@ -14,7 +14,7 @@ import { Botao, Campo, Carregando, ErroBox, Modal } from "../../components/ui";
 import type { CamposDocumento, Destinatario, Documento as Doc, PapelAssinatura } from "../../types";
 import { salvarArquivo } from "../../utils/arquivo";
 import { data, dataHora, ROTULO_DESTINATARIO } from "../../utils/formato";
-import { abrirEmNovaAba, NOME_TIPO_DOC, SeloDocumento } from "./comum";
+import { abrirEmNovaAba, NOME_TIPO_DOC, SeloDocumento, URL_ASSINADOR, URL_VALIDADOR } from "./comum";
 
 const CAMPOS: (keyof CamposDocumento)[] = [
   "assunto", "vocativo", "corpo", "fecho", "dest_tratamento", "dest_nome", "dest_cargo", "dest_endereco", "de", "para",
@@ -247,8 +247,9 @@ function Editor({ doc }: { doc: Doc }) {
           <section className="cartao">
             <h2 className="titulo-secao">Assinaturas</h2>
             <p className="texto-suave">
-              O PDF sai com o espaço para assinar à mão. Depois de emitido, cada pessoa também pode assinar aqui no app, com a
-              senha: a assinatura eletrônica aparece no lugar da assinatura à mão.
+              {doc.forma_assinatura === "GOVBR"
+                ? "O PDF sai com o espaço para assinar à mão. Para assinar pela internet, depois de emitir, cada pessoa assina o PDF no portal GOV.BR (conta prata ou ouro) e envia o arquivo de volta aqui. Use uma forma só: à mão ou GOV.BR."
+                : "O PDF sai com o espaço para assinar à mão. Depois de emitido, cada pessoa também pode assinar aqui no app, com a senha: a assinatura eletrônica aparece no lugar da assinatura à mão."}
             </p>
             <h3 className="subtitulo-secao">Quem elaborou</h3>
             <div className="grade-3">
@@ -277,7 +278,9 @@ function Editor({ doc }: { doc: Doc }) {
                 }}>
                   <option value="">Sem “De acordo”</option>
                   {assinantes.data?.map((p) => <option key={p.id} value={p.id}>{p.nome}{p.cargo ? ` · ${p.cargo}` : ""}</option>)}
-                  <option value="outra">Outra pessoa (só assinatura à mão)</option>
+                  <option value="outra">
+                    {doc.forma_assinatura === "GOVBR" ? "Outra pessoa (GOV.BR ou à mão)" : "Outra pessoa (só assinatura à mão)"}
+                  </option>
                 </select>
               )}
             </Campo>
@@ -354,6 +357,7 @@ function ModalEmitir({ doc, aoFechar, aoEmitir }: { doc: Doc; aoFechar: () => vo
           <li>Recebe o próximo número da sua sequência e a data de hoje.</li>
           <li>O texto fica travado. Para corrigir depois, cancele e faça um novo a partir dele.</li>
           <li>Ganha um código de verificação e um QR code no rodapé.</li>
+          {doc.forma_assinatura === "GOVBR" && <li>O PDF fica guardado e pronto para ser assinado no GOV.BR.</li>}
           {oficio && doc.registrar_no_planner && <li>Entra no Planner de Ofícios como pendente de resposta, com o PDF ligado a ele.</li>}
         </ul>
       )}
@@ -409,7 +413,7 @@ function Visao({ doc }: { doc: Doc }) {
           <p className="texto-suave">{doc.assunto}</p>
         </div>
         <div className="grupo">
-          {doc.assinar_como && (
+          {doc.assinar_como && doc.forma_assinatura === "APP" && (
             <button className="btn btn-primario" onClick={() => setAssinando(true)}><Signature size={18} /> Assinar no app</button>
           )}
           <Botao className="btn btn-secundario" carregando={baixar.isPending} onClick={() => baixar.mutate()}><Download size={16} /> Baixar PDF</Botao>
@@ -435,6 +439,10 @@ function Visao({ doc }: { doc: Doc }) {
               Cancelado em {doc.cancelado_em ? dataHora(doc.cancelado_em) : "—"}{doc.cancelado_por_nome ? ` por ${doc.cancelado_por_nome}` : ""}:
               {" "}{doc.motivo_cancelamento}. A verificação pelo código mostra o cancelamento.
             </div>
+          )}
+          {doc.pode_enviar_assinado && (
+            <AssinarGovBr doc={doc} baixando={baixar.isPending} aoBaixar={() => baixar.mutate()}
+              aoReceber={(d) => { atualizar(d); avisar("Assinatura conferida e registrada."); }} />
           )}
           <section className="cartao">
             <h2 className="titulo-secao">Dados</h2>
@@ -462,13 +470,27 @@ function Visao({ doc }: { doc: Doc }) {
                     <div>
                       <strong>{b.nome}</strong>{b.cargo && <span className="texto-suave"> · {b.cargo}</span>}
                       <small className="texto-suave"><br />{ROTULO_PAPEL[b.papel]} · {a
-                        ? `assinado eletronicamente em ${dataHora(a.assinado_em)}`
-                        : doc.status === "EMITIDO" ? "assinatura à mão no papel ou aqui no app" : "—"}</small>
+                        ? `assinado ${a.forma === "GOVBR" ? "pelo GOV.BR" : "eletronicamente no app"} em ${dataHora(a.assinado_em)}`
+                        : doc.status !== "EMITIDO" ? "—"
+                          : doc.forma_assinatura === "GOVBR" ? "falta a assinatura pelo GOV.BR (ou à mão no papel)"
+                            : "assinatura à mão no papel ou aqui no app"}
+                        {a?.cert_nome && <><br />Certificado de {a.cert_nome} · {a.cert_emissor}</>}</small>
                     </div>
                   </li>
                 );
               })}
             </ul>
+            {doc.tem_assinado && (
+              <p className="texto-suave">
+                O original é o arquivo PDF assinado; impresso, ele é uma cópia. Quem recebe confere em{" "}
+                <a className="link" href={URL_VALIDADOR} target="_blank" rel="noreferrer">validar.iti.gov.br</a>.
+                {doc.status === "CANCELADO" && (<>{" "}
+                  <button type="button" className="link" onClick={() => pdfAssinado(doc.id)
+                    .then((b) => salvarArquivo(b, `assinado-${nomeArquivo(doc)}`)).catch((e: Error) => avisar(e.message, "erro"))}>
+                    Baixar o arquivo que foi assinado
+                  </button></>)}
+              </p>
+            )}
           </section>
         </div>
         <aside className="cartao documento-previa">
@@ -484,6 +506,51 @@ function Visao({ doc }: { doc: Doc }) {
         <ModalCancelar doc={doc} aoFechar={() => setCancelando(false)} aoCancelar={(d) => { atualizar(d); avisar(`${d.titulo} cancelado.`); }} />
       )}
     </>
+  );
+}
+
+/** Ofício: baixar o PDF, assinar no portal GOV.BR e enviar o arquivo assinado, que o servidor confere. */
+function AssinarGovBr({ doc, baixando, aoBaixar, aoReceber }: {
+  doc: Doc; baixando: boolean; aoBaixar: () => void; aoReceber: (d: Doc) => void;
+}) {
+  const campo = useRef<HTMLInputElement>(null);
+  const enviar = useMutation({
+    mutationFn: (arquivo: File) => enviarAssinado(doc.id, arquivo),
+    onSuccess: aoReceber,
+    onSettled: () => { if (campo.current) campo.current.value = ""; }, // permite escolher o mesmo arquivo de novo
+  });
+  const jaTem = doc.assinaturas.length > 0;
+  return (
+    <section className="cartao">
+      <h2 className="titulo-secao">Assinar pelo GOV.BR</h2>
+      <p className="texto-suave">
+        {doc.assinar_como
+          ? "Falta a sua assinatura."
+          : "Falta a assinatura de outra pessoa. Se você recebeu o PDF assinado por ela, pode enviá-lo aqui."}
+        {jaTem && " Baixe sempre a versão mais recente: ela já traz a assinatura anterior."}
+      </p>
+      <ol className="passos-govbr">
+        <li>
+          <span><strong>Baixe o PDF</strong> e não imprima, não converta nem salve de novo em outro programa.</span>
+          <Botao className="btn btn-secundario btn-pequeno" carregando={baixando} onClick={aoBaixar}><Download size={15} /> Baixar o PDF</Botao>
+        </li>
+        <li>
+          <span><strong>Assine no portal</strong> com a conta GOV.BR prata ou ouro e baixe o arquivo assinado.</span>
+          <a className="btn btn-secundario btn-pequeno" href={URL_ASSINADOR} target="_blank" rel="noreferrer">
+            <ExternalLink size={15} /> Abrir o portal
+          </a>
+        </li>
+        <li>
+          <span><strong>Envie o arquivo assinado.</strong> O sistema confere a assinatura, a pessoa e o documento.</span>
+          <input ref={campo} type="file" accept="application/pdf,.pdf" hidden aria-label="PDF assinado"
+            onChange={(e) => { const arquivo = e.target.files?.[0]; if (arquivo) enviar.mutate(arquivo); }} />
+          <Botao className="btn btn-primario btn-pequeno" carregando={enviar.isPending} onClick={() => campo.current?.click()}>
+            <Upload size={15} /> Enviar o PDF assinado
+          </Botao>
+        </li>
+      </ol>
+      {enviar.isError && <div className="alerta-erro" role="alert">{enviar.error.message}</div>}
+    </section>
   );
 }
 

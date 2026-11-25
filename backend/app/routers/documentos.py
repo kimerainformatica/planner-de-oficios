@@ -3,7 +3,8 @@
 Módulo próprio (DOCUMENTOS), integrado ao Planner de Ofícios: com "registrar no Planner", o ofício emitido é
 cadastrado lá em nome de quem elaborou (que precisa usar o Planner).
 Fluxo: rascunho (só quem elaborou edita) → emissão (número, data, código de verificação; o ofício entra no Planner)
-→ assinaturas (à mão no papel e/ou eletrônicas no app, com a senha) → se preciso, cancelamento com motivo.
+→ assinaturas → se preciso, cancelamento com motivo. Assinaturas: à mão no papel ou eletrônicas; o memorando (interno)
+é assinado no app, com a senha, e o ofício (externo) no GOV.BR, enviando o PDF assinado de volta para a conferência.
 A verificação pública (sem login) confere o código impresso no rodapé e o QR code.
 """
 
@@ -23,6 +24,7 @@ from app.deps import AgoraDep, DbDep, HojeDep, SettingsDep, UsuarioDep, exige_ac
 from app.models import (
     AssinaturaDocumento,
     Documento,
+    FormaAssinatura,
     Modulo,
     PapelAssinatura,
     StatusDocumento,
@@ -46,6 +48,8 @@ from app.schemas_documentos import (
 from app.seguranca import verificar_senha
 from app.services import documentos as regras
 from app.services import limite_login
+from app.services.armazenamento import remover_arquivo
+from app.services.assinatura_govbr import AssinaturaInvalida, conferir, mascarar_cpf
 from app.services.auditoria import Acao, registrar
 from app.services.oficios import cadastrar_oficio
 from app.services.tipos import validar_para_oficio
@@ -73,6 +77,8 @@ def _saida(doc: Documento, usuario: Usuario) -> DocumentoOut:
     dados["pode_editar"] = autor and doc.status == StatusDocumento.RASCUNHO
     dados["pode_cancelar"] = doc.status == StatusDocumento.EMITIDO and (autor or regras.eh_admin(usuario))
     dados["assinar_como"] = regras.papel_para_assinar(doc, usuario)
+    dados["pode_enviar_assinado"] = regras.pode_enviar_assinado(doc, usuario)
+    dados["tem_assinado"] = doc.arquivo_assinado is not None
     dados["pendencias"] = regras.pendencias_para_emitir(doc) if doc.status == StatusDocumento.RASCUNHO else []
     return DocumentoOut.model_validate(dados)
 
@@ -82,7 +88,7 @@ def _resumo(doc: Documento, usuario: Usuario) -> DocumentoResumo:
         id=doc.id, tipo=doc.tipo, status=doc.status, titulo=doc.titulo, numero_formatado=doc.numero_formatado,
         assunto=doc.assunto, destino=doc.dest_nome if doc.tipo == TipoDocumento.OFICIO else doc.para,
         elaborador_nome=doc.elaborador_nome, validador_nome=doc.validador_nome, data_documento=doc.data_documento,
-        atualizado_em=doc.atualizado_em, assinaturas=len(doc.assinaturas),
+        atualizado_em=doc.atualizado_em, forma_assinatura=doc.forma_assinatura, assinaturas=len(doc.assinaturas),
         assinaturas_previstas=2 if doc.validador_nome else 1,
         minha_assinatura_pendente=regras.papel_para_assinar(doc, usuario) is not None,
     )
@@ -249,10 +255,16 @@ def detalhar(documento_id: int, db: DbDep, usuario: UsuarioDep):
 
 @router.get("/{documento_id}/pdf", summary="PDF do documento no modelo da unidade (rascunho sai marcado)")
 def pdf(documento_id: int, request: Request, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, hoje: HojeDep,
-        bruto: Annotated[bool, Query(description="application/octet-stream (usado pelo front-end)")] = False):
+        bruto: Annotated[bool, Query(description="application/octet-stream (usado pelo front-end)")] = False,
+        assinado: Annotated[bool, Query(description="O arquivo assinado no GOV.BR, mesmo que cancelado")] = False):
     doc = regras.buscar(db, documento_id, usuario)
-    url = regras.url_publica(settings, str(request.base_url), doc.codigo) if doc.codigo else None
-    conteudo = regras.gerar_pdf(doc, settings, hoje, url)
+    if assinado:
+        if not doc.arquivo_assinado:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Este documento não tem arquivo assinado")
+        conteudo = regras.arquivo_vigente(doc, settings)
+    else:
+        url = regras.url_publica(settings, str(request.base_url), doc.codigo) if doc.codigo else None
+        conteudo = regras.pdf_atual(doc, settings, hoje, url)
     return Response(
         conteudo, media_type="application/octet-stream" if bruto else "application/pdf",
         headers={"Content-Disposition": f'inline; filename="{_nome_arquivo(doc)}"',
@@ -272,6 +284,7 @@ def criar(dados: DocumentoCriar, db: DbDep, usuario: UsuarioDep):
         vocativo="Prezado (a) Senhor (a)," if oficio else "Prezado(a),", fecho="Atenciosamente,",
         dest_tratamento="A/C sr. (sra.)" if oficio else None,
         registrar_no_planner=oficio and usuario.tem_acesso(Modulo.OFICIOS),
+        forma_assinatura=regras.FORMA_POR_TIPO[dados.tipo],
         elaborador_nome=usuario.nome, elaborador_cargo=usuario.cargo, elaborador_ident=usuario.matricula,
     )
     db.add(doc)
@@ -335,6 +348,7 @@ def duplicar(documento_id: int, db: DbDep, usuario: UsuarioDep):
                                            "dest_cargo", "dest_endereco", "de", "para", "oficio_tipo",
                                            "destinatario_tipo", "destinatario_setor")},
         registrar_no_planner=origem.registrar_no_planner and usuario.tem_acesso(Modulo.OFICIOS),
+        forma_assinatura=regras.FORMA_POR_TIPO[origem.tipo],
         elaborador_nome=usuario.nome,
         elaborador_cargo=origem.elaborador_cargo if meu else usuario.cargo,
         elaborador_ident=origem.elaborador_ident if meu else usuario.matricula,
@@ -352,7 +366,8 @@ def duplicar(documento_id: int, db: DbDep, usuario: UsuarioDep):
 
 @router.post("/{documento_id}/emitir", response_model=DocumentoOut,
              summary="Emite: dá número, data e código de verificação; o ofício pode ser cadastrado no Planner")
-def emitir(documento_id: int, db: DbDep, usuario: UsuarioDep, hoje: HojeDep, agora: AgoraDep):
+def emitir(documento_id: int, request: Request, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, hoje: HojeDep,
+           agora: AgoraDep):
     doc = regras.buscar(db, documento_id, usuario)
     regras.exigir_rascunho_do_autor(doc, usuario)
     faltas = regras.pendencias_para_emitir(doc)
@@ -382,16 +397,28 @@ def emitir(documento_id: int, db: DbDep, usuario: UsuarioDep, hoje: HojeDep, ago
     doc.hash_conteudo = regras.calcular_hash(doc)
     registrar(db, usuario, Acao.DOCUMENTO_EMITIDO, f"Emitiu o {doc.titulo} ({doc.assunto[:120]})", oficio,
               ref=_ref(doc), detalhes={"codigo": doc.codigo, "hash": doc.hash_conteudo})
-    db.commit()
+    guardado = None
+    if doc.forma_assinatura == FormaAssinatura.GOVBR:  # a assinatura vale para este arquivo: ele não é mais gerado
+        url = regras.url_publica(settings, str(request.base_url), doc.codigo)
+        guardado, resumo_sha = regras.guardar_pdf(regras.gerar_pdf(doc, settings, hoje, url), hoje.year, settings)
+        doc.arquivo_original, doc.arquivo_original_hash = guardado, resumo_sha
+    try:
+        db.commit()
+    except BaseException:
+        if guardado:
+            remover_arquivo(guardado, settings)
+        raise
     return _saida(regras.buscar(db, doc.id, usuario), usuario)
 
 
 @router.post("/{documento_id}/assinar", response_model=DocumentoOut,
-             summary="Assina eletronicamente (quem elaborou ou quem dá o De acordo), confirmando a senha")
+             summary="Assina no app (quem elaborou ou quem dá o De acordo), confirmando a senha")
 def assinar(documento_id: int, dados: Assinar, request: Request, db: DbDep, usuario: UsuarioDep,
             settings: SettingsDep, agora: AgoraDep):
     doc = regras.buscar(db, documento_id, usuario)
     papel = regras.papel_para_assinar(doc, usuario)
+    if doc.forma_assinatura == FormaAssinatura.GOVBR:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este documento é assinado pelo GOV.BR: envie o PDF assinado")
     if papel is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Não há assinatura sua pendente neste documento")
     ip = request.client.host if request.client else "?"
@@ -411,6 +438,75 @@ def assinar(documento_id: int, dados: Assinar, request: Request, db: DbDep, usua
               ref=_ref(doc))
     db.commit()
     return _saida(regras.buscar(db, doc.id, usuario), usuario)
+
+
+@router.post("/{documento_id}/assinado", response_model=DocumentoOut,
+             summary="Recebe o PDF assinado no GOV.BR, confere o certificado e registra as assinaturas novas")
+def enviar_assinado(documento_id: int, db: DbDep, usuario: UsuarioDep, settings: SettingsDep, agora: AgoraDep,
+                    arquivo: Annotated[UploadFile, File()]):
+    regras.buscar(db, documento_id, usuario)
+    # trava o documento: dois envios ao mesmo tempo não podem partir da mesma versão
+    doc = db.scalars(select(Documento).where(Documento.id == documento_id).with_for_update()
+                     .execution_options(populate_existing=True)).unique().one()
+    if doc.forma_assinatura != FormaAssinatura.GOVBR:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este documento é assinado no app, com a senha")
+    if doc.status != StatusDocumento.EMITIDO:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Só um documento emitido recebe assinatura")
+    pendentes = regras.papeis_pendentes(doc)
+    if not pendentes:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este documento já tem todas as assinaturas")
+    limite = settings.upload_max_mb * 1024 * 1024
+    novo = arquivo.file.read(limite + 1)
+    if len(novo) > limite:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, f"Arquivo maior que {settings.upload_max_mb} MB")
+    if not novo.startswith(b"%PDF"):
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Envie o PDF assinado no GOV.BR")
+    base = regras.arquivo_vigente(doc, settings)
+    if base is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O PDF da emissão não está guardado: cancele e emita de novo")
+    try:
+        lidas = conferir(novo, base, settings.certificados_dir)
+    except AssinaturaInvalida as erro:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(erro)) from None
+
+    conhecidas = {a.impressao for a in doc.assinaturas}
+    novas = [lida for lida in lidas if lida.impressao not in conhecidas]
+    if not novas:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Este arquivo não traz nenhuma assinatura nova")
+    momento_agora = regras.instante(agora)
+    for lida in novas:
+        papel = regras.papel_da_assinatura(doc, lida)
+        if papel is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"A assinatura é de {lida.nome}, que não é quem elaborou nem quem dá o De acordo. Se for a mesma pessoa, "
+                "peça ao administrador para informar o CPF ou o nome completo no cadastro de usuários.")
+        if papel not in pendentes:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"{lida.nome} já assinou este documento")
+        pendentes.remove(papel)
+        elaborador = papel == PapelAssinatura.ELABORADOR
+        # a hora é a informada na assinatura, se for possível (o relógio é o do portal); senão, a do recebimento
+        plausivel = lida.momento is not None and doc.emitido_em <= lida.momento <= momento_agora
+        doc.assinaturas.append(AssinaturaDocumento(
+            papel=papel, usuario_id=doc.autor_id if elaborador else doc.validador_id,
+            nome=doc.elaborador_nome if elaborador else doc.validador_nome,
+            cargo=doc.elaborador_cargo if elaborador else doc.validador_cargo,
+            assinado_em=lida.momento if plausivel else momento_agora, forma=FormaAssinatura.GOVBR,
+            cert_nome=lida.nome, cert_cpf=mascarar_cpf(lida.cpf), cert_emissor=lida.emissor, cert_serie=lida.serie,
+            impressao=lida.impressao,
+        ))
+        como = "como quem elaborou" if elaborador else "com o De acordo"
+        registrar(db, usuario, Acao.DOCUMENTO_ASSINADO,
+                  f"Enviou o {doc.titulo} assinado pelo GOV.BR por {lida.nome} {como}"[:500], doc.oficio, ref=_ref(doc),
+                  detalhes={"certificado": lida.serie, "emissor": lida.emissor})
+    guardado, resumo_sha = regras.guardar_pdf(novo, doc.ano, settings)
+    doc.arquivo_assinado, doc.arquivo_assinado_hash = guardado, resumo_sha
+    try:
+        db.commit()
+    except BaseException:
+        remover_arquivo(guardado, settings)
+        raise
+    return _saida(regras.buscar(db, documento_id, usuario), usuario)
 
 
 @router.post("/{documento_id}/cancelar", response_model=DocumentoOut,
@@ -442,8 +538,10 @@ def verificar(codigo: str, db: DbDep, settings: SettingsDep):
     return Verificacao(
         codigo=doc.codigo, tipo=doc.tipo, titulo=doc.titulo, status=doc.status, data_documento=doc.data_documento,
         assunto=doc.assunto, elaborador_nome=doc.elaborador_nome, validador_nome=doc.validador_nome,
-        emitido_em=doc.emitido_em, assinaturas=[AssinaturaOut.model_validate(a) for a in doc.assinaturas],
-        integro=regras.calcular_hash(doc) == doc.hash_conteudo, hash_conteudo=doc.hash_conteudo,
+        emitido_em=doc.emitido_em, forma_assinatura=doc.forma_assinatura,
+        assinaturas=[AssinaturaOut.model_validate(a) for a in doc.assinaturas],
+        integro=regras.calcular_hash(doc) == doc.hash_conteudo and regras.arquivos_integros(doc, settings),
+        hash_conteudo=doc.hash_conteudo,
         cancelado_em=doc.cancelado_em, motivo_cancelamento=doc.motivo_cancelamento,
         unidade=settings.unidade_nome.strip() or None,
     )

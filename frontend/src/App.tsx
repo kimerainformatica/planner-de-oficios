@@ -75,7 +75,7 @@ export function App() {
           </Route>
         </Route>
 
-        {/* Módulo Manutenção Clínica */}
+        {/* Módulo Manutenções Integradas */}
         <Route element={<ComAcesso modulo="MANUTENCAO" />}>
           <Route path="manutencao" element={<LayoutManutencao />}>
             <Route index element={<InicioManutencao />} />

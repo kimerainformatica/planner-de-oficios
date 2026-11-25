@@ -58,10 +58,11 @@ flowchart LR
 | `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
 | `preventivas.py` | Datas dos planos de preventiva, situação de cada uma e avisos internos |
 | `documentos.py` | Documentos: numeração (continua a do Planner no ofício), hash do conteúdo, código de verificação, permissões e o PDF no modelo da unidade (ReportLab, com timbrado, Arial/Times New Roman e QR code) |
+| `assinatura_govbr.py` | Confere os PDFs assinados no GOV.BR (pyHanko): mesmo documento, assinatura íntegra e certificado da cadeia em `backend/certificados/`, sem internet |
 
 ## Módulos
 
-A plataforma é uma base de módulos: **Planner de Ofícios** (`OFICIOS`) e **Manutenção Clínica** (`MANUTENCAO`).
+A plataforma é uma base de módulos: **Planner de Ofícios** (`OFICIOS`) e **Manutenções Integradas** (`MANUTENCAO`).
 
 - **Acesso:** `usuario_modulos` guarda o papel (`ADMIN` ou `CLIENTE`) de cada usuário em cada módulo. `usuarios.perfil` é
   global: `MASTER` (acesso total) ou `CLIENTE`. `Usuario.perfil_no(modulo)`, `tem_acesso(modulo)` e `eh_admin_no(modulo)`
@@ -208,13 +209,14 @@ Decisões importantes:
 | 0009 | Tipos cadastráveis (tabela `tipos_oficio`) |
 | 0010 | `sessao_versao` (trocar a senha encerra as sessões) |
 | 0011 | Módulos: tabela `usuario_modulos`. Quem já existia vira cliente/administrador do Planner de Ofícios |
-| 0012 | Helpdesk da Manutenção Clínica: `empresas_manutencao` (MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO), perfil `TECNICO` com `usuario_modulos.empresa_id`, `chamados`, `chamado_interacoes` e `relatorios_tecnicos` |
+| 0012 | Helpdesk das Manutenções Integradas: `empresas_manutencao` (MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO), perfil `TECNICO` com `usuario_modulos.empresa_id`, `chamados`, `chamado_interacoes` e `relatorios_tecnicos` |
 | 0013 | Tempo de solução do chamado (`solucao_horas_uteis`, `solucao_horas_corridas`) e `oficios.chamado_id` (solicitação de peças/equipamentos) |
 | 0014 | Regra: todo operacional da Manutenção (cliente/admin) recebe acesso de cliente ao Planner, se não tinha |
 | 0015 | Manutenção preventiva: `planos_preventiva` (periodicidade por empresa) e `preventivas` (datas, realização, ateste) |
 | 0016 | Prazos corridos: refaz `chamados.prazo_em`, tira `solucao_horas_uteis`, cria `chamado_interacoes.ocorrido_em` e o tipo `CORRECAO` |
 | 0017 | Documentos: `documentos` (ofícios e memorandos redigidos no app) e `documento_assinaturas`; `usuarios.cargo` e `usuarios.matricula` |
 | 0018 | Módulo `DOCUMENTOS` (acesso próprio) e `documentos.registrar_no_planner` (integração com o Planner) |
+| 0019 | Assinatura GOV.BR: `documentos.forma_assinatura` e arquivos guardados, dados do certificado em `documento_assinaturas` e `usuarios.cpf` |
 
 ## Segurança
 

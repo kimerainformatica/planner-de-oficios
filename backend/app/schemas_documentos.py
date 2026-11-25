@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models import Destinatario, PapelAssinatura, StatusDocumento, TipoDocumento
+from app.models import Destinatario, FormaAssinatura, PapelAssinatura, StatusDocumento, TipoDocumento
 from app.schemas import Esquema
 
 
@@ -22,6 +22,9 @@ class AssinaturaOut(Esquema):
     nome: str
     cargo: str | None
     assinado_em: datetime
+    forma: FormaAssinatura = FormaAssinatura.APP
+    cert_nome: str | None = None  # GOV.BR: nome no certificado
+    cert_emissor: str | None = None
 
 
 class DocumentoResumo(Esquema):
@@ -36,6 +39,7 @@ class DocumentoResumo(Esquema):
     validador_nome: str | None
     data_documento: date | None
     atualizado_em: datetime
+    forma_assinatura: FormaAssinatura
     assinaturas: int
     assinaturas_previstas: int
     minha_assinatura_pendente: bool
@@ -81,6 +85,7 @@ class DocumentoOut(Esquema):
     validador_ident: str | None
     codigo: str | None
     hash_conteudo: str | None
+    forma_assinatura: FormaAssinatura
     emitido_em: datetime | None
     cancelado_em: datetime | None
     cancelado_por_nome: str | None = None
@@ -91,7 +96,9 @@ class DocumentoOut(Esquema):
     # O que quem está vendo pode fazer
     pode_editar: bool = False
     pode_cancelar: bool = False
-    assinar_como: PapelAssinatura | None = None
+    assinar_como: PapelAssinatura | None = None  # assinatura de quem está vendo que ainda falta
+    pode_enviar_assinado: bool = False  # GOV.BR: pode enviar o PDF assinado
+    tem_assinado: bool = False  # GOV.BR: já há um PDF assinado guardado
     pendencias: list[str] = []  # o que falta para emitir (rascunho)
 
 
@@ -151,6 +158,7 @@ class Verificacao(Esquema):
     elaborador_nome: str
     validador_nome: str | None
     emitido_em: datetime | None
+    forma_assinatura: FormaAssinatura
     assinaturas: list[AssinaturaOut]
     integro: bool  # o conteúdo no banco ainda é o mesmo da emissão
     hash_conteudo: str | None

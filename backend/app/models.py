@@ -29,8 +29,8 @@ class Perfil(str, enum.Enum):
 
     MASTER = "MASTER"
     ADMIN = "ADMIN"
-    CLIENTE = "CLIENTE"  # na Manutenção Clínica é o "operacional": abre e acompanha os chamados
-    TECNICO = "TECNICO"  # só na Manutenção Clínica: técnico de uma empresa, atende os chamados dela
+    CLIENTE = "CLIENTE"  # nas Manutenções Integradas é o "operacional": abre e acompanha os chamados
+    TECNICO = "TECNICO"  # só nas Manutenções Integradas: técnico de uma empresa, atende os chamados dela
 
 
 PERFIS_ADMIN = {Perfil.MASTER, Perfil.ADMIN}
@@ -41,7 +41,7 @@ class Modulo(str, enum.Enum):
     numa migração (o enum do banco)."""
 
     OFICIOS = "OFICIOS"  # Planner de Ofícios
-    MANUTENCAO = "MANUTENCAO"  # Manutenção Clínica
+    MANUTENCAO = "MANUTENCAO"  # Manutenções Integradas
     DOCUMENTOS = "DOCUMENTOS"  # Documentos: ofícios e memorandos redigidos no modelo da unidade
 
 
@@ -115,6 +115,8 @@ class Usuario(Base):
     # Bloco de assinatura dos documentos gerados (ofícios e memorandos; migração 0018)
     cargo: Mapped[str | None] = mapped_column(String(120))
     matricula: Mapped[str | None] = mapped_column(String(30))
+    # Só para conferir quem assinou pelo GOV.BR (dado pessoal: a API só devolve mascarado; migração 0019)
+    cpf: Mapped[str | None] = mapped_column(String(11))
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # `perfil` é global: MASTER (acesso total a todos os módulos) ou CLIENTE (comum). O papel de quem não é
@@ -170,7 +172,7 @@ class UsuarioModulo(Base):
     empresa: Mapped["EmpresaManutencao | None"] = relationship(lazy="selectin")
 
 
-# ================= Manutenção Clínica (helpdesk) =================
+# ================= Manutenções Integradas (helpdesk) =================
 
 
 class StatusChamado(str, enum.Enum):
@@ -445,7 +447,7 @@ class Oficio(Base):
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
-    # Solicitação de peças/equipamentos feita a partir de um chamado da Manutenção Clínica (migração 0013)
+    # Solicitação de peças/equipamentos feita a partir de um chamado das Manutenções Integradas (migração 0013)
     chamado_id: Mapped[int | None] = mapped_column(ForeignKey("chamados.id", ondelete="SET NULL"), index=True)
 
     dono: Mapped[Usuario] = relationship(foreign_keys=[dono_id])
@@ -625,14 +627,20 @@ class PapelAssinatura(str, enum.Enum):
     VALIDADOR = "VALIDADOR"  # o "De acordo"
 
 
+class FormaAssinatura(str, enum.Enum):
+    APP = "APP"  # login + senha no app (uso interno: memorandos)
+    GOVBR = "GOVBR"  # no portal GOV.BR, com certificado; o PDF assinado é enviado de volta (ofícios)
+
+
 class Documento(Base):
     """Ofício ou memorando redigido no módulo Documentos e impresso no modelo da unidade (timbrado, margens, fontes).
 
     O número é sequencial por autor, tipo e ano e só é dado na emissão (rascunho apagado não abre buraco).
     No ofício ele segue a numeração do Planner do autor (ex.: 012/2026) e, com `registrar_no_planner`, a emissão
     cadastra o ofício lá.
-    Emitido, o conteúdo fica travado e o hash dele vai para a verificação; o PDF é sempre gerado a partir do
-    banco, com as assinaturas eletrônicas que houver.
+    Emitido, o conteúdo fica travado e o hash dele vai para a verificação. Com a assinatura do app (memorandos) o PDF
+    é sempre gerado a partir do banco, com as assinaturas que houver; com a do GOV.BR (ofícios) o PDF da emissão fica
+    guardado, porque a assinatura vale para aquele arquivo, e cada envio assinado é acrescentado a ele.
     """
 
     __tablename__ = "documentos"
@@ -683,6 +691,14 @@ class Documento(Base):
 
     codigo: Mapped[str | None] = mapped_column(String(12), unique=True)  # código de verificação
     hash_conteudo: Mapped[str | None] = mapped_column(String(64))
+    forma_assinatura: Mapped[FormaAssinatura] = mapped_column(
+        Enum(FormaAssinatura, name="forma_assinatura"), default=FormaAssinatura.APP, server_default="APP"
+    )
+    # GOV.BR: o PDF da emissão e a última versão assinada (caminhos relativos ao storage)
+    arquivo_original: Mapped[str | None] = mapped_column(String(255))
+    arquivo_original_hash: Mapped[str | None] = mapped_column(String(64))
+    arquivo_assinado: Mapped[str | None] = mapped_column(String(255))
+    arquivo_assinado_hash: Mapped[str | None] = mapped_column(String(64))
     emitido_em: Mapped[datetime | None] = mapped_column(DateTime)
     cancelado_em: Mapped[datetime | None] = mapped_column(DateTime)
     cancelado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
@@ -712,7 +728,8 @@ class Documento(Base):
 
 
 class AssinaturaDocumento(Base):
-    """Assinatura eletrônica feita no app (login + senha confirmada na hora). Guarda como o bloco saiu."""
+    """Assinatura eletrônica: feita no app (login + senha confirmada na hora) ou no GOV.BR (certificado conferido no
+    PDF enviado). Guarda como o bloco saiu."""
 
     __tablename__ = "documento_assinaturas"
     __table_args__ = (UniqueConstraint("documento_id", "papel", name="uk_assinatura_papel"),)
@@ -725,5 +742,14 @@ class AssinaturaDocumento(Base):
     cargo: Mapped[str | None] = mapped_column(String(120))
     assinado_em: Mapped[datetime] = mapped_column(DateTime)
     ip: Mapped[str | None] = mapped_column(String(45))
+    forma: Mapped[FormaAssinatura] = mapped_column(
+        Enum(FormaAssinatura, name="forma_assinatura"), default=FormaAssinatura.APP, server_default="APP"
+    )
+    # GOV.BR: dados do certificado (CPF mascarado) e o SHA-256 da assinatura
+    cert_nome: Mapped[str | None] = mapped_column(String(160))
+    cert_cpf: Mapped[str | None] = mapped_column(String(14))
+    cert_emissor: Mapped[str | None] = mapped_column(String(160))
+    cert_serie: Mapped[str | None] = mapped_column(String(64))
+    impressao: Mapped[str | None] = mapped_column(String(64))
 
     documento: Mapped[Documento] = relationship(back_populates="assinaturas")

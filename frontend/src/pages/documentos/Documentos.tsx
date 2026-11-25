@@ -122,7 +122,7 @@ export function Documentos() {
                   <th>Para</th>
                   <th>Elaborado por</th>
                   <th>Data</th>
-                  <th className="num">Assinaturas no app</th>
+                  <th className="num">Assinaturas eletrônicas</th>
                   <th>Situação</th>
                 </tr>
               </thead>

@@ -6,6 +6,7 @@ import { verificarDocumento } from "../../api/endpoints";
 import logo from "../../assets/acqua-logo.svg";
 import { Carregando } from "../../components/ui";
 import { data, dataHora } from "../../utils/formato";
+import { URL_VALIDADOR } from "./comum";
 
 /** Página pública (sem login): confere um documento pelo código de verificação impresso no rodapé ou no QR code. */
 export function Verificar() {
@@ -78,8 +79,14 @@ export function Verificar() {
               <dt>Emitido em</dt><dd>{v.emitido_em ? dataHora(v.emitido_em) : "—"}</dd>
               <dt>Assinaturas eletrônicas</dt>
               <dd>{v.assinaturas.length === 0 ? "Nenhuma (assinado à mão, se for o caso)" : v.assinaturas.map((a) => (
-                <span key={a.papel} className="bloco">{a.nome}{a.cargo ? `, ${a.cargo}` : ""}, em {dataHora(a.assinado_em)}</span>
-              ))}</dd>
+                <span key={a.papel} className="bloco">
+                  {a.nome}{a.cargo ? `, ${a.cargo}` : ""}, {a.forma === "GOVBR" ? "pelo GOV.BR" : "no app"} em {dataHora(a.assinado_em)}
+                </span>
+              ))}
+                {v.assinaturas.some((a) => a.forma === "GOVBR") && (
+                  <span className="bloco texto-suave">Confira o arquivo PDF assinado em{" "}
+                    <a className="link" href={URL_VALIDADOR} target="_blank" rel="noreferrer">validar.iti.gov.br</a>.</span>
+                )}</dd>
               <dt>Código</dt><dd><strong className="codigo-verificacao">{v.codigo}</strong></dd>
               {v.hash_conteudo && (<><dt>Impressão digital</dt><dd className="hash">{v.hash_conteudo}</dd></>)}
             </dl>

@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import Destinatario, Modulo, NivelAlerta, Perfil, StatusOficio, StatusSolicitacao, TipoAnexo
+from app.services.assinatura_govbr import cpf_valido, mascarar_cpf
 
 
 class Esquema(BaseModel):
@@ -14,7 +15,7 @@ class Esquema(BaseModel):
 
 
 class AcessoModulo(Esquema):
-    """Papel do usuário em um módulo: ADMIN ou CLIENTE e, na Manutenção Clínica, também TECNICO (com a empresa).
+    """Papel do usuário em um módulo: ADMIN ou CLIENTE e, nas Manutenções Integradas, também TECNICO (com a empresa).
     Na saída o MASTER aparece como MASTER em todos os módulos."""
 
     modulo: Modulo
@@ -31,6 +32,7 @@ class UsuarioOut(Esquema):
     ativo: bool
     cargo: str | None = None  # vai no bloco de assinatura dos documentos gerados
     matricula: str | None = None
+    cpf_mascarado: str | None = None  # o CPF nunca sai inteiro da API
     modulos: list[AcessoModulo] = []
 
     @model_validator(mode="before")
@@ -40,7 +42,7 @@ class UsuarioOut(Esquema):
         if hasattr(v, "modulos_efetivos"):
             return {
                 "id": v.id, "nome": v.nome, "login": v.login, "perfil": v.perfil, "ativo": v.ativo,
-                "cargo": v.cargo, "matricula": v.matricula,
+                "cargo": v.cargo, "matricula": v.matricula, "cpf_mascarado": mascarar_cpf(v.cpf),
                 "modulos": [
                     {"modulo": a.modulo, "perfil": a.perfil, "empresa_id": a.empresa_id,
                      "empresa_nome": a.empresa.nome if a.empresa else None}
@@ -48,6 +50,15 @@ class UsuarioOut(Esquema):
                 ],
             }
         return v
+
+
+def _validar_cpf(cpf: str | None) -> str | None:
+    if not cpf:
+        return cpf  # None não muda; texto vazio apaga
+    digitos = "".join(c for c in cpf if c not in ".-/ ")
+    if not cpf_valido(digitos):
+        raise ValueError("CPF inválido")
+    return digitos
 
 
 def _validar_acessos(modulos: list[AcessoModulo] | None) -> list[AcessoModulo] | None:
@@ -60,7 +71,7 @@ def _validar_acessos(modulos: list[AcessoModulo] | None) -> list[AcessoModulo] |
     for a in modulos:
         if a.perfil == Perfil.TECNICO:
             if a.modulo != Modulo.MANUTENCAO:
-                raise ValueError("O perfil técnico só existe no módulo Manutenção Clínica")
+                raise ValueError("O perfil técnico só existe no módulo Manutenções Integradas")
             if a.empresa_id is None:
                 raise ValueError("Informe a empresa do técnico")
         elif a.empresa_id is not None:
@@ -75,8 +86,10 @@ class UsuarioCriar(Esquema):
     master: bool = False  # acesso total a todos os módulos (só o MASTER concede)
     cargo: str | None = Field(default=None, max_length=120)
     matricula: str | None = Field(default=None, max_length=30)
+    cpf: str | None = Field(default=None, max_length=20, description="Confere quem assinou pelo GOV.BR")
     modulos: list[AcessoModulo] = []  # módulos habilitados e o papel em cada um
 
+    validar_cpf = field_validator("cpf")(_validar_cpf)
     validar_modulos = field_validator("modulos")(_validar_acessos)
 
 
@@ -87,11 +100,13 @@ class UsuarioAtualizar(Esquema):
     master: bool | None = None
     cargo: str | None = Field(default=None, max_length=120, description="Texto vazio apaga")
     matricula: str | None = Field(default=None, max_length=30, description="Texto vazio apaga")
+    cpf: str | None = Field(default=None, max_length=20, description="Texto vazio apaga")
     # Se vier, define o acesso nos módulos informados e remove o dos módulos que o editor administra e
     # que não vieram na lista. Os módulos que o editor não administra nunca são tocados.
     modulos: list[AcessoModulo] | None = None
     ativo: bool | None = None
 
+    validar_cpf = field_validator("cpf")(_validar_cpf)
     validar_modulos = field_validator("modulos")(_validar_acessos)
 
 
@@ -243,7 +258,7 @@ class DonoOut(Esquema):
 
 
 class ChamadoRef(Esquema):
-    """Chamado da Manutenção Clínica ligado ao ofício (solicitação feita pelo chamado ou ofício vinculado depois)."""
+    """Chamado das Manutenções Integradas ligado ao ofício (solicitação feita pelo chamado ou ofício vinculado depois)."""
 
     id: int
     codigo: str

@@ -134,7 +134,7 @@ def pdf_documento(oficio_id: int, request: Request, db: DbDep, settings: Setting
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Este ofício não foi redigido no módulo Documentos")
     url = docs.url_publica(settings, str(request.base_url), doc.codigo) if doc.codigo else None
     return Response(
-        docs.gerar_pdf(doc, settings, hoje, url), media_type="application/octet-stream" if bruto else "application/pdf",
+        docs.pdf_atual(doc, settings, hoje, url), media_type="application/octet-stream" if bruto else "application/pdf",
         headers={"Content-Disposition": f'inline; filename="oficio-{doc.numero_formatado.replace("/", "-")}.pdf"',
                  "X-Content-Type-Options": "nosniff"},
     )

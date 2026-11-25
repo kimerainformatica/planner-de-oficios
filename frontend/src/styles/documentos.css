@@ -282,3 +282,15 @@
   background: var(--superficie-2);
   border-color: var(--borda);
 }
+
+/* assinatura pelo GOV.BR: os três passos */
+.passos-govbr {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 14px;
+}
+.passos-govbr li > span {
+  display: block;
+  margin-bottom: 6px;
+}

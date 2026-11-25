@@ -16,7 +16,7 @@ import { NomeUnidade } from "./Unidade";
 type Link = { para: string; rotulo: string; icone: ReactNode; ativo: boolean; contador?: number; aviso?: string };
 
 /**
- * Estrutura do módulo Manutenção Clínica (helpdesk). Para criar uma tela nova do módulo:
+ * Estrutura do módulo Manutenções Integradas (helpdesk). Para criar uma tela nova do módulo:
  * 1) acrescente a rota em App.tsx, dentro de `/manutencao`; 2) acrescente o link em `links` abaixo.
  */
 export function LayoutManutencao() {
@@ -74,9 +74,9 @@ export function LayoutManutencao() {
       <aside className={`lateral ${menuAberto ? "aberta" : ""}`}>
         <div className="marca">
           <NavLink to="/manutencao" className="marca-link" onClick={() => setMenuAberto(false)}
-            aria-label="Manutenção Clínica · Instituto ACQUA, ir para o painel">
+            aria-label="Manutenções Integradas · Instituto ACQUA, ir para o painel">
             <img src={logo} alt="Instituto ACQUA" className="marca-logo" />
-            <span className="marca-sistema">Manutenção Clínica</span>
+            <span className="marca-sistema">Manutenções Integradas</span>
             <NomeUnidade className="marca-unidade" />
           </NavLink>
           <button className="btn-icone so-mobile" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">

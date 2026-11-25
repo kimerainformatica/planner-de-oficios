@@ -8,6 +8,9 @@ O PDF segue os modelos .docx da unidade (Ofício e Memorando modelo padrão):
 - páginas numeradas a partir da 2ª;
 - assinatura de quem elaborou e o "De acordo" de quem valida, com espaço para assinar à mão e, se houver, o
   carimbo da assinatura eletrônica feita no app.
+
+Assinatura eletrônica: memorando (interno) no app, com a senha; ofício (externo) no GOV.BR. No GOV.BR o PDF da emissão
+fica guardado e o arquivo assinado que volta do portal é conferido (`assinatura_govbr.py`).
 """
 
 import hashlib
@@ -17,7 +20,8 @@ import secrets
 from datetime import date, datetime
 from functools import lru_cache
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 from fastapi import HTTPException, status
@@ -37,11 +41,23 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import Documento, Modulo, Oficio, PapelAssinatura, StatusDocumento, TipoDocumento, Usuario
+from app.models import (
+    Documento,
+    FormaAssinatura,
+    Modulo,
+    Oficio,
+    PapelAssinatura,
+    StatusDocumento,
+    TipoDocumento,
+    Usuario,
+)
+from app.services.armazenamento import caminho_absoluto
+from app.services.assinatura_govbr import AssinaturaLida, normalizar_nome
 
 MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro",
          "novembro", "dezembro"]
 NOME_TIPO = {TipoDocumento.OFICIO: "Ofício", TipoDocumento.MEMORANDO: "Memorando"}
+FORMA_POR_TIPO = {TipoDocumento.OFICIO: FormaAssinatura.GOVBR, TipoDocumento.MEMORANDO: FormaAssinatura.APP}
 PARTES_TIMBRADO = ("cabecalho", "fundo")  # imagem do topo e marca-d'água de página inteira
 EXTENSOES_TIMBRADO = (".png", ".jpg", ".jpeg")
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O e 1/I: o código pode ser digitado à mão
@@ -82,6 +98,34 @@ def papel_para_assinar(doc: Documento, usuario: Usuario) -> PapelAssinatura | No
         return PapelAssinatura.ELABORADOR
     if doc.validador_id == usuario.id and doc.validador_nome and PapelAssinatura.VALIDADOR not in feitos:
         return PapelAssinatura.VALIDADOR
+    return None
+
+
+def papeis_pendentes(doc: Documento) -> list[PapelAssinatura]:
+    """As assinaturas que ainda faltam no documento emitido."""
+    if doc.status != StatusDocumento.EMITIDO:
+        return []
+    feitos = {a.papel for a in doc.assinaturas}
+    previstos = [PapelAssinatura.ELABORADOR] + ([PapelAssinatura.VALIDADOR] if doc.validador_nome else [])
+    return [p for p in previstos if p not in feitos]
+
+
+def pode_enviar_assinado(doc: Documento, usuario: Usuario) -> bool:
+    """Quem participa (ou o administrador) envia o PDF assinado; a pessoa conferida é a do certificado, não a que envia."""
+    return doc.forma_assinatura == FormaAssinatura.GOVBR and pode_ver(doc, usuario) and bool(papeis_pendentes(doc))
+
+
+def papel_da_assinatura(doc: Documento, lida: AssinaturaLida) -> PapelAssinatura | None:
+    """De quem é a assinatura do certificado: pelo CPF (se o certificado e o cadastro têm) ou pelo nome completo."""
+    pessoas = [(PapelAssinatura.ELABORADOR, doc.elaborador_nome, doc.autor)]
+    if doc.validador_nome:
+        pessoas.append((PapelAssinatura.VALIDADOR, doc.validador_nome, doc.validador))
+    for papel, nome, usuario in pessoas:
+        if usuario is not None and usuario.cpf and lida.cpf:
+            if usuario.cpf == lida.cpf:
+                return papel
+        elif normalizar_nome(nome) and normalizar_nome(nome) == normalizar_nome(lida.nome):
+            return papel
     return None
 
 
@@ -150,6 +194,58 @@ def conteudo(doc: Documento) -> dict:
 def calcular_hash(doc: Documento) -> str:
     texto = json.dumps(conteudo(doc), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()
+
+
+# ---------- arquivos guardados (GOV.BR) ----------
+
+
+def guardar_pdf(conteudo: bytes, ano: int, settings: Settings) -> tuple[str, str]:
+    """Grava um PDF novo (os anteriores nunca são trocados) e devolve o caminho relativo e o SHA-256."""
+    relativo = str(PurePosixPath("documentos", str(ano), f"{uuid4().hex}.pdf"))
+    destino = caminho_absoluto(relativo, settings)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_bytes(conteudo)
+    return relativo, hashlib.sha256(conteudo).hexdigest()
+
+
+def _ler_guardado(relativo: str, esperado: str | None, settings: Settings) -> bytes | None:
+    """O arquivo guardado, ou None se ele sumiu ou não é mais o mesmo."""
+    caminho = caminho_absoluto(relativo, settings)
+    if not caminho.is_file():
+        return None
+    conteudo = caminho.read_bytes()
+    return conteudo if hashlib.sha256(conteudo).hexdigest() == esperado else None
+
+
+def arquivo_vigente(doc: Documento, settings: Settings) -> bytes | None:
+    """A última versão assinada ou, sem assinatura, o PDF da emissão (None se o documento não guarda arquivo)."""
+    if doc.arquivo_assinado:
+        conteudo = _ler_guardado(doc.arquivo_assinado, doc.arquivo_assinado_hash, settings)
+    elif doc.arquivo_original:
+        conteudo = _ler_guardado(doc.arquivo_original, doc.arquivo_original_hash, settings)
+    else:
+        return None
+    if conteudo is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O arquivo guardado deste documento sumiu ou foi alterado. "
+                                                      "Avise o administrador para recuperar do backup.")
+    return conteudo
+
+
+def arquivos_integros(doc: Documento, settings: Settings) -> bool:
+    return all(
+        _ler_guardado(relativo, esperado, settings) is not None
+        for relativo, esperado in ((doc.arquivo_original, doc.arquivo_original_hash),
+                                   (doc.arquivo_assinado, doc.arquivo_assinado_hash)) if relativo
+    )
+
+
+def pdf_atual(doc: Documento, settings: Settings, hoje: date, url_verificacao: str | None = None) -> bytes:
+    """O PDF que vale: o guardado (GOV.BR) ou o gerado na hora. O cancelado sai sempre marcado."""
+    if doc.status == StatusDocumento.EMITIDO:
+        guardado = arquivo_vigente(doc, settings)
+        if guardado is not None:
+            return guardado
+    return gerar_pdf(doc, settings, hoje, url_verificacao)
 
 
 # ---------- datas ----------
@@ -350,6 +446,8 @@ def _desenhar_pagina(doc: Documento, settings: Settings, url_verificacao: str | 
                 linhas.append(f"Confira a autenticidade em {url_verificacao}")
             if doc.status == StatusDocumento.CANCELADO:
                 linhas.append("DOCUMENTO CANCELADO: sem validade.")
+            elif doc.forma_assinatura == FormaAssinatura.GOVBR:
+                linhas.append("Assinado pelo GOV.BR: confira o arquivo em https://validar.iti.gov.br")
             for i, linha in enumerate(linhas):
                 c.drawString(x, 1.75 * cm - i * 0.33 * cm, linha)
         c.restoreState()

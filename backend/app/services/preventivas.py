@@ -1,4 +1,4 @@
-"""Regras da manutenção preventiva (módulo Manutenção Clínica).
+"""Regras da manutenção preventiva (módulo Manutenções Integradas).
 
 - **Plano**: a rotina de uma empresa técnica (o que fazer, onde) e a periodicidade, definida pelo administrador.
 - **Preventiva**: cada data prevista do plano. São criadas com antecedência (`HORIZONTE_DIAS`) e completadas

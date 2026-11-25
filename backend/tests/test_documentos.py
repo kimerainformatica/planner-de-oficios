@@ -42,6 +42,15 @@ def _oficio_pronto(api, quem, **extra):
     return r.json()
 
 
+def _memorando_pronto(api, quem, **extra):
+    doc = api.post("/api/documentos", json={"tipo": "MEMORANDO"}, headers=quem).json()
+    dados = {"assunto": "Escala", "corpo": "Texto.", "de": "Gerência", "para": "RH",
+             "elaborador_cargo": "Gerente Operacional", **extra}
+    r = api.patch(f"/api/documentos/{doc['id']}", json=dados, headers=quem)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
 def _png() -> BytesIO:
     saida = BytesIO()
     Image.new("RGB", (400, 80), "teal").save(saida, format="PNG")
@@ -120,7 +129,7 @@ def test_de_acordo_assinatura_eletronica_e_visibilidade(api, ana, bruno, admin, 
               headers=master)
     bruno_id = _usuario_id(api, master, "bruno")
     assert any(p["id"] == bruno_id for p in api.get("/api/documentos/assinantes", headers=ana).json())
-    doc = _oficio_pronto(api, ana, validador_id=bruno_id)
+    doc = _memorando_pronto(api, ana, validador_id=bruno_id)  # o memorando (interno) é assinado no app
     assert (doc["validador_nome"], doc["validador_cargo"], doc["validador_ident"]) == ("Bruno", "Diretor", "77")
     me = _usuario_id(api, master, "ana")
     assert api.patch(f"/api/documentos/{doc['id']}", json={"validador_id": me}, headers=ana).status_code == 400

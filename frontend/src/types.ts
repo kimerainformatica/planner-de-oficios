@@ -1,6 +1,6 @@
 // Espelho dos schemas da API (backend/app/schemas.py).
 
-/** TECNICO só existe na Manutenção Clínica; lá o CLIENTE é o "operacional". */
+/** TECNICO só existe nas Manutenções Integradas; lá o CLIENTE é o "operacional". */
 export type Perfil = "MASTER" | "ADMIN" | "CLIENTE" | "TECNICO";
 export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "RECUSADA" | "CANCELADA";
 export type StatusOficio =
@@ -46,6 +46,8 @@ export interface Usuario {
   /** Bloco de assinatura dos documentos gerados (ofícios e memorandos) */
   cargo: string | null;
   matricula: string | null;
+  /** O CPF (confere quem assinou pelo GOV.BR) nunca vem inteiro */
+  cpf_mascarado: string | null;
   modulos: AcessoModulo[];
 }
 
@@ -57,7 +59,7 @@ export interface ModuloDisponivel {
   perfil: Perfil;
 }
 
-// ---------- Manutenção Clínica (helpdesk) ----------
+// ---------- Manutenções Integradas (helpdesk) ----------
 
 export interface Referencia {
   id: number;
@@ -332,7 +334,7 @@ export interface Historico {
 export interface Oficio {
   id: number;
   dono: { id: number; nome: string };
-  /** Chamado da Manutenção Clínica que originou o ofício (solicitação de peças/equipamentos). */
+  /** Chamado das Manutenções Integradas que originou o ofício (solicitação de peças/equipamentos). */
   chamado: { id: number; codigo: string; titulo: string } | null;
   numero: string;
   data_oficio: string;
@@ -639,6 +641,8 @@ export interface Unidade {
 export type TipoDocumento = "OFICIO" | "MEMORANDO";
 export type StatusDocumento = "RASCUNHO" | "EMITIDO" | "CANCELADO";
 export type PapelAssinatura = "ELABORADOR" | "VALIDADOR";
+/** APP: senha no app (memorandos); GOVBR: no portal, com o PDF assinado enviado de volta (ofícios) */
+export type FormaAssinatura = "APP" | "GOVBR";
 
 export interface Assinante {
   id: number;
@@ -652,6 +656,9 @@ export interface AssinaturaDocumento {
   nome: string;
   cargo: string | null;
   assinado_em: string;
+  forma: FormaAssinatura;
+  cert_nome: string | null;
+  cert_emissor: string | null;
 }
 
 export interface DocumentoResumo {
@@ -666,6 +673,7 @@ export interface DocumentoResumo {
   validador_nome: string | null;
   data_documento: string | null;
   atualizado_em: string;
+  forma_assinatura: FormaAssinatura;
   assinaturas: number;
   assinaturas_previstas: number;
   minha_assinatura_pendente: boolean;
@@ -717,6 +725,7 @@ export interface Documento extends CamposDocumento {
   elaborador_nome: string;
   codigo: string | null;
   hash_conteudo: string | null;
+  forma_assinatura: FormaAssinatura;
   emitido_em: string | null;
   cancelado_em: string | null;
   cancelado_por_nome: string | null;
@@ -727,6 +736,8 @@ export interface Documento extends CamposDocumento {
   pode_editar: boolean;
   pode_cancelar: boolean;
   assinar_como: PapelAssinatura | null;
+  pode_enviar_assinado: boolean;
+  tem_assinado: boolean;
   pendencias: string[];
 }
 
@@ -747,6 +758,7 @@ export interface VerificacaoDocumento {
   elaborador_nome: string;
   validador_nome: string | null;
   emitido_em: string | null;
+  forma_assinatura: FormaAssinatura;
   assinaturas: AssinaturaDocumento[];
   integro: boolean;
   hash_conteudo: string | null;

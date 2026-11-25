@@ -9,6 +9,7 @@ PyJWT==2.15.1
 python-multipart==0.0.32
 openpyxl==3.1.5
 reportlab==5.0.1
+pyHanko==0.38.2
 
 # testes (API: pytest; telas: pytest tests_e2e, usa o Edge instalado)
 pytest==9.1.1

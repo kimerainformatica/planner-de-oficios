@@ -39,7 +39,7 @@ export const ROTULO_EQUIPAMENTO: Record<SituacaoEquipamento, string> = {
   NAO_SE_APLICA: "Não se aplica",
 };
 
-/** Papel na Manutenção Clínica: o cliente é o "operacional". */
+/** Papel nas Manutenções Integradas: o cliente é o "operacional". */
 export const ROTULO_PAPEL_MANUTENCAO: Record<Perfil, string> = {
   MASTER: "Master",
   ADMIN: "Administrador",

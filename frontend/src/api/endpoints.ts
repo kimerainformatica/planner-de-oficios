@@ -196,6 +196,7 @@ export const criarUsuario = (dados: {
   master?: boolean;
   cargo?: string;
   matricula?: string;
+  cpf?: string;
   modulos: AcessoModulo[];
 }) => api<Usuario>("/usuarios", { method: "POST", body: json(dados) });
 
@@ -203,7 +204,7 @@ export const criarUsuario = (dados: {
 
 export const listarModulos = () => api<ModuloDisponivel[]>("/modulos");
 
-// ---------- Manutenção Clínica (helpdesk) ----------
+// ---------- Manutenções Integradas (helpdesk) ----------
 
 export const resumoManutencao = () => api<ResumoManutencao>("/manutencao/resumo");
 
@@ -348,6 +349,7 @@ export const atualizarUsuario = (
     master: boolean;
     cargo: string;
     matricula: string;
+    cpf: string;
     modulos: AcessoModulo[];
     ativo: boolean;
   }>,
@@ -464,6 +466,16 @@ export const duplicarDocumento = (id: number) => api<Documento>(`/documentos/${i
 export const emitirDocumento = (id: number) => api<Documento>(`/documentos/${id}/emitir`, { method: "POST" });
 export const assinarDocumento = (id: number, senha: string) =>
   api<Documento>(`/documentos/${id}/assinar`, { method: "POST", body: json({ senha }) });
+/** PDF assinado no portal GOV.BR (o servidor confere o certificado e se é o mesmo documento). */
+export function enviarAssinado(id: number, arquivo: File) {
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo);
+  return api<Documento>(`/documentos/${id}/assinado`, { method: "POST", body: corpo });
+}
+export async function pdfAssinado(id: number): Promise<Blob> {
+  const resposta = await requisicao(`/documentos/${id}/pdf`, { params: { bruto: true, assinado: true } });
+  return new Blob([await resposta.arrayBuffer()], { type: "application/pdf" });
+}
 export const cancelarDocumento = (id: number, motivo: string) =>
   api<Documento>(`/documentos/${id}/cancelar`, { method: "POST", body: json({ motivo }) });
 /** Pede o conteúdo "bruto" (octet-stream) porque o Edge intercepta respostas application/pdf vindas do fetch. */

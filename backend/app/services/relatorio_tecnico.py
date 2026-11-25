@@ -74,7 +74,7 @@ def gerar_pdf(rel: RelatorioTecnico, chamado: Chamado, unidade: str | None = Non
     tecnico = rel.tecnico.nome if rel.tecnico else "—"
     conteudo = [
         Paragraph(f"Relatório Técnico {rel.codigo}", h1),
-        Paragraph(f"Manutenção Clínica · Instituto ACQUA{f' · {unidade}' if unidade else ''} · Chamado {chamado.codigo}", sub),
+        Paragraph(f"Manutenções Integradas · Instituto ACQUA{f' · {unidade}' if unidade else ''} · Chamado {chamado.codigo}", sub),
         Spacer(1, 5 * mm),
         Paragraph("Identificação do chamado", secao),
         grade_celulas([

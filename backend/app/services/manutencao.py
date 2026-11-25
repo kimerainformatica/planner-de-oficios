@@ -1,4 +1,4 @@
-"""Regras do helpdesk da Manutenção Clínica.
+"""Regras do helpdesk das Manutenções Integradas.
 
 Papéis no módulo:
 - **Operacional** (CLIENTE): abre chamados e acompanha **todos** os chamados; comenta, cancela e reabre.

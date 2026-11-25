@@ -59,6 +59,7 @@ NOME_CAMPO = {
     "modulos": "acesso aos módulos",
     "ativo": "situação",
     "senha": "senha",
+    "cpf": "CPF",
     "nome_curto": "nome curto",
     "exige_entrega": "exige entrega",
     "ordem": "ordem",
@@ -119,7 +120,7 @@ def registrar(
 
 def espelhar_no_chamado(db: Session, oficio: Oficio, usuario: Usuario, descricao: str) -> None:
     """Ofício de solicitação de peças/equipamentos: o que acontece com ele no Planner (documentos, resposta,
-    entrega, correções, exclusão) aparece também na linha do tempo do chamado da Manutenção Clínica."""
+    entrega, correções, exclusão) aparece também na linha do tempo do chamado das Manutenções Integradas."""
     chamado = oficio.chamado if oficio.chamado_id else None
     if chamado is None:
         return

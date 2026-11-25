@@ -1,4 +1,4 @@
-"""Entrada e saída da API do módulo Manutenção Clínica (helpdesk)."""
+"""Entrada e saída da API do módulo Manutenções Integradas (helpdesk)."""
 
 from datetime import date, datetime
 
