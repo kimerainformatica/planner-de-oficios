@@ -1,4 +1,4 @@
-"""Helpdesk da Manutenção Clínica: chamados, técnicos por empresa, prazo de 24 h corridas e relatório técnico.
+"""Helpdesk das Manutenções Integradas: chamados, técnicos por empresa, prazo de 24 h corridas e relatório técnico.
 
 Fixtures (conftest): paulo = operacional, marta = admin do módulo, tiago = técnico MSI,
 carla = técnica REALIZA CLIMATIZAÇÃO. "Agora" = terça 20/10/2026 10:00. Prazos em horas corridas.

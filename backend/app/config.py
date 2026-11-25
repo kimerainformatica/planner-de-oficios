@@ -38,9 +38,17 @@ class Settings(BaseSettings):
     # Conferência automática dos arquivos (existência e hash), a cada N horas; 0 desliga
     verificacao_horas: int = 24
 
-    # Manutenção Clínica: o prazo do diagnóstico é em horas corridas, da abertura (o de cada empresa).
+    # Manutenções Integradas: o prazo do diagnóstico é em horas corridas, da abertura (o de cada empresa).
     # Chamado sem diagnóstico com até N horas restantes aparece como "vencendo"
     manutencao_alerta_horas: float = 4
+
+    # Documentos (ofícios e memorandos gerados no app): cidade e UF da linha de data ("São Luís, 20 de novembro
+    # de 2026.") e o endereço que vai no QR code de verificação (vazio: o endereço por onde o app foi aberto)
+    documentos_cidade: str = ""
+    documentos_uf: str = ""
+    documentos_url_publica: str = ""
+    # Cadeia de certificados aceita nos ofícios assinados pelo GOV.BR
+    certificados_dir: Path = BASE_DIR / "certificados"
 
     cors_origins: list[str] = ["http://localhost:5173"]
     # Libera o front aberto por qualquer endereço da rede interna (10.x, 172.16–31.x, 192.168.x)

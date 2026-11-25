@@ -1,4 +1,4 @@
-"""Módulo Manutenção Clínica: helpdesk de chamados técnicos (regras em services/manutencao.py).
+"""Módulo Manutenções Integradas: helpdesk de chamados técnicos (regras em services/manutencao.py).
 
 Todas as rotas exigem acesso ao módulo (o MASTER sempre tem).
 """
@@ -69,7 +69,7 @@ from app.services.oficios import escopo as escopo_planner
 from app.services.relatorio_tecnico import gerar_pdf
 
 router = APIRouter(
-    prefix="/api/manutencao", tags=["Manutenção Clínica"], dependencies=[Depends(exige_acesso_ao(Modulo.MANUTENCAO))]
+    prefix="/api/manutencao", tags=["Manutenções Integradas"], dependencies=[Depends(exige_acesso_ao(Modulo.MANUTENCAO))]
 )
 AdminManutencao = Annotated[Usuario, Depends(exige_admin_do(Modulo.MANUTENCAO))]
 
@@ -777,7 +777,7 @@ def vincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: Usuario
                             f"O ofício já está vinculado ao chamado {oficio.chamado.codigo}. Desvincule-o de lá antes")
     # A atividade é registrada antes do vínculo para não ser espelhada (a linha do tempo recebe o texto abaixo)
     registrar_atividade(db, usuario, Acao.OFICIO_EDITADO,
-                        f"Vinculou o ofício nº {oficio.numero} ao chamado {chamado.codigo} da Manutenção Clínica", oficio)
+                        f"Vinculou o ofício nº {oficio.numero} ao chamado {chamado.codigo} das Manutenções Integradas", oficio)
     oficio.chamado = chamado
     nome_tipo = oficio.tipo_info.nome if oficio.tipo_info else "sem tipo"
     regras.registrar(db, chamado, usuario, TipoInteracao.OFICIO, agora,
@@ -803,7 +803,7 @@ def desvincular_oficio(chamado_id: int, oficio_id: int, db: DbDep, usuario: Usua
     oficio.chamado = None
     db.flush()  # o vínculo sai antes da atividade, para ela não ser espelhada no chamado
     registrar_atividade(db, usuario, Acao.OFICIO_EDITADO,
-                        f"Desvinculou o ofício nº {oficio.numero} do chamado {chamado.codigo} da Manutenção Clínica",
+                        f"Desvinculou o ofício nº {oficio.numero} do chamado {chamado.codigo} das Manutenções Integradas",
                         oficio)
     regras.registrar(db, chamado, usuario, TipoInteracao.OFICIO, agora,
                      f"Ofício nº {regras.numero_oficio(oficio)} desvinculado deste chamado. Ele continua no Planner "

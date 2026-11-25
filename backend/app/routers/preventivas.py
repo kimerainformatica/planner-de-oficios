@@ -1,4 +1,4 @@
-"""Manutenção preventiva e avisos internos do módulo Manutenção Clínica (regras em services/preventivas.py).
+"""Manutenção preventiva e avisos internos do módulo Manutenções Integradas (regras em services/preventivas.py).
 
 Todas as rotas exigem acesso ao módulo (o MASTER sempre tem). O técnico vê só o que é da empresa dele.
 """
@@ -34,7 +34,7 @@ from app.services.manutencao import ABERTOS, SituacaoPrazo
 from app.services.preventivas import SituacaoPreventiva
 
 router = APIRouter(
-    prefix="/api/manutencao", tags=["Manutenção Clínica · Preventivas"],
+    prefix="/api/manutencao", tags=["Manutenções Integradas · Preventivas"],
     dependencies=[Depends(exige_acesso_ao(Modulo.MANUTENCAO))],
 )
 AdminManutencao = Annotated[Usuario, Depends(exige_admin_do(Modulo.MANUTENCAO))]

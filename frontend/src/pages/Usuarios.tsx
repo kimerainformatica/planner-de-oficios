@@ -3,6 +3,7 @@ import { Pencil, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { atualizarUsuario, criarUsuario, listarEmpresas, listarUsuarios } from "../api/endpoints";
 import { ROTULO_PAPEL_MANUTENCAO } from "../utils/manutencao";
+import { ROTULO_PAPEL_DOCUMENTOS } from "./documentos/comum";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal } from "../components/ui";
@@ -16,9 +17,11 @@ const CLASSE_PERFIL: Record<Perfil, string> = {
 
 type Escolha = "NENHUM" | "CLIENTE" | "ADMIN" | "TECNICO";
 
-/** Nome do papel no módulo: na Manutenção Clínica o cliente é o "operacional". */
+/** Nome do papel no módulo: nas Manutenções Integradas o cliente é o "operacional". */
 function rotuloPapel(modulo: Modulo, perfil: Perfil): string {
-  return modulo === "MANUTENCAO" ? ROTULO_PAPEL_MANUTENCAO[perfil] : ROTULO_PERFIL[perfil];
+  if (modulo === "MANUTENCAO") return ROTULO_PAPEL_MANUTENCAO[perfil];
+  if (modulo === "DOCUMENTOS") return ROTULO_PAPEL_DOCUMENTOS[perfil];
+  return ROTULO_PERFIL[perfil];
 }
 
 export function Usuarios() {
@@ -123,6 +126,10 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
 
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [login, setLogin] = useState(usuario?.login ?? "");
+  const [cargo, setCargo] = useState(usuario?.cargo ?? "");
+  const [matricula, setMatricula] = useState(usuario?.matricula ?? "");
+  const [cpf, setCpf] = useState(""); // em branco mantém o atual (que só aparece mascarado)
+  const [removerCpf, setRemoverCpf] = useState(false);
   const [senha, setSenha] = useState("");
   const [ativo, setAtivo] = useState(usuario?.ativo ?? true);
   const [master, setMaster] = useState(usuario?.perfil === "MASTER");
@@ -142,7 +149,7 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
       return novo;
     });
   }
-  // Empresa do técnico (só na Manutenção Clínica)
+  // Empresa do técnico (só nas Manutenções Integradas)
   const [empresaTecnico, setEmpresaTecnico] = useState<number | "">(
     usuario?.modulos.find((a) => a.modulo === "MANUTENCAO")?.empresa_id ?? "",
   );
@@ -164,11 +171,17 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
           ...(acesso[m.modulo] === "TECNICO" ? { empresa_id: empresaTecnico === "" ? null : empresaTecnico } : {}),
         }),
       );
-      if (!usuario) return criarUsuario({ nome: nome.trim(), login: login.trim(), senha, master, modulos });
+      if (!usuario) {
+        return criarUsuario({ nome: nome.trim(), login: login.trim(), senha, master, modulos,
+          cargo: cargo.trim(), matricula: matricula.trim(), ...(cpf.trim() ? { cpf: cpf.trim() } : {}) });
+      }
       return atualizarUsuario(usuario.id, {
         ...(contaLiberada
           ? {
               nome: nome.trim(),
+              ...(cargo.trim() !== (usuario.cargo ?? "") ? { cargo: cargo.trim() } : {}),
+              ...(matricula.trim() !== (usuario.matricula ?? "") ? { matricula: matricula.trim() } : {}),
+              ...(removerCpf ? { cpf: "" } : cpf.trim() ? { cpf: cpf.trim() } : {}),
               ...(login.trim() !== usuario.login ? { login: login.trim() } : {}),
               ...(senha ? { senha } : {}),
               ...(ehEu ? {} : { ativo }),
@@ -210,6 +223,28 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
           {(id) => <input id={id} className="input" required maxLength={120} value={nome} autoFocus disabled={!contaLiberada}
             onChange={(e) => setNome(e.target.value)} />}
         </Campo>
+        <div className="grade-2">
+          <Campo rotulo="Cargo" dica="Sai no bloco de assinatura dos ofícios e memorandos.">
+            {(id) => <input id={id} className="input" maxLength={120} value={cargo} disabled={!contaLiberada}
+              onChange={(e) => setCargo(e.target.value)} />}
+          </Campo>
+          <Campo rotulo="Matrícula / ID">
+            {(id) => <input id={id} className="input" maxLength={30} value={matricula} disabled={!contaLiberada}
+              onChange={(e) => setMatricula(e.target.value)} />}
+          </Campo>
+        </div>
+        <Campo rotulo="CPF"
+          dica={`Só para conferir quem assinou os ofícios pelo GOV.BR.${usuario?.cpf_mascarado ? " Deixe em branco para manter o atual." : ""}`}>
+          {(id) => <input id={id} className="input" maxLength={14} inputMode="numeric" autoComplete="off" value={cpf}
+            placeholder={usuario?.cpf_mascarado ?? "000.000.000-00"} disabled={!contaLiberada || removerCpf}
+            onChange={(e) => setCpf(e.target.value)} />}
+        </Campo>
+        {usuario?.cpf_mascarado && contaLiberada && (
+          <label className="checkbox">
+            <input type="checkbox" checked={removerCpf} onChange={(e) => { setRemoverCpf(e.target.checked); setCpf(""); }} />
+            Remover o CPF do cadastro
+          </label>
+        )}
         <Campo rotulo="Login *"
           dica={usuario ? "Usado para entrar no sistema. Se mudar, avise o usuário (a senha continua a mesma)." : "Letras, números, ponto, hífen ou _"}>
           {(id) => <input id={id} className="input" required minLength={3} maxLength={60} pattern="[A-Za-z0-9._\-]+"
@@ -256,6 +291,8 @@ function ModalUsuario({ usuario, aoFechar }: { usuario: Usuario | null; aoFechar
                           <option value="CLIENTE">Operacional (abre e acompanha os chamados)</option>
                           <option value="TECNICO">Técnico (atende os chamados de uma empresa)</option>
                         </>
+                      ) : m.modulo === "DOCUMENTOS" ? (
+                        <option value="CLIENTE">Redator (redige e assina ofícios e memorandos)</option>
                       ) : (
                         <option value="CLIENTE">Cliente</option>
                       )}

@@ -106,7 +106,7 @@ stateDiagram-v2
 
 ## Módulos e perfis
 
-A plataforma é dividida em **módulos**: **Planner de Ofícios** e **Manutenção Clínica**. Cada pessoa é habilitada
+A plataforma é dividida em **módulos**: **Planner de Ofícios**, **Manutenções Integradas** e **Documentos**. Cada pessoa é habilitada
 nos módulos no cadastro (feito por um administrador ou pelo master) e tem **um papel em cada módulo**. Quem não foi
 habilitado num módulo não o abre (as rotas dele respondem `403`).
 
@@ -131,7 +131,7 @@ habilitado num módulo não o abre (as rotas dele respondem `403`).
 - Ninguém muda o próprio acesso nem se desativa.
 - A mudança de acesso vale **na hora**, sem a pessoa precisar sair e entrar de novo, e fica em **Atividades**.
 
-## Manutenção Clínica (helpdesk)
+## Manutenções Integradas (helpdesk)
 
 O operacional abre um **chamado** para uma empresa técnica, e o técnico dessa empresa tem um prazo em **horas corridas**
 para dar o **diagnóstico**.
@@ -144,7 +144,7 @@ para dar o **diagnóstico**.
 | Técnico (`TECNICO`) | Ver só os chamados da **empresa dele**, assumir, comentar, registrar o diagnóstico (**relatório externo** e/ou **relatório técnico** no modelo do sistema), editá-lo depois e concluir |
 | Administrador (`ADMIN`) e master | Tudo isso em todos os chamados, e cadastrar as **empresas técnicas** |
 
-O técnico é um usuário como os outros, cadastrado em **Usuários**: perfil *Técnico* na Manutenção Clínica e a
+O técnico é um usuário como os outros, cadastrado em **Usuários**: perfil *Técnico* nas Manutenções Integradas e a
 empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 
 ### Empresas técnicas
@@ -270,14 +270,14 @@ empresa dele. O administrador do módulo cadastra operacionais e técnicos.
 
 ### Operacional e o Planner de Ofícios
 
-- **Regra:** todo operacional da Manutenção Clínica (cliente ou administrador do módulo) também tem acesso ao
+- **Regra:** todo operacional das Manutenções Integradas (cliente ou administrador do módulo) também tem acesso ao
   **Planner de Ofícios**.
 - **Concessão automática:** quem é habilitado como operacional e ainda não tinha o Planner ganha acesso de **cliente**
   automaticamente, mesmo quando quem cadastra é o administrador da Manutenção.
 - **Papéis independentes:** pode ser administrador em um módulo e cliente no outro.
 - **Retirada:** o Planner não pode ser retirado de um operacional (`400`). Para isso, primeiro mude o papel dele na
   Manutenção.
-- **Técnicos:** os técnicos das empresas usam só a Manutenção Clínica.
+- **Técnicos:** os técnicos das empresas usam só as Manutenções Integradas.
 - **Gestão da conta:** o acesso de cliente ao Planner que vem com o operacional não impede o administrador da
   Manutenção de gerir a conta dele.
 
@@ -356,6 +356,44 @@ padrão, e um botão mostra todos.
   no menu dos administradores, que aprovam (o ofício é excluído) ou recusam (o ofício continua). O cliente pode
   cancelar o pedido enquanto ele estiver pendente.
 - Excluir apaga o ofício, os documentos e as versões da lixeira. O registro da exclusão continua em **Atividades**.
+
+## Documentos gerados (ofícios e memorandos)
+
+- **Modelo:** o PDF segue os modelos da unidade. Cabeçalho do documento e assinaturas em Arial 12; corpo em Times New
+  Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha de 1,75 cm (ofício) ou 1,25 cm (memorando); margens de
+  3 cm nas laterais e 2,5 cm em cima e embaixo; páginas numeradas a partir da 2ª.
+- **Situações:** *rascunho* (só quem elaborou edita; sem número; o PDF sai marcado "RASCUNHO") → *emitido* (número,
+  data, código e hash; nada mais muda) → *cancelado* (com motivo; o PDF sai marcado "CANCELADO").
+- **Numeração:** sequencial por pessoa, tipo e ano, dada só na emissão (rascunho descartado não abre buraco). O
+  ofício continua a numeração que a pessoa já usa no Planner (o maior número do ano + 1, no formato `012/2026`); o
+  memorando tem a sua (`07/2026`).
+- **Para emitir:** assunto e texto; no ofício, o nome do destinatário (e o tipo de ofício, se for registrado no
+  Planner); no memorando, De e Para;
+  o cargo de quem elaborou e, havendo De acordo, o cargo de quem valida.
+- **Módulo e papéis:** *Redator* redige, emite e assina os seus; *Administrador* também vê todos, cancela e cuida do
+  timbrado. O De acordo só pode ser dado por quem tem o módulo.
+- **Integração com o Planner:** com *registrar no Planner* (padrão para quem usa o Planner; impossível para quem não
+  usa), a emissão cadastra o ofício em nome de quem elaborou, como pendente de resposta, na data de hoje, com o tipo
+  (obrigatório) e o destinatário informados. Cancelar o documento não exclui o ofício do Planner. Quem acompanha o
+  ofício no Planner baixa o PDF do documento por lá, mesmo sem o módulo.
+- **Assinaturas:** o espaço para assinar à mão sempre sai. A forma eletrônica depende do tipo: memorando
+  (interno) no app, ofício (externo) no GOV.BR. Os emitidos antes desta regra continuam com a assinatura do app.
+- **Assinatura no app:** por quem elaborou e por quem dá o De acordo (se for usuário do sistema), confirmando a senha (as
+  regras de bloqueio do login valem aqui). Fica registrado quem, quando e de qual computador. Um administrador vê, mas
+  não assina por ninguém.
+- **Assinatura GOV.BR:** o PDF da emissão fica guardado e não é mais gerado. O arquivo que volta do portal só é aceito
+  se começar com a última versão guardada e acrescentar só assinaturas (páginas, textos, fontes e imagens iguais), se
+  cada assinatura estiver íntegra e se o certificado for da cadeia GOV.BR e estiver na validade. A pessoa é conferida
+  pelo CPF (quando está no certificado e no cadastro) ou pelo nome completo, sem diferenciar acentos e maiúsculas.
+  Podem enviar quem elaborou, quem dá o De acordo e o administrador: vale a pessoa do certificado, não a que envia. Cada
+  versão é um arquivo novo; nenhuma é apagada. A revogação do certificado não é consultada (o servidor pode estar sem
+  internet): quem precisar confere em validar.iti.gov.br.
+- **CPF:** opcional, informado por quem gere a conta. A API só devolve mascarado, e o histórico registra que mudou, sem
+  o número.
+- **Verificação:** o código (8 caracteres, sem letras e números que se confundem) e o QR code levam à página pública
+  `/verificar`, que mostra só os dados de identificação, nunca o texto. O hash SHA-256 do conteúdo, gravado na
+  emissão, é recalculado a cada consulta, e os arquivos guardados são conferidos: se algo foi mexido, a página avisa.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
 
 ## Login e sessão
 

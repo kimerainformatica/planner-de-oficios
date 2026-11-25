@@ -1,4 +1,4 @@
-"""Entrada e saída da API da manutenção preventiva e dos avisos internos (módulo Manutenção Clínica)."""
+"""Entrada e saída da API da manutenção preventiva e dos avisos internos (módulo Manutenções Integradas)."""
 
 from datetime import date, datetime
 

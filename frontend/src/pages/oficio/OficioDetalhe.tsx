@@ -1,6 +1,6 @@
 // Tela de um ofício: cabeçalho com ações, prazo, dados, documentos, histórico e auditoria.
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileSignature } from "lucide-react";
 import { IconeEditar, IconeLixo, IconeRecebimento, IconeResposta, IconeRestaurar } from "../../components/Icones";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -10,6 +10,7 @@ import { AlertaBadge, Carregando, ErroBox, StatusBadge } from "../../components/
 import { ModalDecisao } from "../Exclusoes";
 import { data, dataHora, destinatarioTexto, diasCorridos } from "../../utils/formato";
 import { useTipos } from "../../utils/tipos";
+import { abrirEmNovaAba } from "../documentos/comum";
 import { ConteudoEvidencia, LixeiraDoOficio, SlotAnexo } from "./Anexos";
 import { BlocoDados, Dado, DataComDias, BarraPrazo } from "./Dados";
 import { LinhaDoTempo, RegistroAlteracoes } from "./Historico";
@@ -67,6 +68,7 @@ export function OficioDetalhe() {
           </div>
         </div>
         <div className="grupo acoes-topo">
+          {o.documento_id && <BotaoDocumentoGerado oficioId={o.id} documentoId={o.documento_id} />}
           {o.status === "PENDENTE_RESPOSTA" && (
             <button className="btn btn-primario" onClick={() => setModal("resposta")}>
               <IconeResposta /> Registrar resposta
@@ -121,7 +123,7 @@ export function OficioDetalhe() {
             {o.protocolo && <Dado rotulo="Protocolo" valor={o.protocolo} />}
             {ehAdmin && <Dado rotulo="Cliente" valor={o.dono.nome} />}
             {o.chamado && (
-              <Dado rotulo="Chamado (Manutenção Clínica)"
+              <Dado rotulo="Chamado (Manutenções Integradas)"
                 valor={modulos.includes("MANUTENCAO")
                   ? <Link to={`/manutencao/chamados/${o.chamado.id}`} className="link-forte">{o.chamado.codigo} · {o.chamado.titulo}</Link>
                   : `${o.chamado.codigo} · ${o.chamado.titulo}`} />
@@ -239,5 +241,24 @@ export function OficioDetalhe() {
           aoConcluir={() => modal === "aprovar" && navegar("/oficios")} />
       )}
     </>
+  );
+}
+
+/** Ofício redigido no módulo Documentos: quem tem o módulo abre o documento; os outros abrem o PDF. */
+function BotaoDocumentoGerado({ oficioId, documentoId }: { oficioId: number; documentoId: number }) {
+  const { modulos } = useAuth();
+  const [erro, setErro] = useState<string | null>(null);
+  if (modulos.includes("DOCUMENTOS")) {
+    return (
+      <Link className="btn btn-secundario" to={`/documentos/${documentoId}`}>
+        <FileSignature size={18} /> Documento gerado
+      </Link>
+    );
+  }
+  return (
+    <button className="btn btn-secundario" title={erro ?? "PDF do ofício redigido no módulo Documentos"}
+      onClick={() => abrirEmNovaAba(() => ep.pdfDocumentoDoOficio(oficioId)).catch((e: Error) => setErro(e.message))}>
+      <FileSignature size={18} /> PDF do documento
+    </button>
   );
 }

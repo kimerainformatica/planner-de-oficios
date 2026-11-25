@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid, Menu, ShieldCheck, X } from "lucide-react";
+import { FileSignature, LayoutGrid, Menu, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { exclusoesPendentes } from "../api/endpoints";
+import { exclusoesPendentes, resumoDocumentos } from "../api/endpoints";
 import { useVerificacao } from "../pages/Arquivos";
 import logo from "../assets/acqua-logo.svg";
 import {
@@ -31,6 +31,10 @@ type LinkMenu = {
   avisoContador?: string;
 };
 
+const IconeDocumentos = ({ tamanho = 20, className }: PropsIcone) => (
+  <FileSignature size={tamanho} className={className} aria-hidden />
+);
+
 /** "Ana Lima" → "AL" */
 function iniciais(nome = ""): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
@@ -50,6 +54,10 @@ export function Layout() {
     refetchInterval: 60_000,
   });
   const totalPendentes = pendentes.data?.total ?? 0;
+  // Integração com o módulo Documentos: atalho para redigir, com os documentos esperando a assinatura de quem está no app
+  const usaDocumentos = modulos.includes("DOCUMENTOS");
+  const paraAssinar = useQuery({ queryKey: ["documentos-resumo"], queryFn: resumoDocumentos, refetchInterval: 60_000,
+    enabled: usaDocumentos }).data?.para_assinar ?? 0;
   // Arquivos que sumiram ou foram alterados (verificação diária): aviso no menu para admin/master
   const problemasArquivos = useVerificacao(ehAdmin).data?.problemas.length ?? 0;
 
@@ -59,6 +67,16 @@ export function Layout() {
     { para: "/", rotulo: "Painel", icone: IconePainel, ativo: pathname === "/" },
     { para: "/oficios", rotulo: "Ofícios", icone: IconeOficios, ativo: emOficios },
     { para: "/oficios/novo", rotulo: "Novo ofício", icone: IconeNovoOficio, ativo: pathname === "/oficios/novo" },
+    ...(usaDocumentos
+      ? [{
+          para: "/documentos?novo=OFICIO",
+          rotulo: "Redigir ofício",
+          icone: IconeDocumentos,
+          ativo: false,
+          contador: paraAssinar,
+          avisoContador: "documento(s) aguardando a sua assinatura no módulo Documentos",
+        }]
+      : []),
     {
       para: "/exclusoes",
       rotulo: ehAdmin ? "Pedidos de exclusão" : "Meus pedidos de exclusão",

@@ -24,7 +24,7 @@ export function InicioManutencao() {
     <>
       <header className="pagina-topo">
         <div>
-          <h1>Helpdesk · Manutenção Clínica</h1>
+          <h1>Helpdesk · Manutenções Integradas</h1>
           <p className="texto-suave">
             {ROTULO_PAPEL_MANUTENCAO[p.papel]}
             {p.empresa_do_tecnico && ` · ${p.empresa_do_tecnico.nome} (você vê os chamados desta empresa)`}

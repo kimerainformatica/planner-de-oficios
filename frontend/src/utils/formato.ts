@@ -94,4 +94,8 @@ export const ROTULO_ACAO: Record<string, string> = {
   USUARIO_ALTERADO: "Usuário alterado",
   FERIADO_CRIADO: "Feriado cadastrado",
   FERIADO_EXCLUIDO: "Feriado removido",
+  DOCUMENTO_EMITIDO: "Documento emitido",
+  DOCUMENTO_ASSINADO: "Documento assinado",
+  DOCUMENTO_CANCELADO: "Documento cancelado",
+  TIMBRADO_ALTERADO: "Timbrado alterado",
 };

@@ -1,6 +1,6 @@
 # Manual do usuário
 
-Como usar o sistema no dia a dia: o Planner de Ofícios e, no fim, a [Manutenção Clínica](#manutenção-clínica). As
+Como usar o sistema no dia a dia: o Planner de Ofícios e, no fim, a [Manutenções Integradas](#manutenção-clínica). As
 regras por trás de cada tela estão em [REGRAS.md](REGRAS.md).
 
 ## Entrar
@@ -165,18 +165,28 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 - **Novo usuário:** nome, login, senha (mínimo de 8 caracteres) e o **acesso aos módulos**:
   - Planner de Ofícios: *Sem acesso*, *Cliente* ou *Administrador*;
-  - Manutenção Clínica: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*.
+  - Manutenções Integradas: *Sem acesso*, *Operacional*, *Técnico* (escolha também a empresa) ou *Administrador*;
+  - Documentos: *Sem acesso*, *Redator* ou *Administrador*.
 
   Só o master cria administradores e masters. Um administrador só habilita pessoas nos módulos que ele administra.
 - **Operacional sempre tem o Planner:** ao escolher *Operacional* ou *Administrador* na Manutenção, o Planner vem
   como *Cliente* (ou mantém o papel que a pessoa já tinha) e a opção *Sem acesso* some. O técnico fica só na
   Manutenção.
+- **Cargo e matrícula/ID:** saem no bloco de assinatura dos documentos (ofícios e memorandos).
+- **CPF:** opcional; serve só para conferir quem assinou os ofícios pelo GOV.BR. Depois de salvo aparece mascarado.
 - **Editar:** altera nome, login, situação (ativo ou inativo), senha e o acesso aos módulos. Deixe a senha em branco
   para manter a atual. Trocar a senha encerra as sessões abertas daquela pessoa. O administrador de um módulo só
   altera o nome, o login, a senha e a situação de quem usa apenas módulos que ele administra.
 - **Depois do login:** quem tem acesso a mais de um módulo (o master, por exemplo) escolhe o módulo na tela
   **Módulos**. Quem tem só um módulo entra direto nele.
 
+
+### Timbrado (módulo Documentos)
+
+Em **Documentos → Timbrado** (administrador do módulo): o cabeçalho (logotipos, endereço e telefones) e a marca-d'água
+de todos os ofícios e memorandos. Envie as imagens em
+PNG ou JPG; para mudar o endereço ou o telefone, basta trocar o cabeçalho. A cidade da linha de data vem do servidor
+(`DOCUMENTOS_CIDADE` e `DOCUMENTOS_UF`).
 
 ### Tipos de ofício
 
@@ -198,10 +208,52 @@ Lista de tudo o que foi feito, filtrável por tipo de atividade e período. Cliq
 
 Se um arquivo sumir ou for alterado, recupere-o do backup da pasta `backend/storage` ou envie de novo no ofício.
 
-## Manutenção Clínica
+## Documentos (ofícios e memorandos)
+
+O módulo **Documentos** redige ofícios e memorandos que saem em PDF no modelo da unidade: timbrado, margens, Arial no
+cabeçalho e **Times New Roman 12** no corpo, com o recuo do modelo (1,75 cm no ofício, 1,25 cm no memorando). O
+acesso é próprio: *Redator* (redige e assina) ou *Administrador* (vê todos, cancela e cuida do timbrado). O menu tem
+**Documentos**, **Para assinar**, **Novo ofício**, **Novo memorando** e, para o administrador, **Timbrado**.
+
+- **Novo ofício / Novo memorando:** abre um rascunho com o vocativo, o fecho e o seu nome, cargo e matrícula já
+  preenchidos. O rascunho é salvo sozinho, e a **prévia** do PDF fica ao lado (*Atualizar prévia*).
+  - Ofício: destinatário (tratamento, nome, cargo e endereço) e a **integração com o Planner de Ofícios**: com
+    *Registrar no Planner de Ofícios ao emitir* marcado (o padrão para quem usa o Planner), informe o tipo de ofício e,
+    se quiser, o destinatário (SES, ACQUA ou outro). Desmarcado, o ofício sai só como documento.
+  - Memorando: **De** e **Para** (setores).
+  - Texto: assunto, vocativo, corpo (cada linha é um parágrafo) e fecho. Linguagem direta, sem negrito.
+  - Assinaturas: seu cargo e ID, e quem dá o **De acordo** (um usuário do sistema ou outra pessoa). Outra
+    pessoa assina o memorando só à mão; o ofício, à mão ou pelo GOV.BR.
+- **Emitir:** o documento recebe o próximo número da sua sequência e a data de hoje, e o texto fica travado. Com a
+  integração, o ofício entra no Planner como pendente de resposta, e os prazos começam a contar. No rodapé saem o
+  código de verificação e o QR code.
+- **No Planner:** o ofício redigido aqui tem o botão *Documento gerado* (ou *PDF do documento*, para quem acompanha o
+  ofício sem ter o módulo). No menu do Planner, quem tem o módulo vê o atalho *Redigir ofício*.
+- **Assinar o memorando (interno):** o PDF tem o espaço para assinar à mão. Quem elaborou e quem dá o De acordo também
+  podem **assinar no app** (botão *Assinar no app* e a senha): o carimbo da assinatura eletrônica aparece no PDF no
+  lugar da assinatura à mão.
+- **Assinar o ofício (externo):** à mão no papel **ou** pelo GOV.BR, nunca das duas formas. Pelo GOV.BR, no quadro
+  *Assinar pelo GOV.BR*:
+  1. **Baixar o PDF** (sem imprimir, converter ou salvar em outro programa);
+  2. **Abrir o portal** (assinador.iti.br), assinar com a conta GOV.BR **prata ou ouro** e baixar o arquivo assinado;
+  3. **Enviar o PDF assinado**: o sistema confere a assinatura, a pessoa e se é o mesmo documento.
+
+  Quem dá o De acordo faz o mesmo depois, baixando a versão que já traz a primeira assinatura. O original é o arquivo
+  PDF; quem recebe confere em validar.iti.gov.br. Se o nome do certificado for diferente do cadastro, o administrador
+  informa o CPF da pessoa em **Usuários**.
+- **O que falta assinar:** o menu mostra quantos documentos esperam a sua assinatura; a aba **Para assinar** lista quais.
+- **Baixar e imprimir:** *Baixar PDF* ou *Abrir para imprimir*.
+- **Corrigir depois de emitido:** *Cancelar* (com o motivo) e *Fazer um novo a partir deste*. O cancelado continua
+  na lista e a verificação mostra o cancelamento. O ofício cancelado não some do Planner: se ele não vale mais, peça
+  a exclusão por lá.
+- **Conferir um documento:** qualquer pessoa, mesmo sem login, lê o QR code ou abre `/verificar` e digita o código.
+  A página diz se o documento é autêntico, se foi cancelado e quem assinou.
+- **Quem vê:** quem elaborou, quem dá o De acordo e os administradores do módulo.
+
+## Manutenções Integradas
 
 Helpdesk para pedir suporte técnico às empresas (MSI, Realiza Predial, Realiza Climatização…). Abra pelo cartão
-**Manutenção Clínica** na tela **Módulos**.
+**Manutenções Integradas** na tela **Módulos**.
 
 | Item do menu | Quem vê | Para quê |
 |---|---|---|

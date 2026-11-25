@@ -28,7 +28,9 @@ def _rotulo_acesso(a: UsuarioModulo) -> str:
     if a.perfil == Perfil.TECNICO:
         return f"técnico · {a.empresa.nome}" if a.empresa else "técnico"
     if a.modulo == Modulo.MANUTENCAO and a.perfil == Perfil.CLIENTE:
-        return "operacional"  # na Manutenção Clínica o cliente é quem abre os chamados
+        return "operacional"  # nas Manutenções Integradas o cliente é quem abre os chamados
+    if a.modulo == Modulo.DOCUMENTOS and a.perfil == Perfil.CLIENTE:
+        return "redator"  # em Documentos o cliente redige e assina
     return ROTULO[a.perfil]
 
 
@@ -98,13 +100,13 @@ def _aplicar_modulos(db, editor: Usuario, alvo: Usuario, pedidos: list) -> None:
 
 
 def eh_operacional_manutencao(usuario: Usuario) -> bool:
-    """Cliente ou administrador da Manutenção Clínica (o técnico das empresas não conta)."""
+    """Cliente ou administrador das Manutenções Integradas (o técnico das empresas não conta)."""
     acesso = usuario.acesso_no(Modulo.MANUTENCAO)
     return not usuario.eh_master and acesso is not None and acesso.perfil in (Perfil.CLIENTE, Perfil.ADMIN)
 
 
 def _garantir_planner_do_operacional(alvo: Usuario, tinha_planner: bool) -> None:
-    """Regra: todo operacional da Manutenção Clínica também usa o Planner de Ofícios (as solicitações de peças e
+    """Regra: todo operacional das Manutenções Integradas também usa o Planner de Ofícios (as solicitações de peças e
     equipamentos viram ofícios lá). Quem ainda não tem o Planner ganha acesso de cliente; o papel em cada
     módulo (admin ou cliente) continua independente."""
     if not eh_operacional_manutencao(alvo) or alvo.acesso_no(Modulo.OFICIOS) is not None:
@@ -112,7 +114,7 @@ def _garantir_planner_do_operacional(alvo: Usuario, tinha_planner: bool) -> None
     if tinha_planner:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "O operacional da Manutenção Clínica precisa ter acesso ao Planner de Ofícios (como cliente ou administrador)",
+            "O operacional das Manutenções Integradas precisa ter acesso ao Planner de Ofícios (como cliente ou administrador)",
         )
     alvo.modulos.append(UsuarioModulo(modulo=Modulo.OFICIOS, perfil=Perfil.CLIENTE))
 
@@ -144,6 +146,7 @@ def criar(dados: UsuarioCriar, db: DbDep, quem: GestorDep):
     usuario = Usuario(
         nome=dados.nome, login=dados.login, senha_hash=gerar_hash_senha(dados.senha),
         perfil=Perfil.MASTER if dados.master else Perfil.CLIENTE,
+        cargo=dados.cargo or None, matricula=dados.matricula or None, cpf=dados.cpf or None,
     )
     if not dados.master:
         _aplicar_modulos(db, quem, usuario, dados.modulos)
@@ -163,7 +166,8 @@ def atualizar(usuario_id: int, dados: UsuarioAtualizar, db: DbDep, quem: GestorD
     if usuario is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuário não encontrado")
     proprio = usuario.id == quem.id
-    mexe_na_conta = any(v is not None for v in (dados.nome, dados.login, dados.senha, dados.ativo)) or (
+    mexe_na_conta = any(v is not None for v in (dados.nome, dados.login, dados.senha, dados.ativo, dados.cargo,
+                                                 dados.matricula, dados.cpf)) or (
         dados.modulos is not None and usuario.eh_master  # o acesso de um master só o MASTER muda
     )
     if mexe_na_conta and not _pode_gerir_conta(quem, usuario):
@@ -199,7 +203,10 @@ def atualizar(usuario_id: int, dados: UsuarioAtualizar, db: DbDep, quem: GestorD
             raise HTTPException(status.HTTP_409_CONFLICT, f"O login {dados.login} já está em uso")
 
     acessos_antes = _texto_acessos(usuario)
-    novos = dados.model_dump(exclude_unset=True, exclude_none=True, exclude={"senha", "master", "modulos"})
+    novos = dados.model_dump(exclude_unset=True, exclude_none=True, exclude={"senha", "master", "modulos", "cpf"})
+    for campo in ("cargo", "matricula"):  # texto vazio apaga
+        if campo in novos and not novos[campo]:
+            novos[campo] = None
     mudancas = diferencas({c: getattr(usuario, c) for c in novos}, novos)
     for campo, valor in novos.items():
         setattr(usuario, campo, valor)
@@ -211,6 +218,9 @@ def atualizar(usuario_id: int, dados: UsuarioAtualizar, db: DbDep, quem: GestorD
     if _texto_acessos(usuario) != acessos_antes:
         mudancas["modulos"] = {"de": acessos_antes, "para": _texto_acessos(usuario)}
 
+    if dados.cpf is not None and (dados.cpf or None) != usuario.cpf:
+        usuario.cpf = dados.cpf or None
+        mudancas["cpf"] = {"de": None, "para": "informado" if usuario.cpf else "removido"}  # sem o número no histórico
     if dados.senha is not None:
         usuario.senha_hash = gerar_hash_senha(dados.senha)
         usuario.sessao_versao += 1  # encerra as sessões abertas com a senha antiga (em todos os computadores)

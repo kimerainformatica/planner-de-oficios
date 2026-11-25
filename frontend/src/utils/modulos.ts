@@ -3,12 +3,14 @@ import type { Modulo, Perfil, Usuario } from "../types";
 /** Catálogo dos módulos no front (o nome e a rota vêm também de GET /api/modulos; aqui servem para os formulários). */
 export const MODULOS: { modulo: Modulo; nome: string; rota: string }[] = [
   { modulo: "OFICIOS", nome: "Planner de Ofícios", rota: "/" },
-  { modulo: "MANUTENCAO", nome: "Manutenção Clínica", rota: "/manutencao" },
+  { modulo: "MANUTENCAO", nome: "Manutenções Integradas", rota: "/manutencao" },
+  { modulo: "DOCUMENTOS", nome: "Documentos", rota: "/documentos" },
 ];
 
 export const NOME_MODULO: Record<Modulo, string> = {
   OFICIOS: "Planner de Ofícios",
-  MANUTENCAO: "Manutenção Clínica",
+  MANUTENCAO: "Manutenções Integradas",
+  DOCUMENTOS: "Documentos",
 };
 
 export function papelNo(usuario: Usuario | null | undefined, modulo: Modulo): Perfil | null {

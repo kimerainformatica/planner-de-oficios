@@ -4,7 +4,7 @@ Sistema web interno organizado em **módulos**, com um login só:
 
 - **Planner de Ofícios:** cadastra ofícios, guarda os documentos e acompanha o prazo de resposta e de entrega em
   **dias corridos**, com alertas de atenção e crítico, painel de indicadores e registro de tudo o que foi alterado.
-- **Manutenção Clínica:** helpdesk em que o operacional abre chamados para as empresas técnicas (MSI, Realiza Predial,
+- **Manutenções Integradas:** helpdesk em que o operacional abre chamados para as empresas técnicas (MSI, Realiza Predial,
   Realiza Climatização…), com diagnóstico em **24 horas corridas**, relatório técnico, quadro de acompanhamento e
   solicitação de peças que vira um ofício no Planner.
 
@@ -21,7 +21,7 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 - Todo **operacional** da Manutenção também usa o Planner (como cliente, ou o papel que tiver lá). O **técnico** só
   vê a Manutenção, e só os chamados da própria empresa.
 
-## Manutenção Clínica
+## Manutenções Integradas
 
 - **Chamado:** empresa técnica, título, descrição do problema, local, equipamento e data/hora da ocorrência.
 - **Prazo de diagnóstico:** 24 horas corridas por empresa (ajustável), contadas da abertura. Situação ao vivo: no prazo, vencendo, atrasado, cumprido ou cumprido com atraso.
@@ -56,6 +56,8 @@ O que mudou em cada versão está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md
 - **Segurança dos arquivos:**
   - **lixeira:** um documento substituído ou removido pode ser restaurado;
   - **verificação diária:** confere se cada arquivo existe e não foi alterado, pelo hash SHA-256 guardado no envio.
+- **Integração com o módulo Documentos:** o ofício redigido lá pode entrar no Planner na emissão, com o PDF ligado a
+  ele; quem tem o módulo vê o atalho *Redigir ofício* no menu.
 - **Atividades:** toda alteração fica registrada com quem fez, quando e o valor antigo → novo.
 - **Visual:**
   - identidade do Instituto ACQUA, com tema claro, escuro ou automático;
@@ -122,6 +124,7 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Ramo | Versão | Módulos | Visual | Situação |
 |---|---|---|---|---|
+| `feature/2.3-controle-de-tetos` | 2.3 | Planner de Ofícios + Manutenções Integradas + Documentos | "Correnteza" | Em homologação; parte da 2.2 |
 | `feature/2.2-preventivas-prazos-diagnostico` | 2.2 | Planner de Ofícios + Manutenção Clínica, com preventivas | "Correnteza" | Em homologação; parte da 2.0 |
 | `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
 | `main` | 1.1 | Planner de Ofícios | "Correnteza": menu verde-petróleo, ícones e login animados, fontes próprias | Estável, para computadores com folga de processamento |
@@ -129,17 +132,20 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 ### Versões 2.0 a 2.2 (2.0 em `feature/modulos-manutencao-clinica`; 2.1 e 2.2 em `feature/2.2-preventivas-prazos-diagnostico`)
 
-- **Módulos com um login só:** Planner de Ofícios e Manutenção Clínica, com o papel definido por módulo. Todo
+- **Módulos com um login só:** Planner de Ofícios e Manutenções Integradas, com o papel definido por módulo. Todo
   operacional da Manutenção também usa o Planner.
-- **Manutenção Clínica (helpdesk):** chamados para MSI, Realiza Predial e Realiza Climatização, com diagnóstico em
+- **Manutenções Integradas (helpdesk):** chamados para MSI, Realiza Predial e Realiza Climatização, com diagnóstico em
   24 horas corridas. O técnico tem login próprio e responde com um relatório técnico em PDF. O sistema mostra o tempo de
   solução e um quadro de acompanhamento.
 - **Peças e equipamentos:** o pedido feito no chamado vira um ofício no Planner. Os documentos são anexados no
   Planner, e o chamado acompanha cada passo.
 - **Prazos em dias corridos e data do diagnóstico editável (2.2).**
 - **Preventivas e avisos (2.1):** planos com periodicidade, registro com evidência, ateste e avisos internos.
-- **Banco:** migrações 0011 a 0016.
-- **Testes:** 117 testes da API.
+- **Módulo Documentos (2.3):** ofícios e memorandos redigidos no app, no modelo da unidade (timbrado, Times New Roman
+  12 no corpo, recuos do modelo), com número automático, código de verificação com QR code, assinatura à mão ou
+  eletrônica (memorando no app; ofício pelo GOV.BR, com conferência do certificado) e verificação pública. Integrado ao Planner: o ofício emitido pode entrar lá com os prazos.
+- **Banco:** migrações 0011 a 0019.
+- **Testes:** 140 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
 aplicar no servidor está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
@@ -172,7 +178,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0016)
+  alembic/            migrações do banco (0001 … 0019)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -187,7 +193,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 117 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 140 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

@@ -70,7 +70,7 @@ copy .env.example .env
 Edite o `.env`, no mínimo `DATABASE_URL` e `JWT_SECRET`, e crie as tabelas:
 
 ```powershell
-alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0016)
+alembic upgrade head            # cria/atualiza as tabelas (migrações 0001 … 0019)
 python -m scripts.inicializar   # cria o 1º administrador (pede a senha) e os feriados nacionais
 ```
 
@@ -98,6 +98,9 @@ precisam da empresa).
 | `MANUTENCAO_ALERTA_HORAS` | `4` | Horas restantes para um chamado aparecer como "vencendo" |
 | `UNIDADE_NOME` | vazio | Nome da unidade atendida por este servidor. Aparece no login, no menu e nos PDFs |
 | `UNIDADE_DESCRICAO` | vazio | Descrição da unidade, mostrada no login |
+| `DOCUMENTOS_CIDADE` | vazio | Cidade da linha de data dos ofícios e memorandos (ex.: `São Luís`) |
+| `DOCUMENTOS_UF` | vazio | UF da linha de data do memorando (ex.: `MA`) |
+| `DOCUMENTOS_URL_PUBLICA` | vazio | Endereço do QR code de verificação (ex.: `http://192.168.0.10:3112`). Vazio: o endereço por onde o app foi aberto. **Informe antes de emitir ofícios**: o PDF do ofício fica guardado com o endereço do momento da emissão |
 | `STORAGE_DIR` | `backend/storage` | Pasta dos documentos (inclui os arquivos dos chamados) |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | Origens extras liberadas (o servidor de desenvolvimento do Vite). A rede interna já é liberada |
 

@@ -53,12 +53,12 @@ def api(tmp_path, estado):
                         modulos=[acesso(Modulo.OFICIOS, Perfil.CLIENTE)]),
                 Usuario(nome="Bruno", login="bruno", senha_hash=gerar_hash_senha("senha-bruno"),
                         modulos=[acesso(Modulo.OFICIOS, Perfil.CLIENTE)]),
-                # Operacionais da Manutenção Clínica: pela regra, também são clientes do Planner de Ofícios
+                # Operacionais das Manutenções Integradas: pela regra, também são clientes do Planner de Ofícios
                 Usuario(nome="Marta", login="marta", senha_hash=gerar_hash_senha("senha-marta"),
                         modulos=[acesso(Modulo.MANUTENCAO, Perfil.ADMIN), acesso(Modulo.OFICIOS, Perfil.CLIENTE)]),
                 Usuario(nome="Paulo", login="paulo", senha_hash=gerar_hash_senha("senha-paulo"),
                         modulos=[acesso(Modulo.MANUTENCAO, Perfil.CLIENTE), acesso(Modulo.OFICIOS, Perfil.CLIENTE)]),
-                # Técnicos da Manutenção Clínica, cada um de uma empresa
+                # Técnicos das Manutenções Integradas, cada um de uma empresa
                 Usuario(nome="Tiago", login="tiago", senha_hash=gerar_hash_senha("senha-tiago"),
                         modulos=[acesso(Modulo.MANUTENCAO, Perfil.TECNICO, empresa["MSI"])]),
                 Usuario(nome="Carla", login="carla", senha_hash=gerar_hash_senha("senha-carla"),
@@ -113,13 +113,13 @@ def bruno(api):
 
 @pytest.fixture
 def marta(api):
-    """Administradora só do módulo Manutenção Clínica."""
+    """Administradora só do módulo Manutenções Integradas."""
     return _token(api, "marta")
 
 
 @pytest.fixture
 def paulo(api):
-    """Operacional (cliente) só do módulo Manutenção Clínica."""
+    """Operacional (cliente) só do módulo Manutenções Integradas."""
     return _token(api, "paulo")
 
 
