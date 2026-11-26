@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  FilePen, FileSignature, FileText, LayoutGrid, LogOut, Menu, ShieldCheck, Signature, Stamp, Users, X,
+  CalendarClock, FilePlus2, FileSignature, FileText, FolderOpen, LayoutGrid, LayoutTemplate, LogOut, Menu, ShieldCheck,
+  Signature, Stamp, Users, X,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -14,7 +15,7 @@ import { NomeUnidade } from "./Unidade";
 type Link = { para: string; rotulo: string; icone: ReactNode; ativo: boolean; contador?: number; aviso?: string };
 
 /**
- * Estrutura do módulo Documentos (ofícios e memorandos no modelo da unidade). Para criar uma tela nova:
+ * Estrutura do módulo Documentos (planner dos documentos da instituição). Para criar uma tela nova:
  * 1) acrescente a rota em App.tsx, dentro de `/documentos`; 2) acrescente o link em `links` abaixo.
  */
 export function LayoutDocumentos() {
@@ -25,22 +26,30 @@ export function LayoutDocumentos() {
   const admin = ehAdminNo("DOCUMENTOS");
   const usaPlanner = modulos.includes("OFICIOS");
 
-  // Documentos emitidos esperando a assinatura de quem está no app (atualiza a cada minuto)
-  const paraAssinar = useQuery({ queryKey: ["documentos-resumo"], queryFn: resumoDocumentos, refetchInterval: 60_000 })
-    .data?.para_assinar ?? 0;
+  // Esperando a assinatura de quem está no app e prazos vencidos ou vencendo (atualiza a cada minuto)
+  const resumo = useQuery({ queryKey: ["documentos-resumo"], queryFn: resumoDocumentos, refetchInterval: 60_000 }).data;
+  const paraAssinar = resumo?.para_assinar ?? 0;
   const naLista = pathname === "/documentos";
-  const escopo = new URLSearchParams(search).get("escopo");
+  const busca = new URLSearchParams(search);
+  const escopo = busca.get("escopo");
+  const comPrazo = busca.get("prazo") === "alerta";
 
   const links: Link[] = [
     { para: "/documentos", rotulo: "Documentos", icone: <FileSignature size={19} />,
-      ativo: (naLista && escopo !== "assinar") || /^\/documentos\/\d+/.test(pathname) },
+      ativo: (naLista && escopo !== "assinar" && !comPrazo) || /^\/documentos\/\d+/.test(pathname) },
     { para: "/documentos?escopo=assinar", rotulo: "Para assinar", icone: <Signature size={19} />,
       ativo: naLista && escopo === "assinar", contador: paraAssinar, aviso: "documento(s) aguardando a sua assinatura" },
-    { para: "/documentos?novo=OFICIO", rotulo: "Novo ofício", icone: <FilePen size={19} />, ativo: false },
-    { para: "/documentos?novo=MEMORANDO", rotulo: "Novo memorando", icone: <FileText size={19} />, ativo: false },
+    { para: "/documentos?prazo=alerta&ordem=prazo", rotulo: "Prazos", icone: <CalendarClock size={19} />,
+      ativo: naLista && comPrazo, contador: resumo?.prazos ?? 0, aviso: "documento(s) com prazo vencido ou vencendo" },
+    { para: "/documentos?novo=escolher", rotulo: "Novo documento", icone: <FilePlus2 size={19} />, ativo: false },
   ];
   const administracao: Link[] = admin
-    ? [{ para: "/documentos/timbrado", rotulo: "Timbrado", icone: <Stamp size={19} />, ativo: pathname === "/documentos/timbrado" }]
+    ? [
+        { para: "/documentos/modelos", rotulo: "Modelos de documento", icone: <LayoutTemplate size={19} />,
+          ativo: pathname === "/documentos/modelos" },
+        { para: "/documentos/pastas", rotulo: "Pastas", icone: <FolderOpen size={19} />, ativo: pathname === "/documentos/pastas" },
+        { para: "/documentos/timbrado", rotulo: "Timbrado", icone: <Stamp size={19} />, ativo: pathname === "/documentos/timbrado" },
+      ]
     : [];
 
   const item = (l: Link) => (

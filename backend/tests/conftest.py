@@ -14,7 +14,7 @@ from app.deps import get_agora, get_hoje
 from app.main import app
 from app.models import EmpresaManutencao, Modulo, Perfil, Usuario, UsuarioModulo
 from app.seguranca import gerar_hash_senha
-from app.services import limite_login, manutencao, tipos
+from app.services import limite_login, manutencao, modelos_documento, tipos
 
 HOJE = date(2026, 10, 20)  # terça-feira
 AGORA = datetime(2026, 10, 20, 10, 0)  # terça-feira, 10:00
@@ -36,6 +36,7 @@ def api(tmp_path, estado):
     limite_login.limpar()
     with Sessao() as db:
         tipos.semear(db)
+        modelos_documento.semear(db)  # ofício e memorando
         manutencao.semear_empresas(db)  # MSI, REALIZA PREDIAL, REALIZA CLIMATIZAÇÃO
         empresa = {e.nome: e for e in db.query(EmpresaManutencao)}
 

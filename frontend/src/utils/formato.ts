@@ -98,4 +98,13 @@ export const ROTULO_ACAO: Record<string, string> = {
   DOCUMENTO_ASSINADO: "Documento assinado",
   DOCUMENTO_CANCELADO: "Documento cancelado",
   TIMBRADO_ALTERADO: "Timbrado alterado",
+  DOCUMENTO_ORGANIZADO: "Documento organizado (pasta ou prazo)",
+  DOCUMENTO_CONCLUIDO: "Documento concluído",
+  DOCUMENTO_REABERTO: "Documento reaberto",
+  MODELO_DOCUMENTO_CRIADO: "Modelo de documento cadastrado",
+  MODELO_DOCUMENTO_ALTERADO: "Modelo de documento alterado",
+  MODELO_DOCUMENTO_EXCLUIDO: "Modelo de documento apagado",
+  PASTA_DOCUMENTO_CRIADA: "Pasta de documentos criada",
+  PASTA_DOCUMENTO_ALTERADA: "Pasta de documentos alterada",
+  PASTA_DOCUMENTO_EXCLUIDA: "Pasta de documentos apagada",
 };

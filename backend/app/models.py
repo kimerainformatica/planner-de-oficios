@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     JSON,
     Integer,
+    Numeric,
     SmallInteger,
     String,
     Text,
@@ -42,7 +43,7 @@ class Modulo(str, enum.Enum):
 
     OFICIOS = "OFICIOS"  # Planner de Ofícios
     MANUTENCAO = "MANUTENCAO"  # Manutenções Integradas
-    DOCUMENTOS = "DOCUMENTOS"  # Documentos: ofícios e memorandos redigidos no modelo da unidade
+    DOCUMENTOS = "DOCUMENTOS"  # Documentos: planner dos documentos da instituição (ofícios, memorandos…)
 
 
 class StatusSolicitacao(str, enum.Enum):
@@ -608,12 +609,38 @@ class Auditoria(Base):
     usuario: Mapped[Usuario | None] = relationship()
 
 
-# ================= Documentos (ofícios e memorandos gerados no app) =================
+# ================= Documentos (planner dos documentos redigidos no app) =================
 
 
-class TipoDocumento(str, enum.Enum):
-    OFICIO = "OFICIO"  # comunicação externa à unidade; ao ser emitido entra no Planner de Ofícios
-    MEMORANDO = "MEMORANDO"  # comunicação interna, entre setores
+class EstruturaDocumento(str, enum.Enum):
+    """Como o cabeçalho do documento é montado (timbrado, fontes, margens e assinaturas são iguais para todos)."""
+
+    EXTERNO = "EXTERNO"  # para fora da unidade: número, data e destinatário por extenso (como o ofício)
+    INTERNO = "INTERNO"  # entre setores: título e número na mesma linha, De e Para (como o memorando)
+    SIMPLES = "SIMPLES"  # sem destinatário: título centralizado (declaração, relatório, ata, termo…)
+
+
+# Modelos que vêm com o sistema. O ofício continua a numeração do Planner de Ofícios e pode ser registrado lá.
+TIPO_OFICIO = "OFICIO"
+TIPO_MEMORANDO = "MEMORANDO"
+
+
+class EtapaDocumento(str, enum.Enum):
+    """Coluna do documento no quadro (calculada, não gravada)."""
+
+    RASCUNHO = "RASCUNHO"
+    AGUARDANDO = "AGUARDANDO"  # emitido, falta assinatura eletrônica
+    ASSINADO = "ASSINADO"  # emitido, com todas as assinaturas eletrônicas previstas
+    CONCLUIDO = "CONCLUIDO"  # marcado como concluído (entregue, respondido ou arquivado)
+    CANCELADO = "CANCELADO"
+
+
+class AlertaPrazo(str, enum.Enum):
+    """Situação do prazo de um documento em aberto (calculada)."""
+
+    EM_DIA = "EM_DIA"
+    ATENCAO = "ATENCAO"  # vence hoje ou em até DOCUMENTOS_DIAS_ATENCAO dias
+    ATRASADO = "ATRASADO"
 
 
 class StatusDocumento(str, enum.Enum):
@@ -628,19 +655,65 @@ class PapelAssinatura(str, enum.Enum):
 
 
 class FormaAssinatura(str, enum.Enum):
-    APP = "APP"  # login + senha no app (uso interno: memorandos)
-    GOVBR = "GOVBR"  # no portal GOV.BR, com certificado; o PDF assinado é enviado de volta (ofícios)
+    APP = "APP"  # login + senha no app
+    GOVBR = "GOVBR"  # no portal GOV.BR, com certificado; o PDF assinado é enviado de volta
+
+
+class ModeloDocumento(Base):
+    """Modelo de documento da instituição (ofício, memorando, declaração…), cadastrado pelo administrador.
+
+    Define o cabeçalho (estrutura), a numeração, o recuo do parágrafo, os textos com que o rascunho começa e a forma
+    de assinatura sugerida (cada documento escolhe a sua). Na emissão o formato é copiado para o documento
+    (`Documento.formato`): mudar o modelo depois não muda os documentos já emitidos.
+    """
+
+    __tablename__ = "modelos_documento"
+
+    codigo: Mapped[str] = mapped_column(String(40), primary_key=True)
+    nome: Mapped[str] = mapped_column(String(80), unique=True)
+    descricao: Mapped[str | None] = mapped_column(String(300))
+    estrutura: Mapped[EstruturaDocumento] = mapped_column(Enum(EstruturaDocumento, name="estrutura_documento"))
+    digitos: Mapped[int] = mapped_column(SmallInteger, default=2)  # do número: 2 → 01/2026, 3 → 001/2026
+    recuo_cm: Mapped[float] = mapped_column(Numeric(4, 2, asdecimal=False), default=1.25)  # 1ª linha do parágrafo
+    forma_assinatura: Mapped[FormaAssinatura] = mapped_column(
+        Enum(FormaAssinatura, name="forma_assinatura"), default=FormaAssinatura.APP
+    )
+    mostrar_assunto: Mapped[bool] = mapped_column(Boolean, default=True)  # imprime a linha "Assunto:"
+    data_no_fim: Mapped[bool] = mapped_column(Boolean, default=False)  # local e data depois do texto
+    rotulo_ident: Mapped[str] = mapped_column(String(30), default="Matrícula")  # antes da matrícula na assinatura
+    vocativo: Mapped[str] = mapped_column(String(160), default="")
+    fecho: Mapped[str] = mapped_column(String(120), default="Atenciosamente,")
+    texto_modelo: Mapped[str] = mapped_column(Text, default="")  # o texto com que o rascunho começa
+    sistema: Mapped[bool] = mapped_column(Boolean, default=False)  # ofício e memorando: não se apagam
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class PastaDocumento(Base):
+    """Pasta para organizar os documentos (um setor, um assunto, um projeto…). O documento fica em uma ou em
+    nenhuma; a pasta não muda quem pode ver o documento."""
+
+    __tablename__ = "pastas_documento"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nome: Mapped[str] = mapped_column(String(80), unique=True)
+    descricao: Mapped[str | None] = mapped_column(String(200))
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class Documento(Base):
-    """Ofício ou memorando redigido no módulo Documentos e impresso no modelo da unidade (timbrado, margens, fontes).
+    """Documento redigido a partir de um modelo (ofício, memorando, declaração…) e impresso no modelo da unidade
+    (timbrado, margens, fontes).
 
-    O número é sequencial por autor, tipo e ano e só é dado na emissão (rascunho apagado não abre buraco).
+    O número é sequencial por autor, modelo e ano e só é dado na emissão (rascunho apagado não abre buraco).
     No ofício ele segue a numeração do Planner do autor (ex.: 012/2026) e, com `registrar_no_planner`, a emissão
     cadastra o ofício lá.
-    Emitido, o conteúdo fica travado e o hash dele vai para a verificação. Com a assinatura do app (memorandos) o PDF
-    é sempre gerado a partir do banco, com as assinaturas que houver; com a do GOV.BR (ofícios) o PDF da emissão fica
-    guardado, porque a assinatura vale para aquele arquivo, e cada envio assinado é acrescentado a ele.
+    Emitido, o conteúdo fica travado e o hash dele vai para a verificação. Com a assinatura do app o PDF é sempre
+    gerado a partir do banco, com as assinaturas que houver; com a do GOV.BR o PDF da emissão fica guardado, porque a
+    assinatura vale para aquele arquivo, e cada envio assinado é acrescentado a ele.
+    Pasta, prazo e conclusão organizam o trabalho: mudam a qualquer momento e não fazem parte do conteúdo.
     """
 
     __tablename__ = "documentos"
@@ -650,7 +723,9 @@ class Documento(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    tipo: Mapped[TipoDocumento] = mapped_column(Enum(TipoDocumento, name="tipo_documento"))
+    tipo: Mapped[str] = mapped_column(  # código do modelo
+        String(40), ForeignKey("modelos_documento.codigo", ondelete="RESTRICT", onupdate="CASCADE")
+    )
     status: Mapped[StatusDocumento] = mapped_column(
         Enum(StatusDocumento, name="status_documento"), default=StatusDocumento.RASCUNHO
     )
@@ -663,12 +738,12 @@ class Documento(Base):
     vocativo: Mapped[str] = mapped_column(String(160), default="")
     corpo: Mapped[str] = mapped_column(Text, default="")
     fecho: Mapped[str] = mapped_column(String(120), default="Atenciosamente,")
-    # Ofício: destinatário por extenso
+    # Ofício (e os modelos externos): destinatário por extenso
     dest_tratamento: Mapped[str | None] = mapped_column(String(60))
     dest_nome: Mapped[str | None] = mapped_column(String(160))
     dest_cargo: Mapped[str | None] = mapped_column(String(160))
     dest_endereco: Mapped[str | None] = mapped_column(String(300))
-    # Memorando: setores de origem e destino
+    # Memorando (e os modelos internos): setores de origem e destino
     de: Mapped[str | None] = mapped_column(String(160))
     para: Mapped[str | None] = mapped_column(String(160))
     # Ofício: integração com o Planner de Ofícios (a emissão cadastra o ofício lá) e a classificação usada
@@ -699,6 +774,13 @@ class Documento(Base):
     arquivo_original_hash: Mapped[str | None] = mapped_column(String(64))
     arquivo_assinado: Mapped[str | None] = mapped_column(String(255))
     arquivo_assinado_hash: Mapped[str | None] = mapped_column(String(64))
+    # Formato do modelo na emissão (estrutura, numeração, recuo…): o documento não muda se o modelo mudar depois
+    formato: Mapped[dict | None] = mapped_column(JSON)
+    # Organização: fora do conteúdo (não entra no hash), muda a qualquer momento
+    pasta_id: Mapped[int | None] = mapped_column(ForeignKey("pastas_documento.id", ondelete="SET NULL"), index=True)
+    prazo: Mapped[date | None] = mapped_column(Date)  # data-limite; conta até o documento ser concluído
+    concluido_em: Mapped[datetime | None] = mapped_column(DateTime)
+    concluido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     emitido_em: Mapped[datetime | None] = mapped_column(DateTime)
     cancelado_em: Mapped[datetime | None] = mapped_column(DateTime)
     cancelado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
@@ -710,20 +792,30 @@ class Documento(Base):
     validador: Mapped[Usuario | None] = relationship(foreign_keys=[validador_id], lazy="joined")
     cancelado_por: Mapped[Usuario | None] = relationship(foreign_keys=[cancelado_por_id])
     oficio: Mapped[Oficio | None] = relationship(lazy="joined")
+    modelo: Mapped[ModeloDocumento] = relationship(lazy="joined")
+    pasta: Mapped[PastaDocumento | None] = relationship(lazy="joined")
+    concluido_por: Mapped[Usuario | None] = relationship(foreign_keys=[concluido_por_id])
     assinaturas: Mapped[list["AssinaturaDocumento"]] = relationship(
         back_populates="documento", cascade="all, delete-orphan", lazy="selectin", order_by="AssinaturaDocumento.id"
     )
+
+    def _do_formato(self, campo: str):
+        """O valor da emissão (`formato`) ou, no rascunho, o do modelo."""
+        return (self.formato or {}).get(campo, getattr(self.modelo, campo))
+
+    @property
+    def nome_tipo(self) -> str:
+        return self._do_formato("nome")
 
     @property
     def numero_formatado(self) -> str | None:
         if self.numero is None:
             return None
-        largura = 3 if self.tipo == TipoDocumento.OFICIO else 2
-        return f"{self.numero:0{largura}d}/{self.ano}"
+        return f"{self.numero:0{self._do_formato('digitos')}d}/{self.ano}"
 
     @property
     def titulo(self) -> str:
-        nome = "Ofício" if self.tipo == TipoDocumento.OFICIO else "Memorando"
+        nome = self.nome_tipo
         return f"{nome} nº {self.numero_formatado}" if self.numero is not None else f"{nome} (rascunho)"
 
 

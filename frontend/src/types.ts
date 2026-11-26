@@ -638,11 +638,60 @@ export interface Unidade {
 
 // ---------- Documentos (ofícios e memorandos redigidos no app) ----------
 
-export type TipoDocumento = "OFICIO" | "MEMORANDO";
+/** Código do modelo de documento: OFICIO, MEMORANDO ou um modelo cadastrado pela instituição */
+export type TipoDocumento = string;
 export type StatusDocumento = "RASCUNHO" | "EMITIDO" | "CANCELADO";
+/** Coluna do quadro (calculada a partir da situação, das assinaturas e da conclusão) */
+export type EtapaDocumento = "RASCUNHO" | "AGUARDANDO" | "ASSINADO" | "CONCLUIDO" | "CANCELADO";
+export type AlertaPrazo = "EM_DIA" | "ATENCAO" | "ATRASADO";
+/** EXTERNO: destinatário por extenso (ofício) · INTERNO: De e Para (memorando) · SIMPLES: só o título (declaração…) */
+export type EstruturaDocumento = "EXTERNO" | "INTERNO" | "SIMPLES";
 export type PapelAssinatura = "ELABORADOR" | "VALIDADOR";
-/** APP: senha no app (memorandos); GOVBR: no portal, com o PDF assinado enviado de volta (ofícios) */
+/** APP: senha no app; GOVBR: no portal, com o PDF assinado enviado de volta. O modelo sugere, o documento escolhe. */
 export type FormaAssinatura = "APP" | "GOVBR";
+
+/** Modelo de documento da instituição (o administrador do módulo cadastra) */
+export interface ModeloDocumento {
+  codigo: string;
+  nome: string;
+  descricao: string | null;
+  estrutura: EstruturaDocumento;
+  digitos: number;
+  recuo_cm: number;
+  forma_assinatura: FormaAssinatura;
+  mostrar_assunto: boolean;
+  data_no_fim: boolean;
+  rotulo_ident: string;
+  vocativo: string;
+  fecho: string;
+  texto_modelo: string;
+  sistema: boolean;
+  ativo: boolean;
+  /** Documentos feitos com o modelo (só para o administrador) */
+  em_uso: number;
+}
+export type ModeloEntrada = Omit<ModeloDocumento, "codigo" | "sistema" | "em_uso">;
+
+export interface PastaDocumento {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+  /** Documentos da pasta que quem consulta vê */
+  documentos: number;
+}
+
+/** Pasta e prazo: valem em qualquer etapa e não fazem parte do conteúdo */
+export interface OrganizacaoDocumento {
+  pasta_id: number | null;
+  pasta_nome: string | null;
+  prazo: string | null;
+  /** Só no documento em aberto (nem concluído nem cancelado) */
+  alerta_prazo: AlertaPrazo | null;
+  /** Dias até o prazo; negativo: atrasado */
+  dias_prazo: number | null;
+  concluido_em: string | null;
+}
 
 export interface Assinante {
   id: number;
@@ -661,10 +710,12 @@ export interface AssinaturaDocumento {
   cert_emissor: string | null;
 }
 
-export interface DocumentoResumo {
+export interface DocumentoResumo extends OrganizacaoDocumento {
   id: number;
   tipo: TipoDocumento;
+  tipo_nome: string;
   status: StatusDocumento;
+  etapa: EtapaDocumento;
   titulo: string;
   numero_formatado: string | null;
   assunto: string;
@@ -709,12 +760,28 @@ export interface CamposDocumento {
   validador_nome: string | null;
   validador_cargo: string | null;
   validador_ident: string | null;
+  /** App (senha) ou GOV.BR: o modelo sugere, cada documento escolhe até a emissão */
+  forma_assinatura: FormaAssinatura;
 }
 
-export interface Documento extends CamposDocumento {
+export interface Documento extends CamposDocumento, OrganizacaoDocumento {
   id: number;
   tipo: TipoDocumento;
+  tipo_nome: string;
+  /** O formato do documento: o da emissão ou, no rascunho, o do modelo hoje */
+  modelo: {
+    nome: string;
+    estrutura: EstruturaDocumento;
+    recuo_cm: number;
+    mostrar_assunto: boolean;
+    data_no_fim: boolean;
+    rotulo_ident: string;
+    marcacao: boolean;
+  };
+  /** O modelo é o ofício: pode ser registrado no Planner de Ofícios */
+  integra_planner: boolean;
   status: StatusDocumento;
+  etapa: EtapaDocumento;
   titulo: string;
   numero_formatado: string | null;
   data_documento: string | null;
@@ -725,7 +792,6 @@ export interface Documento extends CamposDocumento {
   elaborador_nome: string;
   codigo: string | null;
   hash_conteudo: string | null;
-  forma_assinatura: FormaAssinatura;
   emitido_em: string | null;
   cancelado_em: string | null;
   cancelado_por_nome: string | null;
@@ -739,6 +805,15 @@ export interface Documento extends CamposDocumento {
   pode_enviar_assinado: boolean;
   tem_assinado: boolean;
   pendencias: string[];
+  concluido_por_nome: string | null;
+  /** Pasta e prazo (quem elaborou ou o administrador) */
+  pode_organizar: boolean;
+  pode_concluir: boolean;
+  pode_reabrir: boolean;
+}
+
+export interface QuadroDocumentos {
+  colunas: { etapa: EtapaDocumento; total: number; itens: DocumentoResumo[] }[];
 }
 
 export interface Timbrado {

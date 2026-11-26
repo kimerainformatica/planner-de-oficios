@@ -1,16 +1,17 @@
-"""Ofícios e memorandos redigidos no app: numeração, travamento (hash), permissões e o PDF no modelo da unidade.
+"""Documentos redigidos no app: numeração, travamento (hash), permissões, etapas, prazos e o PDF no modelo da unidade.
 
-O PDF segue os modelos .docx da unidade (Ofício e Memorando modelo padrão):
+O PDF segue os modelos .docx da unidade (Ofício e Memorando modelo padrão), e os outros modelos da instituição
+seguem o mesmo padrão, mudando só o cabeçalho (`EstruturaDocumento`), a numeração e o recuo:
 - A4; margens de 3 cm nas laterais e 2,5 cm em cima e embaixo; timbrado no topo e marca-d'água em página inteira;
 - cabeçalho do documento (número, data, destinatário/De-Para, assunto) e blocos de assinatura em Arial 12;
 - corpo (vocativo, parágrafos e fecho) em Times New Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha
-  de 1,75 cm no ofício e 1,25 cm no memorando;
+  do modelo (1,75 cm no ofício, 1,25 cm no memorando);
 - páginas numeradas a partir da 2ª;
 - assinatura de quem elaborou e o "De acordo" de quem valida, com espaço para assinar à mão e, se houver, o
   carimbo da assinatura eletrônica feita no app.
 
-Assinatura eletrônica: memorando (interno) no app, com a senha; ofício (externo) no GOV.BR. No GOV.BR o PDF da emissão
-fica guardado e o arquivo assinado que volta do portal é conferido (`assinatura_govbr.py`).
+Assinatura eletrônica: cada documento escolhe (o modelo sugere) entre o app, com a senha, e o GOV.BR. No GOV.BR o PDF
+da emissão fica guardado e o arquivo assinado que volta do portal é conferido (`assinatura_govbr.py`).
 """
 
 import hashlib
@@ -37,27 +38,29 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, PageTemplate, Paragraph, Spacer, Table, TableStyle
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import (
+    TIPO_OFICIO,
+    AlertaPrazo,
     Documento,
+    EstruturaDocumento,
+    EtapaDocumento,
     FormaAssinatura,
     Modulo,
     Oficio,
     PapelAssinatura,
     StatusDocumento,
-    TipoDocumento,
     Usuario,
 )
+from app.services import modelos_documento as modelos
 from app.services.armazenamento import caminho_absoluto
 from app.services.assinatura_govbr import AssinaturaLida, normalizar_nome
 
 MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro",
          "novembro", "dezembro"]
-NOME_TIPO = {TipoDocumento.OFICIO: "Ofício", TipoDocumento.MEMORANDO: "Memorando"}
-FORMA_POR_TIPO = {TipoDocumento.OFICIO: FormaAssinatura.GOVBR, TipoDocumento.MEMORANDO: FormaAssinatura.APP}
 PARTES_TIMBRADO = ("cabecalho", "fundo")  # imagem do topo e marca-d'água de página inteira
 EXTENSOES_TIMBRADO = (".png", ".jpg", ".jpeg")
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O e 1/I: o código pode ser digitado à mão
@@ -73,6 +76,18 @@ def eh_admin(usuario: Usuario) -> bool:
 
 def pode_ver(doc: Documento, usuario: Usuario) -> bool:
     return doc.autor_id == usuario.id or doc.validador_id == usuario.id or eh_admin(usuario)
+
+
+def filtro_visiveis(usuario: Usuario):
+    """Os documentos que o usuário vê (o mesmo que `pode_ver`, para as consultas)."""
+    if eh_admin(usuario):
+        return Documento.id.is_not(None)
+    return or_(Documento.autor_id == usuario.id, Documento.validador_id == usuario.id)
+
+
+def pode_organizar(doc: Documento, usuario: Usuario) -> bool:
+    """Pasta, prazo e conclusão: quem elaborou ou o administrador."""
+    return doc.autor_id == usuario.id or eh_admin(usuario)
 
 
 def buscar(db: Session, documento_id: int, usuario: Usuario) -> Documento:
@@ -129,18 +144,56 @@ def papel_da_assinatura(doc: Documento, lida: AssinaturaLida) -> PapelAssinatura
     return None
 
 
+def etapa(doc: Documento) -> EtapaDocumento:
+    if doc.status == StatusDocumento.RASCUNHO:
+        return EtapaDocumento.RASCUNHO
+    if doc.status == StatusDocumento.CANCELADO:
+        return EtapaDocumento.CANCELADO
+    if doc.concluido_em is not None:
+        return EtapaDocumento.CONCLUIDO
+    return EtapaDocumento.AGUARDANDO if papeis_pendentes(doc) else EtapaDocumento.ASSINADO
+
+
+def em_aberto(doc: Documento) -> bool:
+    """O prazo conta enquanto o documento não for concluído nem cancelado (o rascunho também conta)."""
+    return doc.status != StatusDocumento.CANCELADO and doc.concluido_em is None
+
+
+def dias_para_o_prazo(doc: Documento, hoje: date) -> int | None:
+    """Dias até o prazo (negativo: atrasado), só para o documento em aberto."""
+    return (doc.prazo - hoje).days if doc.prazo is not None and em_aberto(doc) else None
+
+
+def alerta_prazo(doc: Documento, hoje: date, dias_atencao: int) -> AlertaPrazo | None:
+    falta = dias_para_o_prazo(doc, hoje)
+    if falta is None:
+        return None
+    if falta < 0:
+        return AlertaPrazo.ATRASADO
+    return AlertaPrazo.ATENCAO if falta <= dias_atencao else AlertaPrazo.EM_DIA
+
+
+def formato_de(doc: Documento) -> dict:
+    """O formato que vale para o documento: o copiado na emissão ou, no rascunho, o do modelo hoje."""
+    return doc.formato if doc.formato else modelos.formato(doc.modelo)
+
+
+def estrutura_de(doc: Documento) -> EstruturaDocumento:
+    return EstruturaDocumento(formato_de(doc)["estrutura"])
+
+
 def pendencias_para_emitir(doc: Documento) -> list[str]:
     faltas = []
     if not doc.assunto.strip():
         faltas.append("o assunto")
     if not doc.corpo.strip():
         faltas.append("o texto")
-    if doc.tipo == TipoDocumento.OFICIO:
-        if not (doc.dest_nome or "").strip():
-            faltas.append("o nome do destinatário")
-        if doc.registrar_no_planner and not doc.oficio_tipo:
-            faltas.append("o tipo de ofício (para o cadastro no Planner)")
-    else:
+    estrutura = estrutura_de(doc)
+    if estrutura == EstruturaDocumento.EXTERNO and not (doc.dest_nome or "").strip():
+        faltas.append("o nome do destinatário")
+    if doc.tipo == TIPO_OFICIO and doc.registrar_no_planner and not doc.oficio_tipo:
+        faltas.append("o tipo de ofício (para o cadastro no Planner)")
+    if estrutura == EstruturaDocumento.INTERNO:
         if not (doc.de or "").strip():
             faltas.append("o setor de origem (De)")
         if not (doc.para or "").strip():
@@ -157,11 +210,11 @@ def _numero_inicial(texto: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def proximo_numero(db: Session, tipo: TipoDocumento, autor_id: int, ano: int) -> int:
-    """Sequência por autor, tipo e ano. O ofício continua a numeração que o autor já usa no Planner."""
+def proximo_numero(db: Session, tipo: str, autor_id: int, ano: int) -> int:
+    """Sequência por autor, modelo e ano. O ofício continua a numeração que o autor já usa no Planner."""
     maior = db.scalar(select(func.max(Documento.numero)).where(
         Documento.tipo == tipo, Documento.autor_id == autor_id, Documento.ano == ano)) or 0
-    if tipo == TipoDocumento.OFICIO:
+    if tipo == TIPO_OFICIO:
         for numero in db.scalars(select(Oficio.numero).where(Oficio.dono_id == autor_id, Oficio.ano == ano)):
             maior = max(maior, _numero_inicial(numero) or 0)
     return maior + 1
@@ -186,7 +239,7 @@ def conteudo(doc: Documento) -> dict:
               "dest_endereco", "de", "para", "elaborador_nome", "elaborador_cargo", "elaborador_ident",
               "validador_nome", "validador_cargo", "validador_ident"]
     valores = {c: getattr(doc, c) for c in campos}
-    valores["tipo"] = doc.tipo.value
+    valores["tipo"] = doc.tipo
     valores["data_documento"] = doc.data_documento.isoformat() if doc.data_documento else None
     return valores
 
@@ -255,13 +308,15 @@ def data_por_extenso(d: date) -> str:
     return f"{d.day} de {MESES[d.month - 1]} de {d.year}"
 
 
-def local_e_data(tipo: TipoDocumento, d: date, settings: Settings) -> str:
-    """Ofício: "São Luís, 20 de novembro de 2026." Memorando: "São Luís - MA, 20 de novembro de 2026"."""
+def local_e_data(estrutura: EstruturaDocumento, d: date, settings: Settings) -> str:
+    """Externo (ofício): "São Luís, 20 de novembro de 2026." Interno (memorando): "São Luís - MA, 20 de novembro de
+    2026". Simples (declaração…): "São Luís - MA, 20 de novembro de 2026."."""
     cidade, uf = settings.documentos_cidade.strip(), settings.documentos_uf.strip()
-    if tipo == TipoDocumento.OFICIO:
+    if estrutura == EstruturaDocumento.EXTERNO:
         return f"{cidade}, {data_por_extenso(d)}." if cidade else f"{data_por_extenso(d)}."
     local = f"{cidade} - {uf}" if cidade and uf else cidade
-    return f"{local}, {data_por_extenso(d)}" if local else data_por_extenso(d)
+    texto = f"{local}, {data_por_extenso(d)}" if local else data_por_extenso(d)
+    return f"{texto}." if estrutura == EstruturaDocumento.SIMPLES else texto
 
 
 # ---------- timbrado ----------
@@ -314,17 +369,20 @@ MARGEM_LAT, MARGEM_INF = 3 * cm, 2.5 * cm
 
 
 class _Estilos:
-    def __init__(self, tipo: TipoDocumento):
+    def __init__(self, recuo_cm: float):
         f = _fontes()
         self.simples = ParagraphStyle("simples", fontName=f["arial"], fontSize=12, leading=14)
         self.cab = ParagraphStyle("cab", parent=self.simples, leading=18, alignment=TA_JUSTIFY)  # 1,5
         self.direita = ParagraphStyle("direita", parent=self.simples, alignment=TA_RIGHT)
         self.centro = ParagraphStyle("centro", parent=self.simples, alignment=TA_CENTER)
         self.centro_neg = ParagraphStyle("centro_neg", parent=self.centro, fontName=f["arial-b"])
+        self.titulo = ParagraphStyle("titulo", parent=self.centro_neg, leading=18)
         self.corpo = ParagraphStyle("corpo", fontName=f["times"], fontSize=12, leading=18, alignment=TA_JUSTIFY)
         self.fecho = ParagraphStyle("fecho", parent=self.corpo, alignment=TA_LEFT)
-        recuo = 1.75 if tipo == TipoDocumento.OFICIO else 1.25
-        self.paragrafo = ParagraphStyle("paragrafo", parent=self.corpo, firstLineIndent=recuo * cm)
+        self.paragrafo = ParagraphStyle("paragrafo", parent=self.corpo, firstLineIndent=recuo_cm * cm)
+        self.secao = ParagraphStyle("secao", parent=self.corpo, fontName=f["times-b"], alignment=TA_LEFT)
+        self.item = ParagraphStyle("item", parent=self.corpo, leftIndent=recuo_cm * cm + 0.5 * cm,
+                                   bulletIndent=recuo_cm * cm)
         self.carimbo = ParagraphStyle("carimbo", fontName=f["arial"], fontSize=7.5, leading=9.5, alignment=TA_CENTER,
                                       textColor=colors.HexColor("#0f5f57"))
 
@@ -352,50 +410,84 @@ def _bloco_assinatura(e: _Estilos, nome: str, cargo: str | None, ident: str | No
     if cargo:
         bloco.append(Paragraph(_t(cargo), e.centro))
     if ident:
-        bloco.append(Paragraph(_t(f"{ident_rotulo}{ident}"), e.centro))
+        bloco.append(Paragraph(_t(f"{ident_rotulo} {ident}".strip()), e.centro))
     return KeepTogether(bloco)
 
 
+def _corpo(e: _Estilos, corpo: str, marcacao: bool) -> list:
+    """Cada linha é um parágrafo. Com marcação, "# " abre um título de seção e "- " um item de lista."""
+    h: list = []
+    for linha in corpo.splitlines():
+        texto = linha.strip()
+        if not texto:
+            continue
+        if marcacao and texto.startswith("# ") and texto[2:].strip():
+            h += [Spacer(1, 6), Paragraph(_t(texto[2:].strip()), e.secao)]
+        elif marcacao and texto[:2] in ("- ", "• ") and texto[2:].strip():
+            h.append(Paragraph(_t(texto[2:].strip()), e.item, bulletText="•"))
+        else:
+            h.append(Paragraph(_t(texto), e.paragrafo))
+    return h
+
+
 def _historia(doc: Documento, settings: Settings, hoje: date) -> list:
-    e = _Estilos(doc.tipo)
-    oficio = doc.tipo == TipoDocumento.OFICIO
+    f = formato_de(doc)
+    estrutura = EstruturaDocumento(f["estrutura"])
+    e = _Estilos(float(f["recuo_cm"]))
+    externo = estrutura == EstruturaDocumento.EXTERNO
     data = doc.data_documento or hoje
     numero = doc.numero_formatado or f"___/{data.year}"
-    quando = local_e_data(doc.tipo, data, settings)
+    quando = local_e_data(estrutura, data, settings)
+    nome, data_no_topo = f["nome"], not f["data_no_fim"]
     h: list = []
-    if oficio:
-        h += [Paragraph(f"Ofício nº {_t(numero)}", e.simples), Spacer(1, 14),
-              Paragraph(_t(quando), e.direita), Spacer(1, 14)]
+    if externo:
+        h += [Paragraph(f"{_t(nome)} nº {_t(numero)}", e.simples), Spacer(1, 14)]
+        if data_no_topo:
+            h += [Paragraph(_t(quando), e.direita), Spacer(1, 14)]
         if doc.dest_tratamento:
             h.append(Paragraph(_t(doc.dest_tratamento), e.simples))
         h.append(Paragraph(f"<b>{_t(doc.dest_nome)}</b>", e.simples))
         h += [Paragraph(_t(linha), e.simples) for linha in (doc.dest_cargo, doc.dest_endereco) if linha]
-        h += [Spacer(1, 14), Paragraph(f"Assunto: <b>{_t(doc.assunto)}</b>", e.cab), Spacer(1, 18)]
-    else:
+        h.append(Spacer(1, 14))
+        if f["mostrar_assunto"]:
+            h.append(Paragraph(f"Assunto: <b>{_t(doc.assunto)}</b>", e.cab))
+        h.append(Spacer(1, 18))
+    elif estrutura == EstruturaDocumento.INTERNO:
         largura = (L - 2 * MARGEM_LAT) / 2
-        topo = Table([[Paragraph("<b>MEMORANDO</b>", e.simples),
+        topo = Table([[Paragraph(f"<b>{_t(nome.upper())}</b>", e.simples),
                        Paragraph(f"<b>NÚMERO Nº: {_t(numero)}</b>", e.direita)]], colWidths=[largura, largura])
         topo.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-        h += [topo, Spacer(1, 14), Paragraph(f"<b>{_t(quando)}</b>", e.direita), Spacer(1, 28),
-              Paragraph(f"<b>De:</b> {_t(doc.de)}", e.cab), Paragraph(f"<b>Para:</b> {_t(doc.para)}", e.cab),
-              Paragraph(f"<b>Assunto:</b> {_t(doc.assunto)}", e.cab), Spacer(1, 18)]
+        h += [topo, Spacer(1, 14)]
+        h += [Paragraph(f"<b>{_t(quando)}</b>", e.direita), Spacer(1, 28)] if data_no_topo else [Spacer(1, 14)]
+        h += [Paragraph(f"<b>De:</b> {_t(doc.de)}", e.cab), Paragraph(f"<b>Para:</b> {_t(doc.para)}", e.cab)]
+        if f["mostrar_assunto"]:
+            h.append(Paragraph(f"<b>Assunto:</b> {_t(doc.assunto)}", e.cab))
+        h.append(Spacer(1, 18))
+    else:  # simples: título centralizado, sem destinatário
+        h += [Paragraph(f"{_t(nome.upper())} Nº {_t(numero)}", e.titulo), Spacer(1, 18)]
+        if data_no_topo:
+            h += [Paragraph(_t(quando), e.direita), Spacer(1, 18)]
+        if f["mostrar_assunto"]:
+            h += [Paragraph(f"<b>Assunto:</b> {_t(doc.assunto)}", e.cab), Spacer(1, 18)]
     if doc.vocativo.strip():
         h.append(Paragraph(_t(doc.vocativo), e.corpo))
-        if not oficio:
+        if not externo:
             h.append(Spacer(1, 18))
-    h += [Paragraph(_t(p.strip()), e.paragrafo) for p in doc.corpo.splitlines() if p.strip()]
-    h.append(Spacer(1, 18 if oficio else 28))
+    h += _corpo(e, doc.corpo, bool(f.get("marcacao")))
+    h.append(Spacer(1, 18 if externo else 28))
+    if not data_no_topo:
+        h += [Paragraph(_t(quando), e.direita), Spacer(1, 18)]
     if doc.fecho.strip():
         h += [Paragraph(_t(doc.fecho), e.fecho), Spacer(1, 0.6 * cm)]
 
     feitas = {a.papel: a for a in doc.assinaturas}
-    rotulo_ident = "ID: nº " if oficio else "Matrícula "
+    rotulo_ident = f["rotulo_ident"]
     h.append(_bloco_assinatura(e, doc.elaborador_nome, doc.elaborador_cargo, doc.elaborador_ident, rotulo_ident,
                                feitas.get(PapelAssinatura.ELABORADOR)))
     if doc.validador_nome:
         h += [Spacer(1, 0.8 * cm),
               _bloco_assinatura(e, doc.validador_nome, doc.validador_cargo, doc.validador_ident, rotulo_ident,
-                                feitas.get(PapelAssinatura.VALIDADOR), rotulo="De acordo" if oficio else "De acordo:")]
+                                feitas.get(PapelAssinatura.VALIDADOR), rotulo="De acordo" if externo else "De acordo:")]
     return h
 
 
@@ -440,7 +532,7 @@ def _desenhar_pagina(doc: Documento, settings: Settings, url_verificacao: str | 
                 desenho.add(qr)
                 renderPDF.draw(desenho, c, MARGEM_LAT - 0.15 * cm, 0.55 * cm)
                 x += 1.6 * cm
-            linhas = [f"{NOME_TIPO[doc.tipo]} emitido pelo Planner de Ofícios em {doc.emitido_em:%d/%m/%Y às %H:%M}.",
+            linhas = [f"Documento emitido pelo Planner de Ofícios em {doc.emitido_em:%d/%m/%Y às %H:%M}.",
                       f"Código de verificação: {doc.codigo}"]
             if url_verificacao:
                 linhas.append(f"Confira a autenticidade em {url_verificacao}")

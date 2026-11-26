@@ -142,7 +142,7 @@ def test_de_acordo_assinatura_eletronica_e_visibilidade(api, ana, bruno, admin, 
     assert api.get("/api/documentos", headers=paulo).json()["total"] == 0
 
     api.post(f"/api/documentos/{doc['id']}/emitir", headers=ana)
-    assert api.get("/api/documentos/resumo", headers=bruno).json() == {"para_assinar": 1}
+    assert api.get("/api/documentos/resumo", headers=bruno).json()["para_assinar"] == 1
     pendentes = api.get("/api/documentos", params={"escopo": "assinar"}, headers=bruno).json()["itens"]
     assert [d["minha_assinatura_pendente"] for d in pendentes] == [True]
 
@@ -157,7 +157,7 @@ def test_de_acordo_assinatura_eletronica_e_visibilidade(api, ana, bruno, admin, 
                     headers=admin).status_code == 409  # o admin vê, mas não assina por ninguém
     r = api.post(f"/api/documentos/{doc['id']}/assinar", json={"senha": "senha-ana"}, headers=ana).json()
     assert {a["papel"] for a in r["assinaturas"]} == {"ELABORADOR", "VALIDADOR"} and r["assinar_como"] is None
-    assert api.get("/api/documentos/resumo", headers=bruno).json() == {"para_assinar": 0}
+    assert api.get("/api/documentos/resumo", headers=bruno).json()["para_assinar"] == 0
     pdf = api.get(f"/api/documentos/{doc['id']}/pdf", params={"bruto": True}, headers=ana)
     assert pdf.headers["content-type"] == "application/octet-stream" and pdf.content.startswith(b"%PDF")
 

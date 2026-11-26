@@ -10,6 +10,8 @@ import { Arquivos } from "./pages/Arquivos";
 import { Atividades } from "./pages/Atividades";
 import { Documento } from "./pages/documentos/Documento";
 import { Documentos } from "./pages/documentos/Documentos";
+import { Modelos } from "./pages/documentos/Modelos";
+import { Pastas } from "./pages/documentos/Pastas";
 import { Timbrado } from "./pages/documentos/Timbrado";
 import { Verificar } from "./pages/documentos/Verificar";
 import { Exclusoes } from "./pages/Exclusoes";
@@ -92,12 +94,14 @@ export function App() {
           </Route>
         </Route>
 
-        {/* Módulo Documentos (ofícios e memorandos no modelo da unidade; integrado ao Planner) */}
+        {/* Módulo Documentos (planner dos documentos da instituição; o ofício se integra ao Planner) */}
         <Route element={<ComAcesso modulo="DOCUMENTOS" />}>
           <Route path="documentos" element={<LayoutDocumentos />}>
             <Route index element={<Documentos />} />
             <Route path=":id" element={<Documento />} />
             <Route element={<SoAdminDe modulo="DOCUMENTOS" volta="/documentos" />}>
+              <Route path="modelos" element={<Modelos />} />
+              <Route path="pastas" element={<Pastas />} />
               <Route path="timbrado" element={<Timbrado />} />
             </Route>
             <Route path="*" element={<Navigate to="/documentos" replace />} />

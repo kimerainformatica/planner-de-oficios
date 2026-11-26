@@ -124,6 +124,7 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 
 | Ramo | Versão | Módulos | Visual | Situação |
 |---|---|---|---|---|
+| `feature/2.4-planner-de-documentos` | 2.4 | Planner de Ofícios + Manutenções Integradas + Documentos (planner de documentos) | "Correnteza" | Em homologação; parte da 2.3 |
 | `feature/2.3-controle-de-tetos` | 2.3 | Planner de Ofícios + Manutenções Integradas + Documentos | "Correnteza" | Em homologação; parte da 2.2 |
 | `feature/2.2-preventivas-prazos-diagnostico` | 2.2 | Planner de Ofícios + Manutenção Clínica, com preventivas | "Correnteza" | Em homologação; parte da 2.0 |
 | `feature/modulos-manutencao-clinica` | 2.0 | Planner de Ofícios + Manutenção Clínica | "Correnteza" | Em homologação ([pull request #1](https://github.com/kimerainformatica/planner-de-oficios/pull/1)) |
@@ -144,8 +145,11 @@ O passo a passo completo, com rede, firewall e o MySQL portátil sem administrad
 - **Módulo Documentos (2.3):** ofícios e memorandos redigidos no app, no modelo da unidade (timbrado, Times New Roman
   12 no corpo, recuos do modelo), com número automático, código de verificação com QR code, assinatura à mão ou
   eletrônica (memorando no app; ofício pelo GOV.BR, com conferência do certificado) e verificação pública. Integrado ao Planner: o ofício emitido pode entrar lá com os prazos.
-- **Banco:** migrações 0011 a 0019.
-- **Testes:** 140 testes da API.
+- **Planner de documentos (2.4):** os modelos que a instituição já usa (declaração, relatório, ata, termo…) são
+  cadastrados pelo administrador, com prévia em PDF; cada documento escolhe a assinatura (app ou GOV.BR); pastas,
+  prazos com alerta, etapas e quadro (rascunho, aguardando assinatura, assinado, concluído, cancelado).
+- **Banco:** migrações 0011 a 0020.
+- **Testes:** 147 testes da API.
 
 A 2.0 entra no `main` depois da homologação. O `visual-classico` recebe a versão depois disso. O que mudou e como
 aplicar no servidor está em [docs/ATUALIZACOES.md](docs/ATUALIZACOES.md).
@@ -178,7 +182,7 @@ restaurar o backup do banco.
 ```
 backend/              API FastAPI (também serve frontend/dist)
   app/                models, schemas, routers, services
-  alembic/            migrações do banco (0001 … 0019)
+  alembic/            migrações do banco (0001 … 0020)
   scripts/            inicializar.py (1º admin + feriados), definir_perfil.py
   tests/              testes da API (pytest, SQLite em memória)
   tests_e2e/          testes de tela (Playwright)
@@ -193,7 +197,7 @@ docker-compose.yml    MySQL 8.4 isolado (alternativa com Docker)
 
 ```powershell
 cd backend
-.venv\Scripts\python -m pytest              # API: 140 testes, não precisam do MySQL
+.venv\Scripts\python -m pytest              # API: 147 testes, não precisam do MySQL
 .venv\Scripts\python -m pytest tests_e2e    # telas: 9 fluxos no Edge (compile o front antes)
 ```
 

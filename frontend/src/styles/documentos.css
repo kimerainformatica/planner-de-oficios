@@ -1,7 +1,14 @@
-/* ================= Documentos (ofícios e memorandos redigidos no app) ================= */
+/* ================= Documentos (planner dos documentos redigidos no app) ================= */
 
 .abas-documentos {
   margin-bottom: 14px;
+}
+/* três abas: Todos, Elaborados por mim, Para assinar (a pílula ocupa um terço) */
+.abas-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.abas-3::before {
+  width: calc((100% - 10px) / 3);
 }
 .selo-assinar {
   margin-left: 8px;
@@ -293,4 +300,279 @@
 .passos-govbr li > span {
   display: block;
   margin-bottom: 6px;
+}
+
+/* ================= Planner de documentos (2.4): visões, quadro, modelos, pastas e prazos ================= */
+
+/* lista | quadro */
+.alternar-visao {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  background: var(--superficie);
+}
+.alternar-visao button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--texto-suave);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.alternar-visao button.ativo {
+  background: var(--primaria-suave);
+  color: var(--primaria);
+}
+.alternar-visao button:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* quadro por etapa */
+.quadro-documentos {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+.coluna-quadro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--borda);
+  border-top: 4px solid var(--borda-forte);
+  border-radius: var(--raio-m);
+  background: var(--superficie-2);
+  scroll-snap-align: start;
+}
+.coluna-AGUARDANDO {
+  border-top-color: var(--atencao-forte);
+}
+.coluna-ASSINADO {
+  border-top-color: var(--normal-forte);
+}
+.coluna-CONCLUIDO {
+  border-top-color: var(--confirmado);
+}
+.coluna-CANCELADO {
+  border-top-color: var(--critico-forte);
+}
+.coluna-quadro-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.coluna-quadro-topo h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.contador-coluna {
+  min-width: 26px;
+  padding: 1px 8px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  background: var(--superficie);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+.coluna-quadro-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coluna-vazia {
+  margin: 4px 0;
+  font-size: 0.88rem;
+}
+.cartao-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-left: 4px solid transparent;
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  color: var(--texto);
+  text-decoration: none;
+  transition: box-shadow 0.15s var(--suave), transform 0.15s var(--suave);
+}
+.cartao-doc:hover {
+  box-shadow: var(--sombra-media);
+  transform: translateY(-1px);
+}
+.cartao-doc:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+.cartao-doc.prazo-ATRASADO {
+  border-left-color: var(--critico-forte);
+}
+.cartao-doc.prazo-ATENCAO {
+  border-left-color: var(--atencao-forte);
+}
+.cartao-doc-titulo {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.cartao-doc-assunto {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  color: var(--texto-suave);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+.cartao-doc-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cartao-doc {
+    transition: none;
+  }
+  .cartao-doc:hover {
+    transform: none;
+  }
+}
+
+/* etapa concluída, pasta e selo do sistema */
+.selo-doc-CONCLUIDO {
+  color: var(--confirmado);
+  background: var(--confirmado-fundo);
+  border-color: var(--normal-borda);
+}
+.selo-doc svg {
+  flex: none;
+}
+.etiqueta-pasta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  background: var(--superficie-2);
+  color: var(--marca-azul);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bloco-etiqueta {
+  display: block;
+  margin-top: 4px;
+}
+.selo-sistema {
+  margin-left: 8px;
+}
+
+/* escolha do modelo (novo documento) */
+.lista-modelos {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 12px;
+}
+.cartao-modelo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cartao-modelo:hover:not(:disabled) {
+  border-color: var(--primaria);
+  background: var(--primaria-suave);
+}
+.cartao-modelo:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+.cartao-modelo:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* forma de assinatura e cabeçalho do modelo: opções em cartão */
+.opcoes-forma {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.opcoes-forma legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 600;
+}
+.opcao-forma {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+  cursor: pointer;
+}
+.opcao-forma.ativa {
+  border-color: var(--primaria);
+  background: var(--primaria-suave);
+}
+.opcao-forma input {
+  margin-top: 3px;
+  accent-color: var(--primaria);
+}
+.opcao-forma span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.opcoes-forma:disabled .opcao-forma {
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* cadastro do modelo: janela mais larga */
+.modal:has(.form-modelo) {
+  width: min(860px, 100%);
+}
+.opcoes-modelo {
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+@media (max-width: 560px) {
+  .quadro-documentos {
+    grid-auto-columns: 86%;
+  }
+  .alternar-visao button {
+    padding: 6px 10px;
+  }
 }

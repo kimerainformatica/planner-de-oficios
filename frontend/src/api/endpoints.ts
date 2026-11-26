@@ -42,8 +42,8 @@ import type {
   Avisos, FiltrosPreventiva, PaginaPreventivas, PlanoPreventiva, Preventiva, Unidade,
 } from "../types";
 import type {
-  Assinante, CamposDocumento, Documento, PaginaDocumentos, StatusDocumento, Timbrado, TipoDocumento,
-  VerificacaoDocumento,
+  Assinante, CamposDocumento, Documento, EtapaDocumento, ModeloDocumento, ModeloEntrada, PaginaDocumentos,
+  PastaDocumento, QuadroDocumentos, StatusDocumento, Timbrado, TipoDocumento, VerificacaoDocumento,
 } from "../types";
 import { api, requisicao } from "./client";
 
@@ -448,17 +448,53 @@ export async function baixarEvidenciaPreventiva(p: Preventiva): Promise<Blob> {
   return new Blob([await resposta.arrayBuffer()], { type: p.arquivo_mime ?? "application/octet-stream" });
 }
 
-// ---------- Documentos (ofícios e memorandos redigidos no app) ----------
+// ---------- Documentos (planner dos documentos redigidos no app) ----------
 
-export const listarDocumentos = (params: {
-  escopo?: "meus" | "assinar" | "todos"; tipo?: TipoDocumento; status?: StatusDocumento; busca?: string;
-  pagina?: number;
+/** Filtros comuns à lista e ao quadro. prazo: com_prazo, alerta (vencidos ou vencendo) ou atrasados. */
+export type FiltrosDocumentos = {
+  escopo?: "meus" | "assinar" | "todos";
+  tipo?: TipoDocumento;
+  status?: StatusDocumento;
+  etapa?: EtapaDocumento;
+  /** 0: sem pasta */
+  pasta_id?: number;
+  prazo?: "com_prazo" | "alerta" | "atrasados";
+  busca?: string;
+};
+
+export const listarDocumentos = (params: FiltrosDocumentos & {
+  ordem?: "recentes" | "prazo"; pagina?: number;
 } = {}) => api<PaginaDocumentos>("/documentos", { params });
-export const resumoDocumentos = () => api<{ para_assinar: number }>("/documentos/resumo");
+export const quadroDocumentos = (params: FiltrosDocumentos = {}) =>
+  api<QuadroDocumentos>("/documentos/quadro", { params });
+export const resumoDocumentos = () => api<{ para_assinar: number; prazos: number }>("/documentos/resumo");
 export const listarAssinantes = () => api<Assinante[]>("/documentos/assinantes");
 export const obterDocumento = (id: number) => api<Documento>(`/documentos/${id}`);
-export const criarDocumento = (tipo: TipoDocumento) =>
-  api<Documento>("/documentos", { method: "POST", body: json({ tipo }) });
+export const criarDocumento = (tipo: TipoDocumento, extra: { pasta_id?: number; prazo?: string } = {}) =>
+  api<Documento>("/documentos", { method: "POST", body: json({ tipo, ...extra }) });
+export const organizarDocumento = (id: number, dados: { pasta_id?: number | null; prazo?: string | null }) =>
+  api<Documento>(`/documentos/${id}/organizacao`, { method: "PATCH", body: json(dados) });
+export const concluirDocumento = (id: number) => api<Documento>(`/documentos/${id}/concluir`, { method: "POST" });
+export const reabrirDocumento = (id: number) => api<Documento>(`/documentos/${id}/reabrir`, { method: "POST" });
+
+// modelos de documento e pastas (o administrador do módulo cadastra)
+export const listarModelos = () => api<ModeloDocumento[]>("/documentos/modelos");
+export const criarModelo = (dados: ModeloEntrada) =>
+  api<ModeloDocumento>("/documentos/modelos", { method: "POST", body: json(dados) });
+export const atualizarModelo = (codigo: string, dados: Partial<ModeloEntrada>) =>
+  api<ModeloDocumento>(`/documentos/modelos/${codigo}`, { method: "PATCH", body: json(dados) });
+export const excluirModelo = (codigo: string) => api<void>(`/documentos/modelos/${codigo}`, { method: "DELETE" });
+/** PDF de exemplo do modelo, sem salvar nada. */
+export async function previaModelo(dados: ModeloEntrada): Promise<Blob> {
+  const resposta = await requisicao("/documentos/modelos/previa", { method: "POST", body: json(dados) });
+  return new Blob([await resposta.arrayBuffer()], { type: "application/pdf" });
+}
+export const listarPastas = () => api<PastaDocumento[]>("/documentos/pastas");
+export const criarPasta = (dados: { nome: string; descricao?: string | null }) =>
+  api<PastaDocumento>("/documentos/pastas", { method: "POST", body: json(dados) });
+export const atualizarPasta = (id: number, dados: { nome?: string; descricao?: string | null; ativo?: boolean }) =>
+  api<PastaDocumento>(`/documentos/pastas/${id}`, { method: "PATCH", body: json(dados) });
+export const excluirPasta = (id: number) => api<void>(`/documentos/pastas/${id}`, { method: "DELETE" });
 export const salvarDocumento = (id: number, dados: Partial<CamposDocumento>) =>
   api<Documento>(`/documentos/${id}`, { method: "PATCH", body: json(dados) });
 export const descartarDocumento = (id: number) => api<void>(`/documentos/${id}`, { method: "DELETE" });
