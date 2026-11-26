@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     documentos_cidade: str = ""
     documentos_uf: str = ""
     documentos_url_publica: str = ""
+    documentos_dias_atencao: int = 3  # prazo dos documentos: "em atenção" a partir de N dias antes de vencer
     # Cadeia de certificados aceita nos ofícios assinados pelo GOV.BR
     certificados_dir: Path = BASE_DIR / "certificados"
 

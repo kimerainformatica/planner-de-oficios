@@ -357,18 +357,26 @@ padrão, e um botão mostra todos.
   cancelar o pedido enquanto ele estiver pendente.
 - Excluir apaga o ofício, os documentos e as versões da lixeira. O registro da exclusão continua em **Atividades**.
 
-## Documentos gerados (ofícios e memorandos)
+## Documentos gerados (planner de documentos)
 
 - **Modelo:** o PDF segue os modelos da unidade. Cabeçalho do documento e assinaturas em Arial 12; corpo em Times New
-  Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha de 1,75 cm (ofício) ou 1,25 cm (memorando); margens de
-  3 cm nas laterais e 2,5 cm em cima e embaixo; páginas numeradas a partir da 2ª.
+  Roman 12, justificado, espaçamento 1,5, recuo na 1ª linha do modelo (1,75 cm no ofício, 1,25 cm no memorando);
+  margens de 3 cm nas laterais e 2,5 cm em cima e embaixo; páginas numeradas a partir da 2ª.
+- **Modelos de documento:** cadastrados pelo administrador do módulo. O cabeçalho é *externo* (destinatário por
+  extenso), *interno* (De e Para) ou *simples* (só o título). O ofício e o memorando vêm com o sistema e mantêm a
+  estrutura e a numeração; não se apagam nem se desativam. Um modelo usado não se apaga (desativa-se); desativado, não
+  começa documento novo nem cópia. Na emissão, o formato do modelo (nome, estrutura, numeração, recuo, assunto, data,
+  rótulo da matrícula) é copiado para o documento: mudar o modelo depois não muda os emitidos. Os emitidos antes da
+  2.4 guardam o formato com que saíram, sem a marcação de seções e listas.
+- **Marcação no texto:** nos documentos novos, uma linha que começa com `# ` é título de seção (negrito, sem recuo) e
+  com `- `, item de lista.
 - **Situações:** *rascunho* (só quem elaborou edita; sem número; o PDF sai marcado "RASCUNHO") → *emitido* (número,
   data, código e hash; nada mais muda) → *cancelado* (com motivo; o PDF sai marcado "CANCELADO").
-- **Numeração:** sequencial por pessoa, tipo e ano, dada só na emissão (rascunho descartado não abre buraco). O
+- **Numeração:** sequencial por pessoa, modelo e ano, dada só na emissão (rascunho descartado não abre buraco). O
   ofício continua a numeração que a pessoa já usa no Planner (o maior número do ano + 1, no formato `012/2026`); o
   memorando tem a sua (`07/2026`).
-- **Para emitir:** assunto e texto; no ofício, o nome do destinatário (e o tipo de ofício, se for registrado no
-  Planner); no memorando, De e Para;
+- **Para emitir:** assunto e texto; nos modelos externos, o nome do destinatário (e, no ofício, o tipo de ofício, se
+  for registrado no Planner); nos internos, De e Para;
   o cargo de quem elaborou e, havendo De acordo, o cargo de quem valida.
 - **Módulo e papéis:** *Redator* redige, emite e assina os seus; *Administrador* também vê todos, cancela e cuida do
   timbrado. O De acordo só pode ser dado por quem tem o módulo.
@@ -376,8 +384,16 @@ padrão, e um botão mostra todos.
   usa), a emissão cadastra o ofício em nome de quem elaborou, como pendente de resposta, na data de hoje, com o tipo
   (obrigatório) e o destinatário informados. Cancelar o documento não exclui o ofício do Planner. Quem acompanha o
   ofício no Planner baixa o PDF do documento por lá, mesmo sem o módulo.
-- **Assinaturas:** o espaço para assinar à mão sempre sai. A forma eletrônica depende do tipo: memorando
-  (interno) no app, ofício (externo) no GOV.BR. Os emitidos antes desta regra continuam com a assinatura do app.
+- **Assinaturas:** o espaço para assinar à mão sempre sai. A forma eletrônica (app ou GOV.BR) é escolhida em cada
+  documento até a emissão; o modelo só sugere (ofício: GOV.BR; memorando: app). Depois de emitido, não muda.
+- **Etapas:** *Rascunho*; *Aguardando assinatura* (emitido, falta assinatura eletrônica de quem elaborou ou do De
+  acordo); *Assinado* (todas as assinaturas eletrônicas previstas); *Concluído* (marcado por quem elaborou ou pelo
+  administrador; sai de *Para assinar*, mesmo sem a assinatura eletrônica, que pode ter sido à mão); *Cancelado*.
+- **Pasta e prazo:** organizam o trabalho e não fazem parte do conteúdo (não entram no hash). Mudam em qualquer etapa,
+  por quem elaborou ou pelo administrador. O prazo conta até o documento ser concluído ou cancelado (o rascunho também
+  conta): *em atenção* a partir de `DOCUMENTOS_DIAS_ATENCAO` dias antes (padrão 3) e no dia, *atrasado* depois. Uma pasta
+  desativada some da escolha, mas os documentos dela continuam nela; apagada, eles ficam sem pasta. A pasta não muda
+  quem vê o documento.
 - **Assinatura no app:** por quem elaborou e por quem dá o De acordo (se for usuário do sistema), confirmando a senha (as
   regras de bloqueio do login valem aqui). Fica registrado quem, quando e de qual computador. Um administrador vê, mas
   não assina por ninguém.

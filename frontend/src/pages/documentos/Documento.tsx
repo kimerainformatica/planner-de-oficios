@@ -1,25 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, BadgeCheck, Ban, Copy, Download, ExternalLink, FileCheck2, Hourglass, RefreshCw, Signature, Trash2, Upload,
+  ArrowLeft, BadgeCheck, Ban, CircleCheckBig, Copy, Download, ExternalLink, FileCheck2, Hourglass, RefreshCw, RotateCcw,
+  Signature, Trash2, Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  assinarDocumento, cancelarDocumento, descartarDocumento, duplicarDocumento, emitirDocumento, enviarAssinado,
-  listarAssinantes, listarTipos, obterDocumento, pdfAssinado, pdfDocumento, salvarDocumento,
+  assinarDocumento, cancelarDocumento, concluirDocumento, descartarDocumento, duplicarDocumento, emitirDocumento,
+  enviarAssinado, listarAssinantes, listarTipos, obterDocumento, pdfAssinado, pdfDocumento, reabrirDocumento,
+  salvarDocumento,
 } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthContext";
 import { useToast } from "../../components/Toast";
 import { Botao, Campo, Carregando, ErroBox, Modal } from "../../components/ui";
-import type { CamposDocumento, Destinatario, Documento as Doc, PapelAssinatura } from "../../types";
+import type { CamposDocumento, Destinatario, Documento as Doc, FormaAssinatura, PapelAssinatura } from "../../types";
 import { salvarArquivo } from "../../utils/arquivo";
 import { data, dataHora, ROTULO_DESTINATARIO } from "../../utils/formato";
-import { abrirEmNovaAba, NOME_TIPO_DOC, SeloDocumento, URL_ASSINADOR, URL_VALIDADOR } from "./comum";
+import { abrirEmNovaAba, CartaoOrganizacao, ROTULO_FORMA, SeloEtapa, URL_ASSINADOR, URL_VALIDADOR } from "./comum";
 
 const CAMPOS: (keyof CamposDocumento)[] = [
   "assunto", "vocativo", "corpo", "fecho", "dest_tratamento", "dest_nome", "dest_cargo", "dest_endereco", "de", "para",
   "registrar_no_planner", "oficio_tipo", "destinatario_tipo", "destinatario_setor", "elaborador_cargo", "elaborador_ident", "validador_id",
-  "validador_nome", "validador_cargo", "validador_ident",
+  "validador_nome", "validador_cargo", "validador_ident", "forma_assinatura",
 ];
 
 function camposDe(d: Doc): CamposDocumento {
@@ -70,13 +72,14 @@ function Editor({ doc }: { doc: Doc }) {
   const qc = useQueryClient();
   const avisar = useToast();
   const navegar = useNavigate();
-  const oficio = doc.tipo === "OFICIO";
+  const estrutura = doc.modelo.estrutura;
+  const externo = estrutura === "EXTERNO";
   const [f, setF] = useState<CamposDocumento>(() => camposDe(doc));
   const salvo = useRef(JSON.stringify(camposDe(doc)));
   const [versaoPrevia, setVersaoPrevia] = useState(0);
   const [emitindo, setEmitindo] = useState(false);
   const [descartando, setDescartando] = useState(false);
-  const tipos = useQuery({ queryKey: ["tipos"], queryFn: listarTipos, enabled: oficio && doc.usa_planner });
+  const tipos = useQuery({ queryKey: ["tipos"], queryFn: listarTipos, enabled: doc.integra_planner && doc.usa_planner });
   const assinantes = useQuery({ queryKey: ["assinantes"], queryFn: listarAssinantes });
 
   const salvar = useMutation({
@@ -132,7 +135,7 @@ function Editor({ doc }: { doc: Doc }) {
       <header className="pagina-topo">
         <div>
           <Link to="/documentos" className="voltar"><ArrowLeft size={16} /> Documentos</Link>
-          <h1>{NOME_TIPO_DOC[doc.tipo]} <SeloDocumento status="RASCUNHO" /></h1>
+          <h1>{doc.tipo_nome} <SeloEtapa etapa="RASCUNHO" /></h1>
           <p className="texto-suave" aria-live="polite">
             {salvar.isPending ? "Salvando…" : pendente ? "Alterações ainda não salvas" : `Rascunho salvo · ${dataHora(atual.atualizado_em)}`}
             {" · "}O número e a data saem na emissão.
@@ -149,7 +152,7 @@ function Editor({ doc }: { doc: Doc }) {
 
       <div className="documento-grade">
         <form className="formulario documento-form" onSubmit={(e: FormEvent) => { e.preventDefault(); salvarAgora(); }}>
-          {oficio ? (
+          {externo && (
             <section className="cartao">
               <h2 className="titulo-secao">Destinatário</h2>
               <div className="grade-2">
@@ -170,6 +173,7 @@ function Editor({ doc }: { doc: Doc }) {
                     onChange={(e) => muda("dest_endereco")(e.target.value)} />}
                 </Campo>
               </div>
+              {doc.integra_planner && (<>
               <h3 className="subtitulo-secao">Integração com o Planner de Ofícios</h3>
               <label className="checkbox">
                 <input type="checkbox" checked={f.registrar_no_planner} disabled={!doc.usa_planner}
@@ -209,8 +213,10 @@ function Editor({ doc }: { doc: Doc }) {
                   </Campo>
                 )}
               </div>}
+              </>)}
             </section>
-          ) : (
+          )}
+          {estrutura === "INTERNO" && (
             <section className="cartao">
               <h2 className="titulo-secao">Setores</h2>
               <div className="grade-2">
@@ -228,14 +234,16 @@ function Editor({ doc }: { doc: Doc }) {
 
           <section className="cartao">
             <h2 className="titulo-secao">Texto</h2>
-            <Campo rotulo="Assunto *" dica={oficio ? "Sai em negrito, depois de “Assunto:”." : undefined}>
+            <Campo rotulo="Assunto *" dica={!doc.modelo.mostrar_assunto
+              ? "Este modelo não imprime o assunto: ele serve para achar o documento nas listas."
+              : externo ? "Sai em negrito, depois de “Assunto:”." : undefined}>
               {(i) => <input id={i} className="input" maxLength={300} value={f.assunto} onChange={(e) => muda("assunto")(e.target.value)} />}
             </Campo>
             <Campo rotulo="Vocativo">
               {(i) => <input id={i} className="input" maxLength={160} value={f.vocativo} onChange={(e) => muda("vocativo")(e.target.value)} />}
             </Campo>
             <Campo rotulo="Corpo do texto *"
-              dica={`Cada linha vira um parágrafo, em Times New Roman 12, justificado, com recuo de ${oficio ? "1,75" : "1,25"} cm. Linguagem direta, frases curtas, sem negrito, sublinhado ou exclamação.`}>
+              dica={`Cada linha vira um parágrafo, em Times New Roman 12, justificado, com recuo de ${doc.modelo.recuo_cm.toLocaleString("pt-BR")} cm. Uma linha que começa com “# ” vira título de seção, e com “- ”, item de lista. Linguagem direta, frases curtas, sem negrito, sublinhado ou exclamação.`}>
               {(i) => <textarea id={i} className="input texto-documento" rows={12} maxLength={30000} value={f.corpo}
                 onChange={(e) => muda("corpo")(e.target.value)} />}
             </Campo>
@@ -246,8 +254,22 @@ function Editor({ doc }: { doc: Doc }) {
 
           <section className="cartao">
             <h2 className="titulo-secao">Assinaturas</h2>
+            <div className="opcoes-forma" role="radiogroup" aria-label="Assinatura eletrônica">
+              {(["APP", "GOVBR"] as FormaAssinatura[]).map((forma) => (
+                <label key={forma} className={`opcao-forma ${f.forma_assinatura === forma ? "ativa" : ""}`}>
+                  <input type="radio" name="forma-assinatura" checked={f.forma_assinatura === forma}
+                    onChange={() => muda("forma_assinatura")(forma)} />
+                  <span>
+                    <strong>{ROTULO_FORMA[forma]}</strong>
+                    <small className="texto-suave">{forma === "GOVBR"
+                      ? "Com o certificado do governo (conta prata ou ouro): vale fora da unidade e se confere em validar.iti.gov.br."
+                      : "Confirmando a senha do app: para o uso interno."}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
             <p className="texto-suave">
-              {doc.forma_assinatura === "GOVBR"
+              {f.forma_assinatura === "GOVBR"
                 ? "O PDF sai com o espaço para assinar à mão. Para assinar pela internet, depois de emitir, cada pessoa assina o PDF no portal GOV.BR (conta prata ou ouro) e envia o arquivo de volta aqui. Use uma forma só: à mão ou GOV.BR."
                 : "O PDF sai com o espaço para assinar à mão. Depois de emitido, cada pessoa também pode assinar aqui no app, com a senha: a assinatura eletrônica aparece no lugar da assinatura à mão."}
             </p>
@@ -258,7 +280,7 @@ function Editor({ doc }: { doc: Doc }) {
                 {(i) => <input id={i} className="input" maxLength={120} value={f.elaborador_cargo ?? ""}
                   onChange={(e) => muda("elaborador_cargo")(e.target.value)} />}
               </Campo>
-              <Campo rotulo={oficio ? "ID" : "Matrícula"}>
+              <Campo rotulo={doc.modelo.rotulo_ident || "Matrícula"}>
                 {(i) => <input id={i} className="input" maxLength={30} value={f.elaborador_ident ?? ""}
                   onChange={(e) => muda("elaborador_ident")(e.target.value)} />}
               </Campo>
@@ -279,7 +301,7 @@ function Editor({ doc }: { doc: Doc }) {
                   <option value="">Sem “De acordo”</option>
                   {assinantes.data?.map((p) => <option key={p.id} value={p.id}>{p.nome}{p.cargo ? ` · ${p.cargo}` : ""}</option>)}
                   <option value="outra">
-                    {doc.forma_assinatura === "GOVBR" ? "Outra pessoa (GOV.BR ou à mão)" : "Outra pessoa (só assinatura à mão)"}
+                    {f.forma_assinatura === "GOVBR" ? "Outra pessoa (GOV.BR ou à mão)" : "Outra pessoa (só assinatura à mão)"}
                   </option>
                 </select>
               )}
@@ -294,13 +316,15 @@ function Editor({ doc }: { doc: Doc }) {
                   {(i) => <input id={i} className="input" maxLength={120} value={f.validador_cargo ?? ""}
                     onChange={(e) => muda("validador_cargo")(e.target.value)} />}
                 </Campo>
-                <Campo rotulo={oficio ? "ID" : "Matrícula"}>
+                <Campo rotulo={doc.modelo.rotulo_ident || "Matrícula"}>
                   {(i) => <input id={i} className="input" maxLength={30} value={f.validador_ident ?? ""}
                     onChange={(e) => muda("validador_ident")(e.target.value)} />}
                 </Campo>
               </div>
             )}
           </section>
+
+          <CartaoOrganizacao doc={atual} aoMudar={(d) => qc.setQueryData(["documento", d.id], d)} />
 
           {pendencias.length > 0 && !pendente && (
             <div className="alerta-info" role="status">Para emitir, falta preencher {pendencias.join(", ")}.</div>
@@ -347,9 +371,8 @@ function Editor({ doc }: { doc: Doc }) {
 
 function ModalEmitir({ doc, aoFechar, aoEmitir }: { doc: Doc; aoFechar: () => void; aoEmitir: (d: Doc) => void }) {
   const emitir = useMutation({ mutationFn: () => emitirDocumento(doc.id), onSuccess: (d) => { aoEmitir(d); aoFechar(); } });
-  const oficio = doc.tipo === "OFICIO";
   return (
-    <Modal titulo={`Emitir o ${oficio ? "ofício" : "memorando"}`} aoFechar={aoFechar}>
+    <Modal titulo={`Emitir: ${doc.tipo_nome}`} aoFechar={aoFechar}>
       {doc.pendencias.length > 0 ? (
         <div className="alerta-info">Para emitir, falta preencher {doc.pendencias.join(", ")}.</div>
       ) : (
@@ -358,7 +381,7 @@ function ModalEmitir({ doc, aoFechar, aoEmitir }: { doc: Doc; aoFechar: () => vo
           <li>O texto fica travado. Para corrigir depois, cancele e faça um novo a partir dele.</li>
           <li>Ganha um código de verificação e um QR code no rodapé.</li>
           {doc.forma_assinatura === "GOVBR" && <li>O PDF fica guardado e pronto para ser assinado no GOV.BR.</li>}
-          {oficio && doc.registrar_no_planner && <li>Entra no Planner de Ofícios como pendente de resposta, com o PDF ligado a ele.</li>}
+          {doc.integra_planner && doc.registrar_no_planner && <li>Entra no Planner de Ofícios como pendente de resposta, com o PDF ligado a ele.</li>}
         </ul>
       )}
       {emitir.isError && <div className="alerta-erro">{emitir.error.message}</div>}
@@ -398,6 +421,16 @@ function Visao({ doc }: { doc: Doc }) {
     onSuccess: (d) => { qc.invalidateQueries({ queryKey: ["documentos"] }); navegar(`/documentos/${d.id}`); },
     onError: (e) => avisar(e.message, "erro"),
   });
+  const concluir = useMutation({
+    mutationFn: () => concluirDocumento(doc.id),
+    onSuccess: (d) => { atualizar(d); avisar(`${d.titulo} concluído.`); },
+    onError: (e) => avisar(e.message, "erro"),
+  });
+  const reabrir = useMutation({
+    mutationFn: () => reabrirDocumento(doc.id),
+    onSuccess: (d) => { atualizar(d); avisar(`${d.titulo} reaberto.`); },
+    onError: (e) => avisar(e.message, "erro"),
+  });
   const feitas = new Map(doc.assinaturas.map((a) => [a.papel, a]));
   const blocos: { papel: PapelAssinatura; nome: string; cargo: string | null }[] = [
     { papel: "ELABORADOR", nome: doc.elaborador_nome, cargo: doc.elaborador_cargo },
@@ -409,12 +442,22 @@ function Visao({ doc }: { doc: Doc }) {
       <header className="pagina-topo">
         <div>
           <Link to="/documentos" className="voltar"><ArrowLeft size={16} /> Documentos</Link>
-          <h1>{doc.titulo} <SeloDocumento status={doc.status} /></h1>
+          <h1>{doc.titulo} <SeloEtapa etapa={doc.etapa} /></h1>
           <p className="texto-suave">{doc.assunto}</p>
         </div>
         <div className="grupo">
           {doc.assinar_como && doc.forma_assinatura === "APP" && (
             <button className="btn btn-primario" onClick={() => setAssinando(true)}><Signature size={18} /> Assinar no app</button>
+          )}
+          {doc.pode_concluir && (
+            <Botao className="btn btn-secundario" carregando={concluir.isPending} onClick={() => concluir.mutate()}>
+              <CircleCheckBig size={16} /> Concluir
+            </Botao>
+          )}
+          {doc.pode_reabrir && (
+            <Botao className="btn btn-fantasma" carregando={reabrir.isPending} onClick={() => reabrir.mutate()}>
+              <RotateCcw size={16} /> Reabrir
+            </Botao>
           )}
           <Botao className="btn btn-secundario" carregando={baixar.isPending} onClick={() => baixar.mutate()}><Download size={16} /> Baixar PDF</Botao>
           <button className="btn btn-secundario" onClick={() => abrirEmNovaAba(() => pdfDocumento(doc.id)).catch((e) => avisar(e.message, "erro"))}>
@@ -447,18 +490,29 @@ function Visao({ doc }: { doc: Doc }) {
           <section className="cartao">
             <h2 className="titulo-secao">Dados</h2>
             <dl className="dados-documento">
-              <dt>Tipo</dt><dd>{NOME_TIPO_DOC[doc.tipo]}</dd>
+              <dt>Modelo</dt><dd>{doc.tipo_nome}</dd>
               <dt>Data</dt><dd>{doc.data_documento ? data(doc.data_documento) : "—"}</dd>
-              <dt>{doc.tipo === "OFICIO" ? "Destinatário" : "De → Para"}</dt>
-              <dd>{doc.tipo === "OFICIO" ? [doc.dest_nome, doc.dest_cargo].filter(Boolean).join(" · ") : `${doc.de ?? "—"} → ${doc.para ?? "—"}`}</dd>
+              {doc.modelo.estrutura === "EXTERNO" && (
+                <><dt>Destinatário</dt><dd>{[doc.dest_nome, doc.dest_cargo].filter(Boolean).join(" · ")}</dd></>
+              )}
+              {doc.modelo.estrutura === "INTERNO" && <><dt>De → Para</dt><dd>{`${doc.de ?? "—"} → ${doc.para ?? "—"}`}</dd></>}
               {doc.codigo && (<><dt>Código de verificação</dt><dd><strong className="codigo-verificacao">{doc.codigo}</strong>{" "}
                 <Link to={`/verificar/${doc.codigo}`} target="_blank" className="link">conferir</Link></dd></>)}
               {doc.emitido_em && (<><dt>Emitido em</dt><dd>{dataHora(doc.emitido_em)}</dd></>)}
+              {doc.concluido_em && (<><dt>Concluído em</dt><dd>{dataHora(doc.concluido_em)}
+                {doc.concluido_por_nome ? ` por ${doc.concluido_por_nome}` : ""}</dd></>)}
               {doc.oficio_id && (<><dt>No Planner</dt><dd>{usaPlanner
                 ? <Link className="link-forte" to={`/oficios/${doc.oficio_id}`}>Abrir o ofício e acompanhar os prazos</Link>
                 : "Registrado no Planner de Ofícios"}</dd></>)}
             </dl>
+            {doc.pode_concluir && (
+              <p className="texto-suave">
+                Quando o documento já tiver sido assinado (à mão ou eletronicamente) e entregue, ou o assunto estiver
+                resolvido, use <strong>Concluir</strong>: ele sai das pendências e o prazo para de contar.
+              </p>
+            )}
           </section>
+          <CartaoOrganizacao doc={doc} aoMudar={atualizar} />
           <section className="cartao">
             <h2 className="titulo-secao">Assinaturas</h2>
             <ul className="lista-assinaturas">

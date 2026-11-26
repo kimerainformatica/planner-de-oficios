@@ -146,7 +146,7 @@ def test_oficio_assinado_pelos_dois(api, ana, bruno, master, govbr):
     assert [(a["papel"], a["forma"], a["cert_nome"]) for a in feito["assinaturas"]] == [("ELABORADOR", "GOVBR", "ANA")]
     assert feito["assinaturas"][0]["cert_emissor"] == "AC Final GOV.BR de teste"
     assert feito["tem_assinado"] and feito["pode_enviar_assinado"] and feito["assinar_como"] is None
-    assert api.get("/api/documentos/resumo", headers=bruno).json() == {"para_assinar": 1}
+    assert api.get("/api/documentos/resumo", headers=bruno).json()["para_assinar"] == 1
 
     # o De acordo é assinado em cima da versão da Ana
     com_ana = _pdf(api, doc, bruno)
@@ -304,3 +304,20 @@ def test_cadeia_do_govbr_que_vai_com_o_sistema():
     assert {n: c.fingerprint(hashes.SHA256()).hex() for n, c in certs.items()} == esperado
     certs["3-final.pem"].verify_directly_issued_by(certs["2-intermediaria.pem"])
     certs["2-intermediaria.pem"].verify_directly_issued_by(certs["1-raiz.pem"])
+
+
+def test_memorando_pode_ser_assinado_pelo_govbr(api, ana, govbr):
+    """A forma de assinatura é de cada documento: o modelo só sugere (o memorando sugere o app)."""
+    memo = api.post("/api/documentos", json={"tipo": "MEMORANDO"}, headers=ana).json()
+    r = api.patch(f"/api/documentos/{memo['id']}", headers=ana, json={
+        "assunto": "Escala", "corpo": "Texto.", "de": "Gerência", "para": "RH", "elaborador_cargo": "Gerente",
+        "forma_assinatura": "GOVBR"})
+    assert r.json()["forma_assinatura"] == "GOVBR"
+    memo = api.post(f"/api/documentos/{memo['id']}/emitir", headers=ana).json()
+    assert memo["pode_enviar_assinado"] and memo["etapa"] == "AGUARDANDO"
+    assert api.post(f"/api/documentos/{memo['id']}/assinar", json={"senha": "senha-ana"}, headers=ana).status_code == 409
+    r = _enviar(api, memo, _assinar(_pdf(api, memo, ana), govbr.assinante("ANA")), ana)
+    assert r.status_code == 200, r.text
+    assert r.json()["etapa"] == "ASSINADO" and r.json()["assinaturas"][0]["forma"] == "GOVBR"
+    # emitido, a forma não muda mais
+    assert api.patch(f"/api/documentos/{memo['id']}", json={"forma_assinatura": "APP"}, headers=ana).status_code == 409

@@ -36,7 +36,7 @@ flowchart LR
 | `schemas.py` | Entrada e saída da API (Pydantic v2) |
 | `seguranca.py` | Hash de senha (PBKDF2-SHA256, 600 mil iterações) e JWT (HS256) |
 | `deps.py` | Dependências: sessão do banco, usuário atual (valida o token e a `sessao_versao`), exigência de admin ou master |
-| `routers/` | Uma rota por assunto: `auth`, `usuarios`, `oficios`, `anexos`, `lixeira` (com a verificação), `tipos`, `dashboard`, `feriados`, `exclusoes`, `auditoria`, `manutencao`, `preventivas`, `documentos` (com a verificação pública em `/api/publico`) |
+| `routers/` | Uma rota por assunto: `auth`, `usuarios`, `oficios`, `anexos`, `lixeira` (com a verificação), `tipos`, `dashboard`, `feriados`, `exclusoes`, `auditoria`, `manutencao`, `preventivas`, `documentos_modelos` (modelos e pastas), `documentos` (com a verificação pública em `/api/publico`) |
 | `services/` | Regras de negócio, sem HTTP (veja abaixo) |
 
 ### Serviços
@@ -57,7 +57,8 @@ flowchart LR
 | `manutencao.py` | Helpdesk: papéis (operacional, técnico, admin), visibilidade por empresa, transições do chamado e situação do prazo |
 | `relatorio_tecnico.py` | PDF do relatório técnico (ReportLab) |
 | `preventivas.py` | Datas dos planos de preventiva, situação de cada uma e avisos internos |
-| `documentos.py` | Documentos: numeração (continua a do Planner no ofício), hash do conteúdo, código de verificação, permissões e o PDF no modelo da unidade (ReportLab, com timbrado, Arial/Times New Roman e QR code) |
+| `documentos.py` | Documentos: numeração (continua a do Planner no ofício), hash do conteúdo, código de verificação, permissões, etapas e prazos, e o PDF no modelo da unidade (ReportLab, com timbrado, Arial/Times New Roman e QR code), montado pela estrutura do modelo (externo, interno ou simples) |
+| `modelos_documento.py` | Modelos de documento: o ofício e o memorando da instalação, o formato copiado para o documento na emissão e a validação ao criar |
 | `assinatura_govbr.py` | Confere os PDFs assinados no GOV.BR (pyHanko): mesmo documento, assinatura íntegra e certificado da cadeia em `backend/certificados/`, sem internet |
 
 ## Módulos
@@ -217,6 +218,7 @@ Decisões importantes:
 | 0017 | Documentos: `documentos` (ofícios e memorandos redigidos no app) e `documento_assinaturas`; `usuarios.cargo` e `usuarios.matricula` |
 | 0018 | Módulo `DOCUMENTOS` (acesso próprio) e `documentos.registrar_no_planner` (integração com o Planner) |
 | 0019 | Assinatura GOV.BR: `documentos.forma_assinatura` e arquivos guardados, dados do certificado em `documento_assinaturas` e `usuarios.cpf` |
+| 0020 | Planner de documentos: `modelos_documento` e `pastas_documento`; `documentos.tipo` passa a ser o código do modelo; `formato`, `pasta_id`, `prazo`, `concluido_em` e `concluido_por_id` |
 
 ## Segurança
 

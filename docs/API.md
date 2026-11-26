@@ -158,17 +158,25 @@ ao Planner na emissão (só para quem usa o Planner).
 
 | Método | Rota | Quem | O que faz |
 |---|---|---|---|
-| GET | `/api/documentos` | todos | Lista (`escopo` = `todos`, `meus` ou `assinar`; `tipo`, `status`, `busca`, `pagina`) |
-| GET | `/api/documentos/resumo` | todos | Quantos documentos aguardam a assinatura de quem consulta |
+| GET | `/api/documentos` | todos | Lista (`escopo` = `todos`, `meus` ou `assinar`; `tipo` = código do modelo, `status`, `etapa`, `pasta_id` (0: sem pasta), `prazo` = `com_prazo`, `alerta` ou `atrasados`, `busca`, `ordem` = `recentes` ou `prazo`, `pagina`) |
+| GET | `/api/documentos/quadro` | todos | As cinco etapas (rascunho, aguardando assinatura, assinado, concluído, cancelado) com o total e os primeiros de cada uma; os mesmos filtros da lista |
+| GET | `/api/documentos/resumo` | todos | Contadores do menu: aguardando a assinatura de quem consulta e prazos vencidos ou vencendo |
 | GET | `/api/documentos/assinantes` | todos | Usuários que podem dar o De acordo (com cargo e matrícula) |
-| POST | `/api/documentos` | todos | Começa um rascunho (`tipo` = `OFICIO` ou `MEMORANDO`) |
+| POST | `/api/documentos` | todos | Começa um rascunho do modelo (`tipo` = código do modelo ativo; `pasta_id` e `prazo` opcionais), com os textos do modelo |
 | GET · PATCH · DELETE | `/api/documentos/{id}` | quem vê · quem elaborou | Detalhe; salva o rascunho; descarta o rascunho |
 | GET | `/api/documentos/{id}/pdf` | quem vê | PDF no modelo da unidade; no ofício emitido, o arquivo guardado, com as assinaturas GOV.BR (`bruto=true`: octet-stream; `assinado=true`: o assinado, mesmo cancelado) |
 | POST | `/api/documentos/{id}/emitir` | quem elaborou | Número, data, código e hash; o ofício é cadastrado no Planner (`422` com o que falta) |
-| POST | `/api/documentos/{id}/assinar` | quem elaborou · De acordo | Assinatura no app (`senha`), só no memorando; `400` senha incorreta, `409` nada a assinar |
-| POST | `/api/documentos/{id}/assinado` | quem elaborou · De acordo · admin | Ofício: PDF assinado no GOV.BR (campo `arquivo`). Confere o documento, o certificado e a pessoa; `422` com o motivo da recusa |
+| POST | `/api/documentos/{id}/assinar` | quem elaborou · De acordo | Assinatura no app (`senha`), nos documentos com essa forma; `400` senha incorreta, `409` nada a assinar |
+| POST | `/api/documentos/{id}/assinado` | quem elaborou · De acordo · admin | Documento com assinatura GOV.BR: PDF assinado (campo `arquivo`). Confere o documento, o certificado e a pessoa; `422` com o motivo da recusa |
 | POST | `/api/documentos/{id}/cancelar` | quem elaborou · admin | Cancela o emitido (`motivo`) |
-| POST | `/api/documentos/{id}/duplicar` | quem vê | Novo rascunho com o mesmo texto |
+| POST | `/api/documentos/{id}/duplicar` | quem vê | Novo rascunho com o mesmo texto, a mesma forma de assinatura e a mesma pasta |
+| PATCH | `/api/documentos/{id}/organizacao` | quem elaborou · admin | Pasta (`pasta_id`) e prazo (`prazo`), em qualquer etapa; null tira |
+| POST | `/api/documentos/{id}/concluir` · `/reabrir` | quem elaborou · admin | Conclui o emitido (o prazo para e ele sai de *Para assinar*) ou desfaz |
+| GET · POST | `/api/documentos/modelos` | todos · admin | Modelos (os ativos; o admin vê todos, com `em_uso`); cadastra (`nome`, `estrutura` = `EXTERNO`, `INTERNO` ou `SIMPLES`, `digitos`, `recuo_cm`, `forma_assinatura`, `mostrar_assunto`, `data_no_fim`, `rotulo_ident`, `vocativo`, `fecho`, `texto_modelo`) |
+| POST | `/api/documentos/modelos/previa` | admin | PDF de exemplo do modelo, sem salvar |
+| PATCH · DELETE | `/api/documentos/modelos/{codigo}` | admin | Altera (no ofício e no memorando, estrutura e numeração fixas; `422`); apaga só o nunca usado (`409`) |
+| GET · POST | `/api/documentos/pastas` | todos · admin | Pastas (com quantos documentos cada uma tem, dos que quem consulta vê); cria (`nome`, `descricao`) |
+| PATCH · DELETE | `/api/documentos/pastas/{id}` | admin | Renomeia, descreve, desativa (`ativo`); apaga (os documentos ficam sem pasta) |
 | GET | `/api/documentos/timbrado` | todos | Se há cabeçalho e marca-d'água, e a cidade/UF da data |
 | GET · PUT · DELETE | `/api/documentos/timbrado/{cabecalho\|fundo}` | todos · admin · admin | Imagem; envia (PNG/JPG, até 5 MB, campo `arquivo`); remove |
 | GET | `/api/oficios/{id}/documento/pdf` | quem vê o ofício no Planner | PDF do documento que gerou o ofício (não exige o módulo Documentos) |

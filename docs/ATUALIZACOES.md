@@ -4,12 +4,70 @@ O que mudou em cada versão, da mais nova para a mais antiga, e o que fazer no s
 
 | Versão | Data | Ramo | Resumo |
 |---|---|---|---|
+| 2.4 | 25/11/2026 | `feature/2.4-planner-de-documentos` | Planner de documentos: modelos da instituição, assinatura escolhida em cada documento, pastas, prazos com alerta, etapas e quadro |
 | 2.3 | 20/11/2026 | `feature/2.3-controle-de-tetos` | Módulo Documentos: ofícios e memorandos no modelo da unidade, com assinatura no app (memorandos) e pelo GOV.BR (ofícios), verificação e integração ao Planner |
 | 2.2 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Prazos em dias e horas corridas; seção Diagnóstico técnico, com relatório externo e do sistema interligados e editáveis |
 | 2.1 | 14/11/2026 | `feature/2.2-preventivas-prazos-diagnostico` | Manutenção preventiva com ateste, avisos internos e nome da unidade |
 | 2.0 | 13/11/2026 | `feature/modulos-manutencao-clinica` | Módulos, Manutenção Clínica (helpdesk) e solicitação de peças integrada ao Planner |
 | 1.1 | 04/11/2026 | `main` | Documentação dos recursos de servidor e do custo de cada visual |
 | 1.0 | 26/10/2026 | `main` | Planner de Ofícios: sistema, testes e documentação |
+
+## 2.4 · Planner de documentos
+
+### O que mudou
+
+- **Modelos de documento da instituição:** em **Modelos de documento** (administrador do módulo) se cadastram os
+  modelos que a instituição já usa: declaração, relatório, ata, termo, circular… Cada um define o cabeçalho (*externo*,
+  como o ofício; *interno*, como o memorando; ou *simples*, só com o título), a numeração (01/2026, 001/2026…), o recuo,
+  se imprime o assunto, se a data vai no fim, o rótulo da matrícula, o vocativo, o fecho, o texto com que o rascunho
+  começa e a assinatura sugerida. *Ver exemplo em PDF* mostra o modelo antes de salvar. O ofício e o memorando viram os
+  dois primeiros modelos, com a estrutura e a numeração de sempre.
+- **Novo documento:** escolhe-se o modelo, e o rascunho já vem com o texto dele. No texto, uma linha que começa com
+  `# ` vira título de seção e com `- `, item de lista.
+- **Assinatura escolhida em cada documento:** no rascunho, *No app, com a senha* ou *No GOV.BR*; o modelo só sugere.
+  Um memorando pode ser assinado pelo GOV.BR (e um ofício, no app).
+- **Pastas:** o administrador cria as pastas; quem elaborou (ou o administrador) põe o documento numa pasta a qualquer
+  momento. A lista e o quadro filtram por pasta.
+- **Prazos com alerta:** cada documento pode ter uma data-limite, que conta até ele ser concluído: *Vence em N dias*,
+  *Vence hoje*, *Atrasado*. Fica em atenção a partir de 3 dias antes (`DOCUMENTOS_DIAS_ATENCAO`). O menu ganha
+  **Prazos**, com o número de documentos seus vencidos ou vencendo.
+- **Etapas e quadro:** *Rascunho → Aguardando assinatura → Assinado → Concluído* (ou *Cancelado*). A lista ganha
+  filtros por modelo, pasta, etapa e prazo e a ordem pelo prazo; o **Quadro** mostra as etapas lado a lado.
+- **Concluir:** quando o documento foi assinado (à mão ou eletronicamente) e entregue, ou o assunto foi resolvido,
+  *Concluir* tira o documento das pendências (inclusive de *Para assinar*) e para o prazo. *Reabrir* desfaz.
+- **Os emitidos não mudam:** a emissão guarda o formato do modelo; mudar o modelo depois só vale para os documentos
+  novos. Os emitidos antes da 2.4 continuam exatamente como saíram.
+- **Correções:** as abas *Todos / Elaborados por mim / Para assinar* da lista ficavam desalinhadas; no tema escuro, um
+  seletor desabilitado repetia a seta.
+
+### Banco de dados
+
+| Migração | O que faz |
+|---|---|
+| `0020_planner_de_documentos` | Cria `modelos_documento` (com o ofício e o memorando) e `pastas_documento`. Em `documentos`, o `tipo` passa a ser o código do modelo e entram `formato`, `pasta_id`, `prazo`, `concluido_em` e `concluido_por_id`. Os emitidos guardam o formato em que saíram |
+
+Ensaiada num MySQL separado com uma cópia do banco do servidor: subida, volta e subida de novo, com todos os documentos
+lidos, o PDF gerado e o hash da emissão conferido. Voltar para a 0019 só é possível sem documentos de outros modelos.
+
+### Como aplicar no servidor
+
+1. Faça o **backup do banco** e da pasta `storage`.
+2. Troque para o ramo `feature/2.4-planner-de-documentos` e rode `alembic upgrade head` em `backend`. Confira com
+   `alembic current`: deve mostrar `0020 (head)`. Não há bibliotecas novas.
+3. Opcional: `DOCUMENTOS_DIAS_ATENCAO` no `backend/.env` (padrão 3).
+4. Gere as telas (`npm run build` em `frontend`) e reinicie o sistema.
+5. Como administrador do módulo, cadastre os modelos da instituição em **Modelos de documento** (confira cada um em
+   *Ver exemplo em PDF*) e as pastas em **Pastas**.
+
+### Testes
+
+- **API:** 147 testes passando. Os 7 novos cobrem os modelos (cadastro só pelo administrador; ofício e memorando fixos;
+  desativar e apagar), um documento de modelo novo do rascunho à emissão (texto do modelo, cabeçalho simples, data no
+  fim, sem a linha do assunto), o formato guardado na emissão, o ofício e o memorando saindo como antes, a marcação de
+  seções e listas, as pastas, os prazos, as etapas, o quadro, concluir e reabrir, e o memorando assinado pelo GOV.BR.
+- **Front-end:** checagem de tipos e `npm run build` sem erros. Telas conferidas no navegador com dados de
+  demonstração (lista, quadro, novo documento, modelo com prévia, rascunho, emitido, pastas e o celular no tema
+  escuro), e os PDFs de uma declaração e de um relatório.
 
 ## 2.3 · Módulo Documentos (ofícios e memorandos)
 

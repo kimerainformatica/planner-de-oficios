@@ -31,7 +31,7 @@ npm run typecheck                           # TypeScript
 
 | Suíte | Onde | O que cobre | Banco |
 |---|---|---|---|
-| API (140 testes) | `backend/tests/` | Prazos, transições de status, entrega, correções, perfis e módulos, exclusões, auditoria, anexos e lixeira, verificação, tipos, bloqueio de login, sessões, painel e exportação; Manutenções Integradas (chamados, diagnóstico, preventivas) e Documentos (emissão, assinatura, verificação) | SQLite em memória |
+| API (147 testes) | `backend/tests/` | Prazos, transições de status, entrega, correções, perfis e módulos, exclusões, auditoria, anexos e lixeira, verificação, tipos, bloqueio de login, sessões, painel e exportação; Manutenções Integradas (chamados, diagnóstico, preventivas) e Documentos (modelos, emissão, assinatura, verificação, pastas, prazos e quadro) | SQLite em memória |
 | Telas (9 fluxos) | `backend/tests_e2e/` | Login e tema; abas do painel; cadastro com sugestão de setor, resposta e entrega; lixeira; verificação; tipos; bloqueio de login; troca de senha encerrando a sessão; celular sem rolagem lateral | SQLite temporário, com o sistema real rodando numa porta livre |
 
 - Os testes de tela usam o **Microsoft Edge** instalado (`channel="msedge"`), sem baixar navegadores. Use
